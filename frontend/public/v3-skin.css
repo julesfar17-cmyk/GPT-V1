@@ -54,14 +54,14 @@ select{background:var(--void)}
 select option{background:var(--void);color:var(--frost)}
 
 /* ---------- Curseurs de valeur ---------- */
-input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:22px}
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:18px}
 input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--hair-2)}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;margin-top:-6px;
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;margin-top:-4px;
   border-radius:var(--pill);background:var(--frost);border:none;transition:transform .15s var(--ease),background .15s}
-input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15)}
-input[type=range]:active::-webkit-slider-thumb{transform:scale(1.28);background:var(--crimson)}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.12)}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25);background:var(--crimson)}
 input[type=range]::-moz-range-track{height:1px;background:var(--hair-2)}
-input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:var(--pill);background:var(--frost);border:none}
+input[type=range]::-moz-range-thumb{width:9px;height:9px;border-radius:var(--pill);background:var(--frost);border:none}
 input[type=range]:active::-moz-range-thumb{background:var(--crimson)}
 
 /* ---------- En-tête ---------- */

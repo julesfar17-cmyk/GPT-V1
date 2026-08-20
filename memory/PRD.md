@@ -749,3 +749,4 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Photo 1 : #fsBtn (Plein écran) passé en pilule v3 (fond void, bordure hair-2). Photo 2 : halo radial du .canvas-wrap supprimé → fond plat var(--lift). Photo 3 : input[type=range] max-width calc(100%-12px) → le pouce ne sort plus de sa case (vérifié par mesure DOM).
 - ✅ Bouton ADMIN « Revoir tuto » (header studio, role==='admin' uniquement, data-testid=admin-replay-tuto-btn) : relance le questionnaire d'entrée (showOnboarding) + efface bc_mobtuto_done → tutoriels remontrés. Vérifié en screenshot avec le compte admin.
 - Auto-testé par screenshots + mesures DOM (petits changements CSS/JS ciblés).
+- 20 août soir : pouce des input[type=range] réduit 13px→9px (grossissait trop dans la fenêtre, mode clair) — vérifié screenshot.
