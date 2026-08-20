@@ -5,8 +5,8 @@
    ombres disparaissent, Space Grotesk remplace Inter/Bricolage.
 ============================================================ */
 :root{
-  --void:#000000; --ash:#cccccc; --frost:#ffffff; --graphite:#4c4c4c;
-  --crimson:#fc1c46; --hair:#171717; --hair-2:#2a2a2a; --lift:#0a0a0b;
+  --void:#000000; --ash:#d9d9d9; --frost:#ffffff; --graphite:#7a7a7a;
+  --crimson:#fc1c46; --hair:#1d1d1f; --hair-2:#3a3a3e; --lift:#0e0e10;
   --pill:9999px; --ease:cubic-bezier(.2,.7,.2,1);
   /* remap des jetons V2 → V3 */
   --ink:var(--void); --panel:var(--void); --panel-2:var(--lift);
@@ -189,6 +189,13 @@ body.editing header{display:none}
 .tl-lab{text-transform:uppercase;letter-spacing:.1em;font-size:10px;color:var(--graphite)}
 .plan{border-radius:0}
 .track{border-radius:0}
+
+/* ---------- Aperçu : fond plat (fini le halo radial, surtout en clair) ---------- */
+.canvas-wrap{background:var(--lift)!important}
+#fsBtn{background:var(--void)!important;border:1px solid var(--hair-2)!important;color:var(--frost)!important;
+  border-radius:var(--pill);text-transform:uppercase;font-size:11px;letter-spacing:.04em}
+/* le pouce du curseur de valeur ne doit jamais sortir de sa case */
+input[type=range]{max-width:calc(100% - 12px);margin-left:2px}
 
 /* ---------- Transport ---------- */
 .play-btn{border-radius:var(--pill);background:var(--void);border:1px solid var(--hair-2);color:var(--frost);

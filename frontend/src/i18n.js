@@ -9,7 +9,7 @@ const T = {
     "nav.how": "Comment ça marche",
     "nav.pricing": "Tarifs",
     "nav.login": "Se connecter",
-    "nav.register": "Essayer 7 jours offerts",
+    "nav.register": "Essayer 3 jours offerts",
     "nav.account": "Mon compte",
     "nav.openStudio": "Ouvrir le studio",
     "nav.logout": "Se déconnecter",
@@ -18,9 +18,9 @@ const T = {
     "hero.title2": "sur le beat.",
     "hero.title3": "En 60 secondes.",
     "hero.desc": "Dépose ton track, ajoute tes clips : BEATCUT détecte le BPM, coupe tes plans sur les temps, cale tes paroles à la milliseconde et exporte une vidéo 9:16 prête pour TikTok. Aucun logiciel à installer.",
-    "hero.cta": "Essayer 7 jours offerts",
+    "hero.cta": "Essayer 3 jours offerts",
     "hero.seePricing": "Voir les tarifs",
-    "hero.note": "7 JOURS D'ESSAI OFFERTS SUR LE PLAN PRO • ANNULABLE EN 2 CLICS",
+    "hero.note": "3 JOURS D'ESSAI OFFERTS SUR LE PLAN PRO • ANNULABLE EN 2 CLICS",
     "pricing.tag": "[ TARIFS ]",
     "pricing.title": "Simple. Sans engagement.",
     "pricing.note": "Désabonnement en 1 clic depuis ton compte, à tout moment.",
@@ -29,7 +29,7 @@ const T = {
     "pricing.yearlyBadge": "2 mois offerts",
     "pricing.free": "GRATUIT",
     "pricing.freeNote": "/ pour toujours",
-    "pricing.freeCta": "Essayer 7 jours offerts",
+    "pricing.freeCta": "Essayer 3 jours offerts",
     "pricing.proCta": "Passer en PRO",
     "pricing.proCtaYear": "Prendre l'année — 149 €/an",
     "pricing.recommended": "RECOMMANDÉ",
@@ -47,7 +47,7 @@ const T = {
     "nav.how": "How it works",
     "nav.pricing": "Pricing",
     "nav.login": "Sign in",
-    "nav.register": "Try 7 days free",
+    "nav.register": "Try 3 days free",
     "nav.account": "Account",
     "nav.openStudio": "Open studio",
     "nav.logout": "Sign out",
@@ -56,9 +56,9 @@ const T = {
     "hero.title2": "to the beat.",
     "hero.title3": "In 60 seconds.",
     "hero.desc": "Drop your track, add your clips: BEATCUT detects the BPM, cuts your shots on every beat, syncs your lyrics to the millisecond and exports a 9:16 video ready for TikTok. No software needed.",
-    "hero.cta": "Try 7 days free",
+    "hero.cta": "Try 3 days free",
     "hero.seePricing": "See pricing",
-    "hero.note": "7-DAY FREE TRIAL ON THE PRO PLAN • CANCEL IN 2 CLICKS",
+    "hero.note": "3-DAY FREE TRIAL ON THE PRO PLAN • CANCEL IN 2 CLICKS",
     "pricing.tag": "[ PRICING ]",
     "pricing.title": "Simple. No commitment.",
     "pricing.note": "Cancel in 1 click from your account, anytime.",
@@ -67,7 +67,7 @@ const T = {
     "pricing.yearlyBadge": "2 months free",
     "pricing.free": "FREE",
     "pricing.freeNote": "/ forever",
-    "pricing.freeCta": "Try 7 days free",
+    "pricing.freeCta": "Try 3 days free",
     "pricing.proCta": "Go PRO",
     "pricing.proCtaYear": "Go PRO — €99/year",
     "pricing.recommended": "RECOMMENDED",
@@ -92,7 +92,7 @@ export function I18nProvider({ children }) {
     } catch {
       /* ignore */
     }
-    return "fr";   // FR par défaut — l'utilisateur bascule en EN via le toggle nav
+    return (navigator.language || "").toLowerCase().startsWith("fr") ? "fr" : "en";   // langue du navigateur par défaut
   });
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, lang); } catch {}

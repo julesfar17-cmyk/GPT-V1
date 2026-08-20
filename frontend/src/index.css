@@ -91,23 +91,23 @@ html {
     :root {
         /* void #000 · ash #ccc · frost #fff · graphite #4c4c4c · crimson #fc1c46 · hair #171717 · hair-2 #2a2a2a */
         --background: 0 0% 0%;
-        --foreground: 0 0% 80%;
+        --foreground: 0 0% 85%;
         --card: 0 0% 0%;
-        --card-foreground: 0 0% 80%;
-        --popover: 0 0% 2%;
-        --popover-foreground: 0 0% 80%;
+        --card-foreground: 0 0% 85%;
+        --popover: 0 0% 3%;
+        --popover-foreground: 0 0% 85%;
         --primary: 349 97% 55%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 240 5% 4%;
+        --secondary: 240 4% 6%;
         --secondary-foreground: 0 0% 100%;
-        --muted: 240 5% 4%;
-        --muted-foreground: 0 0% 30%;
-        --accent: 240 5% 4%;
+        --muted: 240 4% 6%;
+        --muted-foreground: 0 0% 48%;
+        --accent: 240 4% 6%;
         --accent-foreground: 0 0% 100%;
         --destructive: 349 97% 55%;
         --destructive-foreground: 0 0% 100%;
-        --border: 0 0% 9%;
-        --input: 0 0% 16%;
+        --border: 0 0% 12%;
+        --input: 0 0% 23%;
         --ring: 349 97% 55%;
         --chart-1: 349 97% 55%;
         --chart-2: 0 0% 80%;

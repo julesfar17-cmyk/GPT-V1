@@ -4620,6 +4620,29 @@ $('#avatar').style.cursor='pointer';
 $('#avatar').title='Mon compte';
 $('#avatar').onclick=()=>{ window.top.location.href='/dashboard'; };
 
+/* Admin uniquement : revoir le questionnaire d'entrée + les tutoriels */
+function adminReplayOnboarding(){
+  try{ localStorage.removeItem('bc_mobtuto_done'); localStorage.removeItem('bc_tuto_done'); }catch(e){}
+  API.onboardingDone=false;
+  showOnboarding();
+  toast('Questionnaire relancé — les tutoriels se remontreront à l\u2019ouverture d\u2019un morceau');
+}
+(function waitAdmin(n){
+  if(API.user){ 
+    if(API.user.role==='admin'){
+      const b=document.createElement('button');
+      b.className='small'; b.id='adminReplayBtn'; b.textContent='Revoir tuto';
+      b.title='Admin : relancer le questionnaire et les tutoriels';
+      b.setAttribute('data-testid','admin-replay-tuto-btn');
+      b.onclick=adminReplayOnboarding;
+      const hr=document.querySelector('.head-right');
+      if(hr) hr.insertBefore(b, hr.firstChild);
+    }
+    return;
+  }
+  if(n<40) setTimeout(()=>waitAdmin(n+1),500);
+})(0);
+
 /* ---------- Banque de clips Pexels (proxy serveur) ---------- */
 $('#bankSearch').addEventListener('keydown', async e=>{
   if(e.key!=='Enter') return;

@@ -742,3 +742,10 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Edit-top mobile : title width fix (débordement réglé), export compact, burger visible.
 - ✅ Landing : eyebrow « Montage vidéo pour la musique » supprimé.
 - Testé testing_agent iteration_28.json : 27/31 (échecs = faux positifs sélecteurs + garde export normale en headless « vidéo pas prête », vérifiée manuellement). ⚠️ À REDÉPLOYER.
+
+## Contraste sombre, langue, fixes mode clair, bouton admin tuto (20 août 2026, soir)
+- ✅ Mode sombre plus contrasté (même DA) : --ash #d9d9d9, --graphite #7a7a7a, --hair #1d1d1f, --hair-2 #3a3a3e (v3-skin.css + index.css HSL + landing.html).
+- ✅ Langue : React i18n default = langue navigateur (navigator.language) — toggle FR/EN déjà présent dans la Navbar (toutes pages app) + studio (langBtn, déjà navigateur par défaut). Textes i18n.js « 7 jours » corrigés → 3 jours. Landing reste FR (statique).
+- ✅ Photo 1 : #fsBtn (Plein écran) passé en pilule v3 (fond void, bordure hair-2). Photo 2 : halo radial du .canvas-wrap supprimé → fond plat var(--lift). Photo 3 : input[type=range] max-width calc(100%-12px) → le pouce ne sort plus de sa case (vérifié par mesure DOM).
+- ✅ Bouton ADMIN « Revoir tuto » (header studio, role==='admin' uniquement, data-testid=admin-replay-tuto-btn) : relance le questionnaire d'entrée (showOnboarding) + efface bc_mobtuto_done → tutoriels remontrés. Vérifié en screenshot avec le compte admin.
+- Auto-testé par screenshots + mesures DOM (petits changements CSS/JS ciblés).
