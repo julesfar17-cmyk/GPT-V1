@@ -76,14 +76,14 @@ html {
         position: fixed; top: 0; left: 0; z-index: 9999; pointer-events: none;
         border-radius: 9999px; mix-blend-mode: difference;
     }
-    .cur { width: 6px; height: 6px; background: #fff; transform: translate(-50%, -50%); }
+    .cur { width: 5px; height: 5px; background: #fff; transform: translate(-50%, -50%); }
     .cur-ring {
-        width: 26px; height: 26px; border: 1px solid #fff;
+        width: 20px; height: 20px; border: 1px solid #fff;
         transition: width .2s cubic-bezier(.2,.7,.2,1), height .2s cubic-bezier(.2,.7,.2,1), opacity .2s;
     }
-    body.hit .cur-ring { width: 44px; height: 44px; }
+    body.hit .cur-ring { width: 32px; height: 32px; }
     body.hit .cur { opacity: 0; }
-    body.down .cur-ring { width: 18px; height: 18px; }
+    body.down .cur-ring { width: 14px; height: 14px; }
     body.no-cur .cur, body.no-cur .cur-ring { display: none; }
 }
 

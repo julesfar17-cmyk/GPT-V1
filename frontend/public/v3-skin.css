@@ -141,9 +141,12 @@ nav a.active::after{right:0}
 .edit-top .title:focus{border-bottom-color:var(--crimson)}
 .savestate{border-radius:var(--pill);text-transform:uppercase;font-size:10.5px;letter-spacing:.1em}
 
-/* ---------- Segments : le bouton actif porte le fond blanc ---------- */
-.seg{border:1px solid var(--hair-2);border-radius:var(--pill);background:transparent;overflow:hidden}
-.seg b,.seg button{border:none;border-radius:var(--pill);background:transparent;color:var(--graphite)}
+/* ---------- Segments : pilules internes, wrap propre, aucun texte coupé ---------- */
+.seg{display:flex;padding:3px;gap:3px;border:1px solid var(--hair-2);border-radius:18px;background:transparent;overflow:visible;flex-wrap:wrap}
+.seg b,.seg button{flex:1 0 auto;height:26px;padding:0 10px;font-size:11px;letter-spacing:.03em;text-transform:uppercase;
+  border:none;border-radius:var(--pill);background:transparent;color:var(--graphite);white-space:nowrap;
+  display:inline-flex;align-items:center;justify-content:center;font-weight:400;line-height:1;min-width:0}
+.seg b:hover,.seg button:hover{color:var(--frost);background:transparent}
 .seg b.on,.seg button.on{background:var(--frost)!important;color:var(--void)!important;border-color:var(--frost)!important}
 
 /* ---------- Éditeur : une seule barre (le header global s'efface) ---------- */
@@ -165,10 +168,14 @@ body.editing header{display:none}
   padding:13px 4px;margin-bottom:-1px;font-weight:400;transition:color .2s,border-color .2s}
 .tabs b:hover{color:var(--ash)}
 .tabs b.on{background:transparent!important;color:var(--frost)!important;border-color:transparent!important;border-bottom-color:var(--crimson)!important}
-.subtabs{border-radius:var(--pill);border:1px solid var(--hair-2);background:transparent}
-.subtabs b{border-radius:var(--pill);color:var(--graphite);background:transparent}
+.subtabs{display:flex;flex-wrap:wrap;padding:3px;gap:3px;border-radius:18px;border:1px solid var(--hair-2);background:transparent}
+.subtabs b{flex:1 0 auto;height:26px;padding:0 10px;font-size:11px;letter-spacing:.03em;text-transform:uppercase;
+  border-radius:var(--pill);color:var(--graphite);background:transparent;display:inline-flex;align-items:center;justify-content:center;line-height:1}
 .subtabs b.on{background:var(--frost)!important;color:var(--void)!important}
 .preset.on{border-color:var(--crimson)}
+/* Les vignettes de style sont des aperçus vidéo : fond sombre conservé même en thème clair */
+.preset{background:#0b0b0c!important;border-color:var(--hair-2)}
+.preset .demo{color:#fff}
 
 /* ---------- Interrupteurs ---------- */
 .sw{border-radius:var(--pill)!important;transition:background .22s var(--ease),border-color .22s}
@@ -184,7 +191,8 @@ body.editing header{display:none}
 .track{border-radius:0}
 
 /* ---------- Transport ---------- */
-.play-btn{border-radius:var(--pill);background:var(--void);border:1px solid var(--hair-2);color:var(--frost)}
+.play-btn{border-radius:var(--pill);background:var(--void);border:1px solid var(--hair-2);color:var(--frost);
+  display:grid;place-items:center;padding:0;line-height:1;font-size:13px}
 .play-btn:hover{border-color:var(--frost)}
 .timecode{font-family:var(--font);font-variant-numeric:tabular-nums;color:var(--frost)}
 .bpm-chip{border-radius:var(--pill)}
@@ -196,9 +204,6 @@ body.editing header{display:none}
 .word-chip,.clip-opt-chip,.dl-btn{border-radius:var(--pill)}
 #toast{border-radius:0;background:var(--void);border:1px solid var(--hair-2);color:var(--frost)}
 .ai-bar{border-radius:0}
-#loadOverlay .box{border-radius:0;background:var(--void);border:1px solid var(--hair-2)}
-#loadOverlay .bar{border-radius:var(--pill)}
-#loadOverlay .bar i{border-radius:var(--pill);background:var(--crimson)}
 .drop{border-style:dashed;border-color:var(--hair-2)}
 .drop:hover{border-color:var(--frost)}
 
@@ -209,14 +214,53 @@ body.editing header{display:none}
 
 @media (prefers-reduced-motion:reduce){.halo::before{animation:none}}
 
+/* ---------- Mobile : menu latéral (3 barres) remplace les barres du bas ---------- */
+.burger{display:none}
+@media (max-width:700px){
+  .burger{display:inline-flex;flex-direction:column;justify-content:center;gap:4px;width:42px;height:42px;
+    padding:0 11px;border:1px solid var(--hair-2);border-radius:var(--pill);background:var(--void);flex-shrink:0}
+  .burger i{display:block;height:1px;background:var(--frost);transition:transform .25s var(--ease),opacity .2s}
+  body.menu-open .burger i:nth-child(1){transform:translateY(5px) rotate(45deg)}
+  body.menu-open .burger i:nth-child(2){opacity:0}
+  body.menu-open .burger i:nth-child(3){transform:translateY(-5px) rotate(-45deg)}
+  #menuScrim{position:fixed;inset:0;z-index:115;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .25s}
+  body.menu-open #menuScrim{opacity:1;pointer-events:auto}
+  body.mob-edit #mobBar,body:not(.mob-edit) #homeTabs{
+    display:flex!important;flex-direction:column;justify-content:flex-start;grid-template-columns:none!important;
+    left:auto!important;right:0!important;top:0!important;bottom:0!important;width:min(76vw,300px);height:auto!important;
+    padding:74px 20px calc(20px + env(safe-area-inset-bottom))!important;gap:2px;
+    background:var(--void)!important;border-top:none!important;border-left:1px solid var(--hair);backdrop-filter:none!important;
+    z-index:120;transform:translateX(105%);transition:transform .28s var(--ease)}
+  body.menu-open #mobBar,body.menu-open #homeTabs{transform:none}
+  #mobBar button,#homeTabs button{flex-direction:row!important;justify-content:flex-start!important;width:100%;
+    min-height:54px!important;padding:0 4px!important;border-bottom:1px solid var(--hair)!important;border-radius:0!important}
+  #mobBar button .lb,#homeTabs button .lb{font-size:14px!important;font-weight:400!important;letter-spacing:.08em;text-transform:uppercase}
+  #mobBar button.on .lb,#homeTabs button.on .lb{color:var(--frost)}
+  .drawer-close{border-bottom:none!important;justify-content:flex-end!important;min-height:40px!important;
+    position:absolute;top:16px;right:14px;width:44px!important;color:var(--graphite)}
+  .drawer-close .lb{font-size:18px!important}
+  /* plus de barre basse : les panneaux et la page récupèrent le bas de l'écran */
+  #pageEdit.show{padding:0!important}
+  .edit-main>.col,#extractZone,#mobMore,#planSheet{bottom:0!important}
+  /* barre éditeur épurée : le burger remplace logo / thème / série */
+  .edit-top .logo,#editThemeBtn,#serieBtn{display:none}
+  .edit-top input.title{width:100%!important;font-size:13px}
+  .edit-top .halo{flex-shrink:0}
+  #exportBtn{padding:8px 13px!important;font-size:11px!important;letter-spacing:.02em}
+}
+
+/* ---------- Tutoriel : spot v3 (exception à l'interdit des ombres : c'est le masque) ---------- */
+#mtSpot{border-radius:0!important;box-shadow:0 0 0 9999px rgba(0,0,0,.82),0 0 0 1px var(--crimson)!important}
+#mtDots i{width:14px!important;height:2px!important;border-radius:0!important}
+
 /* ---------- Curseur point + anneau (desktop uniquement) ---------- */
 @media (hover:hover) and (pointer:fine){
   body{cursor:none}
   a,button,input,label,select,textarea,[data-hit]{cursor:none!important}
   .cur,.cur-ring{position:fixed;top:0;left:0;z-index:9999;pointer-events:none;border-radius:var(--pill);mix-blend-mode:difference}
-  .cur{width:6px;height:6px;background:#fff;transform:translate(-50%,-50%)}
-  .cur-ring{width:26px;height:26px;border:1px solid #fff;transition:width .2s var(--ease),height .2s var(--ease),opacity .2s}
-  body.hit .cur-ring{width:44px;height:44px}
+  .cur{width:5px;height:5px;background:#fff;transform:translate(-50%,-50%)}
+  .cur-ring{width:20px;height:20px;border:1px solid #fff;transition:width .2s var(--ease),height .2s var(--ease),opacity .2s}
+  body.hit .cur-ring{width:32px;height:32px}
   body.hit .cur{opacity:0}
-  body.down .cur-ring{width:18px;height:18px}
+  body.down .cur-ring{width:14px;height:14px}
 }

@@ -47,11 +47,11 @@ button{background:none;border:none;font-family:inherit;color:inherit}
   body{cursor:none}
   a,button,input,label,[data-hit]{cursor:none}
   .cur,.cur-ring{position:fixed;top:0;left:0;z-index:999;pointer-events:none;border-radius:var(--pill);mix-blend-mode:difference}
-  .cur{width:6px;height:6px;background:#fff;transform:translate(-50%,-50%)}
-  .cur-ring{width:28px;height:28px;border:1px solid #fff;transition:width .22s var(--ease),height .22s var(--ease),opacity .22s}
-  body.hit .cur-ring{width:48px;height:48px}
+  .cur{width:5px;height:5px;background:#fff;transform:translate(-50%,-50%)}
+  .cur-ring{width:20px;height:20px;border:1px solid #fff;transition:width .22s var(--ease),height .22s var(--ease),opacity .22s}
+  body.hit .cur-ring{width:32px;height:32px}
   body.hit .cur{opacity:0}
-  body.down .cur-ring{width:20px;height:20px}
+  body.down .cur-ring{width:14px;height:14px}
 }
 
 /* ---------- Boutons ---------- */
@@ -215,7 +215,6 @@ section{padding:var(--s72) 0}
   <section class="hero">
     <div class="wf" id="wf" aria-hidden="true"></div>
     <div class="wrap">
-      <p class="eyebrow">Montage vidéo pour la musique</p>
       <h1 class="display" style="margin-top:var(--s22)">Ton son<br>mérite mieux</h1>
       <p class="lead">L'algorithme classe ta vidéo avant d'écouter ton morceau. BeatCut la monte pour toi : les plans tombent sur le beat, tes paroles s'écrivent à l'écran, le format sort en vertical. Compte trois minutes.</p>
       <div class="acts">

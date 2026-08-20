@@ -180,13 +180,13 @@ nav a.active,nav a:hover{color:var(--text);background:var(--panel-2)}
 .clip-opt{position:absolute;inset:0;z-index:5;display:grid;place-items:center;background:rgba(10,10,14,.62);backdrop-filter:blur(2px);border-radius:inherit;color:#ffd166;font-size:12px;font-weight:600;text-align:center;padding:4px}
 .clip-opt-chip{position:absolute;top:6px;right:6px;z-index:5;pointer-events:none;background:rgba(10,10,14,.82);border:1px solid rgba(255,209,102,.4);color:#ffd166;font-size:10px;font-weight:600;padding:3px 8px;border-radius:99px;white-space:nowrap}
 .clip-fail{pointer-events:auto;cursor:pointer;color:#ff6b6b;border-color:rgba(255,107,107,.55)}
-#loadOverlay{position:fixed;inset:0;z-index:9999;display:none;place-items:center;background:rgba(8,8,12,.82);backdrop-filter:blur(6px)}
+#loadOverlay{position:fixed;inset:0;z-index:9999;display:none;place-items:center;background:rgba(0,0,0,.93)}
 #loadOverlay.show{display:grid}
-#loadOverlay .box{width:min(420px,86vw);text-align:center}
-#loadOverlay .txt{font-size:15px;font-weight:600;margin-bottom:14px}
-#loadOverlay .sub{font-size:12px;opacity:.65;margin-top:10px}
-#loadOverlay .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
-#loadOverlay .bar>i{display:block;height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#7c5cff,#00d4ff);transition:width .25s}
+#loadOverlay .box{width:min(380px,82vw);text-align:left}
+#loadOverlay .txt{font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px}
+#loadOverlay .sub{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.5;margin-top:10px}
+#loadOverlay .bar{height:2px;background:rgba(255,255,255,.14);overflow:hidden}
+#loadOverlay .bar>i{display:block;height:100%;width:0%;background:#fc1c46;transition:width .25s}
 .clip-head{display:flex;align-items:center;gap:6px;font-size:11.5px;margin-bottom:7px}
 .clip-head .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
 .clip-head button{padding:2px 7px;font-size:11px;border-radius:5px}
@@ -537,6 +537,17 @@ function swapTheme(){
 }
 function paintThemeBtn(){const s=document.documentElement.dataset.theme==='dark'?'☀':'☾';['themeBtn','editThemeBtn'].forEach(id=>{const b=document.getElementById(id);if(b)b.textContent=s;});}
 document.addEventListener('DOMContentLoaded',paintThemeBtn);
+/* Menu latéral mobile (3 barres) */
+function toggleMobMenu(force){
+  const on = force!==undefined? !!force : !document.body.classList.contains('menu-open');
+  document.body.classList.toggle('menu-open', on);
+}
+document.addEventListener('DOMContentLoaded',function(){
+  ['mobBar','homeTabs'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener('click',e=>{ if(e.target.closest('button')) toggleMobMenu(false); });
+  });
+});
 /* Curseur V3 : point + anneau, délégation (les éléments du studio sont créés dynamiquement) */
 document.addEventListener('DOMContentLoaded',function(){
   if(!matchMedia('(hover:hover) and (pointer:fine)').matches) return;
@@ -574,6 +585,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <button class="small" id="themeBtn" onclick="swapTheme()" title="Changer de thème" data-testid="theme-toggle-btn">☀</button>
     <div class="counter" title="Exports restants ce mois"><b id="quotaLeft">10</b>/<span id="quotaMax">10</span></div>
     <div class="avatar" id="avatar">?</div>
+    <button class="burger" id="homeBurger" onclick="toggleMobMenu()" aria-label="Menu" data-testid="mobile-home-menu-btn"><i></i><i></i><i></i></button>
   </div>
 </header>
 
@@ -630,9 +642,10 @@ document.addEventListener('DOMContentLoaded',function(){
     <button class="small" id="editThemeBtn" onclick="swapTheme()" title="Changer de thème">☀</button>
     <button class="small ghost" id="undoBtn" onclick="undo()" disabled title="Annuler (Ctrl+Z)">↶ Annuler</button>
     <button class="small" id="backupsBtn" onclick="openBackups()" data-testid="backups-button" title="Historique des versions du morceau">Versions</button>
-    <button class="small" onclick="go('serie')" title="Série de vidéos">Série</button>
+    <button class="small" id="serieBtn" onclick="go('serie')" title="Série de vidéos">Série</button>
     <button class="small mob-tgl" onclick="mobCol('right')" title="Paroles & style">Style</button>
     <span class="halo"><button class="primary" id="exportBtn" onclick="exportVideo()">Exporter la vidéo</button></span>
+    <button class="burger" id="editBurger" onclick="toggleMobMenu()" aria-label="Menu" data-testid="mobile-menu-btn"><i></i><i></i><i></i></button>
   </div>
 
   <div class="edit-main">
@@ -1026,6 +1039,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 <!-- ============ Onglets bas (accueil mobile) ============ -->
 <div id="homeTabs" data-testid="home-tabs">
+  <button class="drawer-close" aria-label="Fermer le menu" data-testid="drawer-close-home"><span class="lb">✕</span></button>
   <button data-ht="accueil" onclick="go('accueil')" data-testid="home-tab-accueil"><span class="lb">Accueil</span></button>
   <button data-ht="morceaux" onclick="go('morceaux')" data-testid="home-tab-morceaux"><span class="lb">Morceaux</span></button>
   <button data-ht="serie" onclick="go('serie')" data-testid="home-tab-serie"><span class="lb">Série</span></button>
@@ -1050,7 +1064,9 @@ document.addEventListener('DOMContentLoaded',function(){
 </div>
 
 <!-- ============ Barre d'outils mobile (façon CapCut) + panneaux coulissants ============ -->
+<div id="menuScrim" onclick="toggleMobMenu(false)"></div>
 <div id="mobBar" data-testid="mobile-toolbar">
+  <button class="drawer-close" aria-label="Fermer le menu" data-testid="drawer-close-edit"><span class="lb">✕</span></button>
   <button data-ms="clips" onclick="mobSheet('clips')" data-testid="mob-tab-clips"><span class="lb">Clips</span></button>
   <button data-ms="extract" onclick="mobSheet('extract')" data-testid="mob-tab-son"><span class="lb">Son</span></button>
   <button data-ms="paroles" onclick="mobSheet('paroles')" data-testid="mob-tab-paroles"><span class="lb">Paroles</span></button>
@@ -4718,13 +4734,10 @@ async function checkPaidReturn(){
 }
 /* ---------- Tutoriel mobile (premier montage) ---------- */
 const MOBTUTO_STEPS=[
- {t:null,h:'Bienvenue dans le studio ',b:'Ton clip se monte ici : aperçu au centre, timeline en bas, et tous les outils sous le pouce. Petit tour en 20 secondes.'},
- {t:'[data-testid=mob-tab-son]',h:'Son — commence ici',b:'Dépose ton morceau : le BPM est détecté automatiquement et tu choisis l\u2019extrait à monter.'},
- {t:'[data-testid=mob-tab-clips]',h:'Clips',b:'Ajoute tes vidéos — elles se placent toutes seules sur la timeline, calées sur le beat.'},
- {t:'[data-testid=mob-tab-paroles]',h:'Paroles',b:'L\u2019IA écrit tes sous-titres synchronisés avec ta voix. Tu corriges un mot en un tap.'},
- {t:'[data-testid=mob-tab-style]',h:'Style',b:'Presets, polices, couleurs, effets VHS / glitch, mise en avant des sous-titres — ta patte visuelle.'},
+ {t:null,h:'Bienvenue dans le studio',b:'Ton clip se monte ici : aperçu au centre, timeline en bas. Petit tour en 20 secondes.'},
+ {t:'#editBurger',h:'Le menu',b:'Tout est là : Son (ton morceau), Clips (tes vidéos), Paroles et Style. Un tap pour ouvrir le panneau, un tap dehors pour le fermer.'},
  {t:'#trPlans',h:'La timeline',b:'Touche un plan pour le remplacer, le découper ou le supprimer. Le trait rouge suit la musique.'},
- {t:'#exportBtn',h:'Exporter',b:'Ta vidéo sort en MP4 prêt pour TikTok, Reels et Shorts. À toi de jouer '},
+ {t:'#exportBtn',h:'Exporter',b:'Ta vidéo sort en MP4 prêt pour TikTok, Reels et Shorts. À toi de jouer.'},
 ];
 const DESKTUTO_STEPS=[
  {t:null,h:'Bienvenue dans le studio ',b:'Clips à gauche, aperçu au centre, paroles & style à droite, timeline en bas. Petit tour en 20 secondes.'},
@@ -4750,15 +4763,15 @@ function showMobTutorial(STEPS){
   let step=0;
   const ov=document.createElement('div'); ov.id='mobTuto'; ov.setAttribute('data-testid','mob-tutorial-overlay');
   ov.style.cssText='position:fixed;inset:0;z-index:300';
-  ov.innerHTML='<div id="mtDim" style="position:fixed;inset:0;background:rgba(8,10,14,.78)"></div>'+
-    '<div id="mtSpot" style="position:fixed;border-radius:14px;box-shadow:0 0 0 9999px rgba(8,10,14,.78),0 0 0 2px rgba(255,69,58,.9),0 0 24px rgba(255,45,85,.5);transition:left .28s,top .28s,width .28s,height .28s;display:none;pointer-events:none"></div>'+
-    '<div id="mtCard" data-testid="mob-tuto-card" style="position:fixed;left:16px;right:16px;background:#151A21;border:1px solid #232B36;border-radius:16px;padding:18px 16px;box-shadow:0 20px 60px rgba(0,0,0,.6)">'+
-      '<h3 id="mtH" style="font-size:16.5px;margin:0 0 6px"></h3>'+
-      '<p id="mtB" style="color:#8B95A3;font-size:13.5px;line-height:1.5;margin:0 0 14px"></p>'+
+  ov.innerHTML='<div id="mtDim" style="position:fixed;inset:0;background:rgba(0,0,0,.82)"></div>'+
+    '<div id="mtSpot" style="position:fixed;transition:left .28s,top .28s,width .28s,height .28s;display:none;pointer-events:none"></div>'+
+    '<div id="mtCard" data-testid="mob-tuto-card" style="position:fixed;left:16px;right:16px;background:#000;border:1px solid #2a2a2a;padding:20px 18px">'+
+      '<h3 id="mtH" style="font-size:15px;margin:0 0 7px;text-transform:uppercase;letter-spacing:-.01em;color:#fff"></h3>'+
+      '<p id="mtB" style="color:#cccccc;font-size:13.5px;line-height:1.55;margin:0 0 16px;text-transform:none"></p>'+
       '<div style="display:flex;align-items:center;gap:8px">'+
         '<div id="mtDots" style="display:flex;gap:5px;flex:1"></div>'+
-        '<button data-testid="mob-tuto-skip" id="mtSkip" style="background:none;border:none;color:#5A6472;font-size:12.5px;text-decoration:underline;min-height:40px;padding:0 6px">Passer</button>'+
-        '<button class="primary" data-testid="mob-tuto-next" id="mtNext" style="padding:10px 18px;border-radius:12px;font-size:14px"></button>'+
+        '<button data-testid="mob-tuto-skip" id="mtSkip" style="background:none;border:none;color:#4c4c4c;font-size:11px;letter-spacing:.08em;text-transform:uppercase;min-height:40px;padding:0 6px">Passer</button>'+
+        '<button data-testid="mob-tuto-next" id="mtNext" style="background:#fc1c46;border:1px solid #fc1c46;color:#fff;padding:10px 22px;border-radius:9999px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;font-weight:500"></button>'+
       '</div></div>';
   document.body.appendChild(ov);
   const spot=ov.querySelector('#mtSpot'),card=ov.querySelector('#mtCard'),dim=ov.querySelector('#mtDim');

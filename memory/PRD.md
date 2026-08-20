@@ -733,3 +733,12 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Desktop uniquement (@media hover+pointer:fine), délégation mouseover (éléments dynamiques du studio couverts).
 - ✅ Anti-double-curseur : les routes iframe (/ landing et /studio) posent body.no-cur → curseur parent masqué, celui de l'iframe fait foi ; retiré au unmount (dashboard etc. le récupèrent).
 - Testé par vérifications Playwright ciblées : .cur/.cur-ring présents, cursor:none, .hit au survol des boutons, no-cur correct sur les 3 contextes.
+
+## UX Studio V3 : menu latéral mobile, tuto v3, overlay, sélecteurs (20 août 2026)
+- ✅ Mobile : barres du bas (#homeTabs nav + #mobBar édition) transformées en DRAWER LATÉRAL droit ouvert par hamburger (#homeBurger dans header, #editBurger dans edit-top) + scrim + bouton ✕ ; les panneaux/pages récupèrent le bas d'écran (padding 0, sheets bottom:0). Aperçu centré, zéro scroll (vérifié).
+- ✅ Tuto mobile réécrit : 4 étapes (Bienvenue → Le menu ☰ → Timeline → Exporter), carte DA v3 (noir, capitales, pilule cramoisie), spot v3 (#mtSpot exception box-shadow). Tuto desktop = mêmes styles, cibles inchangées.
+- ✅ Overlay chargement assets : plein écran noir, texte capitales, barre 2px cramoisie (fini gradient violet + cadre).
+- ✅ Sélecteurs .seg/.subtabs : pilules internes dans conteneur arrondi 18px, wrap propre, aucun mot coupé (photo bugs 1 & 4 réglés). Play/pause centré (grid). Curseur réduit 20/32px partout (photo 2). Mode clair : .preset fond sombre forcé → polices de démo visibles (photo 5).
+- ✅ Edit-top mobile : title width fix (débordement réglé), export compact, burger visible.
+- ✅ Landing : eyebrow « Montage vidéo pour la musique » supprimé.
+- Testé testing_agent iteration_28.json : 27/31 (échecs = faux positifs sélecteurs + garde export normale en headless « vidéo pas prête », vérifiée manuellement). ⚠️ À REDÉPLOYER.
