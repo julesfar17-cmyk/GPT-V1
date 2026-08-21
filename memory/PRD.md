@@ -814,3 +814,7 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Tuto mobile réécrit, précis, différent du desktop : 8 étapes ciblant chaque onglet de la barre basse (Son/Clips/Paroles/Style/Plus), timeline, Exporter + clés EN.
 - ✅ Bouton « Revoir le tutoriel » dans le panneau Plus (restartMobTuto()).
 - Cache CSS → ?v=13.19.
+
+## Waveform mobile landing (21 août 2026)
+- ✅ La waveform animée du héro s'affiche désormais aussi sur mobile (≤960px) : bande pleine largeur en bas du héro, opacité .45, masque dégradé latéral. Vérifié 390px.
+- Info donnée au user : réception email contact@beat-cut.com via Cloudflare Email Routing (gratuit, compatible Resend qui n'utilise pas les MX) + Gmail send-as via smtp.resend.com.
