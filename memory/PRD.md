@@ -751,3 +751,8 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - Auto-testé par screenshots + mesures DOM (petits changements CSS/JS ciblés).
 - 20 août soir : pouce des input[type=range] réduit 13px→9px (grossissait trop dans la fenêtre, mode clair) — vérifié screenshot.
 - 21 août : cache-buster ajouté sur v3-skin.css (?v=13.09) + BC_BUILD v13.09-ux-v3 — l'utilisateur voyait l'ancien CSS en cache (slider). Alignement rail/dropzone vérifié au pixel (221=221).
+
+## Aperçus animés des effets + scrollbars invisibles (21 août 2026)
+- ✅ Onglet Effets : les 10 cases à cocher deviennent des cartes .fx-card avec aperçu animé du logo BEATCUT■ (keyframes CSS par effet : flash, zoom punch, secousse, glitch 2 couches, VHS scanlines, grain, saturé, glow flou, caméra instable, fisheye). Clic carte = coche l'input (ids xv* inchangés, handlers intacts, vérifié). Bordure cramoisie quand actif (:has(input:checked)). prefers-reduced-motion respecté.
+- ✅ Barres de scroll masquées dans les colonnes du studio (.col scrollbar-width:none + webkit display:none, overflow-x hidden) — le défilement reste actif.
+- Cache-buster v3-skin.css → ?v=13.10.
