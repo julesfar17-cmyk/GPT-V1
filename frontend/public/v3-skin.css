@@ -24,6 +24,7 @@
 /* Interdits V3 : aucune ombre, aucun rayon hors pilules */
 *{box-shadow:none!important;text-shadow:none!important}
 body{font-variant-numeric:tabular-nums}
+html,body{background:var(--void)}
 ::selection{background:var(--crimson);color:#fff}
 h1,h2,h3{color:var(--frost);text-transform:uppercase;letter-spacing:-.024em}
 .hint{color:var(--graphite)}
@@ -364,29 +365,48 @@ body.editing .v3-foot,body.mob-edit .v3-foot{display:none}
   body.menu-open .burger i:nth-child(3){transform:translateY(-5px) rotate(-45deg)}
   #menuScrim{position:fixed;inset:0;z-index:115;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .25s}
   body.menu-open #menuScrim{opacity:1;pointer-events:auto}
-  body.mob-edit #mobBar,body:not(.mob-edit) #homeTabs{
+  body:not(.mob-edit) #homeTabs{
     display:flex!important;flex-direction:column;justify-content:flex-start;grid-template-columns:none!important;
     left:auto!important;right:0!important;top:0!important;bottom:0!important;width:min(76vw,300px);height:auto!important;
     padding:74px 20px calc(20px + env(safe-area-inset-bottom))!important;gap:2px;
     background:var(--void)!important;border-top:none!important;border-left:1px solid var(--hair);backdrop-filter:none!important;
     z-index:120;transform:translateX(105%);transition:transform .28s var(--ease)}
-  body.menu-open #mobBar,body.menu-open #homeTabs{transform:none}
-  #mobBar button,#homeTabs button{flex-direction:row!important;justify-content:flex-start!important;width:100%;
+  body.menu-open #homeTabs{transform:none}
+  #homeTabs button{flex-direction:row!important;justify-content:flex-start!important;width:100%;
     min-height:54px!important;padding:0 4px!important;border-bottom:1px solid var(--hair)!important;border-radius:0!important}
-  #mobBar button .lb,#homeTabs button .lb{font-size:14px!important;font-weight:400!important;letter-spacing:.08em;text-transform:uppercase}
-  #mobBar button.on .lb,#homeTabs button.on .lb{color:var(--frost)}
+  #homeTabs button .lb{font-size:14px!important;font-weight:400!important;letter-spacing:.08em;text-transform:uppercase}
+  #homeTabs button.on .lb{color:var(--frost)}
   .drawer-close{border-bottom:none!important;justify-content:flex-end!important;min-height:40px!important;
     position:absolute;top:16px;right:14px;width:44px!important;color:var(--graphite)}
   .drawer-close .lb{font-size:18px!important}
-  /* plus de barre basse : les panneaux et la page récupèrent le bas de l'écran */
-  #pageEdit.show{padding:0!important}
-  .edit-main>.col,#extractZone,#mobMore,#planSheet{bottom:0!important}
+  /* --- Éditeur mobile : barre d'outils basse façon CapCut (DA BeatCut) --- */
+  body.mob-edit #mobBar{display:grid!important;grid-template-columns:repeat(5,1fr);left:0;right:0;top:auto;bottom:0;width:auto;
+    height:calc(60px + env(safe-area-inset-bottom));padding:0 0 env(safe-area-inset-bottom);
+    background:var(--void)!important;border-top:1px solid var(--hair)!important;border-left:none;
+    z-index:120;transform:none;transition:none}
+  #mobBar .drawer-close{display:none!important}
+  #mobBar button{flex-direction:column!important;justify-content:center!important;gap:3px;min-height:100%!important;
+    padding:6px 2px!important;border:none!important;border-radius:0!important;color:var(--graphite)}
+  #mobBar button .ic{display:grid;place-items:center;line-height:1}
+  #mobBar button .lb{font-size:9.5px!important;font-weight:500!important;letter-spacing:.08em;text-transform:uppercase}
+  #mobBar button.on{color:var(--frost)!important;background:transparent!important}
+  #mobBar button.on .ic{color:var(--crimson)}
+  #mobBar button.on .lb{color:var(--frost)!important}
+  body.mob-edit #editBurger{display:none!important}
+  /* la page et les panneaux s'arrêtent au-dessus de la barre (et de la barre Safari) */
+  #pageEdit.show{padding:0 0 calc(60px + env(safe-area-inset-bottom))!important}
+  .edit-main>.col,#extractZone,#mobMore,#planSheet{bottom:calc(60px + env(safe-area-inset-bottom))!important}
+  /* plein écran : icône seule sur mobile */
+  #fsLb{display:none}
+  #fsBtn{width:38px;height:38px;min-height:38px;padding:0!important;display:grid;place-items:center}
   /* barre éditeur épurée : le burger remplace logo / thème / série */
   .edit-top .logo,#editThemeBtn,#serieBtn{display:none}
   .edit-top input.title{width:100%!important;font-size:13px}
   .edit-top .halo{flex-shrink:0}
   #exportBtn{padding:8px 13px!important;font-size:11px!important;letter-spacing:.02em}
 }
+
+#fsBtn{display:inline-flex;align-items:center;gap:6px}
 
 /* ---------- Tutoriel : spot v3 (exception à l'interdit des ombres : c'est le masque) ---------- */
 #mtSpot{border-radius:0!important;box-shadow:0 0 0 9999px rgba(0,0,0,.82),0 0 0 1px var(--crimson)!important}

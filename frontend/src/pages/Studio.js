@@ -8,7 +8,25 @@ export default function Studio() {
   useEffect(() => {
     // le studio (iframe) a son propre curseur V3 : on masque celui du parent
     document.body.classList.add("no-cur");
-    return () => document.body.classList.remove("no-cur");
+    // synchronise le fond + theme-color du document parent avec le thème du studio (bandes blanches/noires iOS)
+    const sync = () => {
+      let t = "dark";
+      try { t = localStorage.getItem("bc_theme") || "dark"; } catch {}
+      const c = t === "light" ? "#ffffff" : "#000000";
+      document.documentElement.style.background = c;
+      document.body.style.background = c;
+      let m = document.querySelector('meta[name="theme-color"]');
+      if (!m) { m = document.createElement("meta"); m.name = "theme-color"; document.head.appendChild(m); }
+      m.setAttribute("content", c);
+    };
+    sync();
+    const iv = setInterval(sync, 1500);
+    return () => {
+      clearInterval(iv);
+      document.body.classList.remove("no-cur");
+      document.documentElement.style.background = "";
+      document.body.style.background = "";
+    };
   }, []);
   const projectId = params.get("project");
   const sessionId = params.get("session_id");
@@ -18,7 +36,7 @@ export default function Studio() {
     `v=${BUST}`,
   ].filter(Boolean).join("&");
   return (
-    <div className="h-screen w-full bg-background">
+    <div className="h-screen w-full" style={{ background: "inherit" }}>
       <iframe
         src={`/studio.html?${qs}`}
         title="Studio BEATCUT"

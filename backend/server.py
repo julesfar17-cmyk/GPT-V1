@@ -331,7 +331,7 @@ def public_user(user: dict) -> dict:
         "is_pro": info["is_pro"],
         "subscription": info,
         "ref_code": user.get("ref_code", ""),
-        "onboarding_done": bool(user.get("onboarding_done", True)),
+        "onboarding_done": bool(user.get("onboarding_done", False)),
         "onboarding": user.get("onboarding") or {},
         "has_watermark": bool(user.get("watermark_media_id")),
     }
@@ -666,6 +666,7 @@ async def google_session(data: GoogleSessionIn, response: Response):
             "subscription": None,
             "ref_code": f"REF{uuid.uuid4().hex[:6].upper()}",
             "referred_by": (data.ref_code or "").strip().upper() or None,
+            "onboarding_done": False,
             "created_at": iso(now_utc()),
         }
         await db.users.insert_one({**user})
@@ -3707,11 +3708,12 @@ async def seed_user(email: str, password: str, name: str, role: str):
             "role": role,
             "subscription": None,
             "ref_code": f"REF{uuid.uuid4().hex[:6].upper()}",
+            "onboarding_done": True,
             "created_at": iso(now_utc()),
         })
         logger.info("Seeded %s account: %s", role, email)
     else:
-        updates = {"role": role}
+        updates = {"role": role, "onboarding_done": True}
         if not verify_password(password, existing.get("password_hash") or ""):
             updates["password_hash"] = hash_password(password)
         if not existing.get("ref_code"):

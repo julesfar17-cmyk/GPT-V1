@@ -786,3 +786,11 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - P4 : Pré-remplir la recherche de vidéos gratuites selon le style choisi à l'onboarding.
 - P5 : Jauge de stockage utilisé dans le compte.
 - Futur : tracker vignettes manquantes par navigateur (admin).
+
+## Mobile CapCut-like + onboarding login + badges clips (21 août 2026, suite)
+- ✅ Toggle thème sans emoji : SVG soleil/lune (landing paintTheme + studio paintThemeBtn) + meta theme-color dynamique (metaTheme / metaThemeL) + html,body{background:var(--void)} → plus de bandes noires en mode clair iOS. Studio.js (parent iframe) synchronise fond + theme-color via bc_theme (interval 1.5s).
+- ✅ Éditeur mobile : bouton Plein écran = icône seule (#fsLb masqué ≤700px, setFsLabel()), barre CapCut en bas (#mobBar redevenu barre basse fixe avec icônes SVG Clips/Son/Paroles/Style/Plus, drawer supprimé pour mobBar — #homeTabs reste en tiroir), page + panneaux s'arrêtent à calc(60px + env(safe-area-inset-bottom)) → rien sous la barre Safari.
+- ✅ Onboarding à la première connexion : backend onboarding_done default False (ligne ~334), Google insert False, seeds demo/admin True. Nouveau compte (même après suppression) → Dashboard redirige /studio → onboarding. Testé par API (register → me → onboarding_done=False → delete).
+- ✅ Flux création mobile (≤900px) : newMorceau() → mobImportFlow() plein écran Étape 1/2 « Dépose ton son » (esthétique onboarding) → Étape 2/2 « Ajoute tes clips » (multi, jusqu'à 24, bouton Banque de vidéos gratuites) → éditeur. data-testid mob-import-*.
+- ✅ Badges « Optimisation en arrière-plan » remplacés par une barre de chargement rouge discrète en bas du clip (.clip-load : % d'envoi ou animation indéterminée, tooltip conserve le libellé). Badge d'échec (clip-fail) passé du jaune au cramoisi.
+- Cache CSS → ?v=13.17. Auto-testé : screenshots mobile 390×844 (flux import + barre CapCut barTop=784/844) + desktop (fsBtn OK) + API onboarding.
