@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BeatCut — Ton son mérite mieux</title>
-<meta name="description" content="Dépose ton morceau. BeatCut trouve le tempo, pose les plans sur le beat et écrit tes paroles à l'écran. Trois jours d'essai sur le plan Pro.">
+<meta name="description" content="Dépose ton morceau. BeatCut trouve le tempo, pose les plans sur le beat et écrit tes paroles à l'écran. Sept jours d'essai sur le plan Pro.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -193,6 +193,7 @@ section{padding:var(--s72) 0}
     <a href="/" class="mark" data-hit>Beatcut<i></i></a>
     <div class="head-r">
       <a class="link" href="/login" data-hit>Se connecter</a>
+      <button class="theme" id="langBtn" onclick="swapLang()" aria-label="Langue" data-testid="landing-lang-btn" data-hit>EN</button>
       <button class="theme" id="theme" onclick="swapTheme()" aria-label="Changer de thème" data-hit>☀</button>
       <button class="burger" onclick="document.body.classList.toggle('menu')" aria-label="Menu" data-hit><span></span><span></span><span></span></button>
     </div>
@@ -205,6 +206,7 @@ section{padding:var(--s72) 0}
       <a href="#methode" onclick="document.body.classList.remove('menu')" data-hit>La méthode</a>
       <a href="#studio" onclick="document.body.classList.remove('menu')" data-hit>Le studio</a>
       <a href="#tarifs" onclick="document.body.classList.remove('menu')" data-hit>Tarifs</a>
+      <a href="#securite" onclick="document.body.classList.remove('menu')" data-hit>Sécurité</a>
       <a href="#faq" onclick="document.body.classList.remove('menu')" data-hit>Questions</a>
       <a href="/login" onclick="document.body.classList.remove('menu')" data-hit>Se connecter</a>
     </nav>
@@ -218,10 +220,9 @@ section{padding:var(--s72) 0}
       <h1 class="display" style="margin-top:var(--s22)">Ton son<br>mérite mieux</h1>
       <p class="lead">L'algorithme classe ta vidéo avant d'écouter ton morceau. BeatCut la monte pour toi : les plans tombent sur le beat, tes paroles s'écrivent à l'écran, le format sort en vertical. Compte trois minutes.</p>
       <div class="acts">
-        <span class="halo"><a class="pill" href="/login" data-hit><span class="dot"></span>Trois jours d'essai</a></span>
+        <span class="halo"><a class="pill" href="/login" data-hit><span class="dot"></span>Commence maintenant</a></span>
         <a class="link" href="#methode" data-hit>Voir la méthode</a>
       </div>
-      <p class="meta" style="margin-top:var(--s22)">Tu annules en deux clics avant le débit. Aucun filigrane sur tes vidéos.</p>
     </div>
   </section>
 
@@ -280,7 +281,6 @@ section{padding:var(--s72) 0}
     <div class="wrap">
       <div class="sec-head rv">
         <h2 class="h-lg">Ce que<br>ça coûte</h2>
-        <p class="lead">Trois jours d'essai sur le plan Pro. Tu enregistres ta carte, le débit arrive à la fin, tu annules en deux clics avant.</p>
       </div>
       <div class="plans rv">
         <div class="plan"><span class="tagline"></span><h3>Essentiel</h3><p class="who">Pour sortir un morceau de temps en temps</p>
@@ -289,7 +289,7 @@ section{padding:var(--s72) 0}
           <a class="pill-ghost" href="/login" data-hit>Choisir</a></div>
 
         <div class="plan"><span class="tagline">Le plus choisi</span><h3>Pro</h3><p class="who">Pour poster chaque semaine</p>
-          <div class="amt"><b>19,99 €</b><span>par mois</span></div><p class="note">Trois jours d'essai</p>
+          <div class="amt"><b>19,99 €</b><span>par mois</span></div><p class="note">Sept jours d'essai</p>
           <ul><li>Exports illimités</li><li>Séries de vidéos</li><li>Toutes les polices et tous les effets</li><li>Nouveautés en premier</li></ul>
           <span class="halo"><a class="pill" href="/login" data-hit><span class="dot"></span>Essayer</a></span></div>
 
@@ -310,11 +310,25 @@ section{padding:var(--s72) 0}
     <div class="wrap">
       <div class="sec-head rv"><h2 class="h-lg">Questions</h2><p class="lead">Écris à contact@beat-cut.com si la tienne manque. Je réponds moi-même.</p></div>
       <div class="faq">
-        <div class="qa"><button onclick="qa(this)" data-hit>Comment marche l'essai <i>+</i></button><div class="a"><p>Trois jours d'accès complet au plan Pro. Tu enregistres ta carte à l'inscription, le débit arrive à la fin de l'essai. Un email de rappel part avant l'échéance, et tu annules en deux clics jusqu'au dernier moment.</p></div></div>
+        <div class="qa"><button onclick="qa(this)" data-hit>Comment marche l'essai <i>+</i></button><div class="a"><p>Sept jours d'accès complet au plan Pro. Tu enregistres ta carte à l'inscription, le débit arrive à la fin de l'essai. Un email de rappel part avant l'échéance, et tu annules en deux clics jusqu'au dernier moment.</p></div></div>
         <div class="qa"><button onclick="qa(this)" data-hit>Je ne sais pas monter <i>+</i></button><div class="a"><p>Le tempo, les coupes et le calage des paroles se règlent sans toi. Il te reste à choisir un style, et des préréglages existent pour ça.</p></div></div>
         <div class="qa"><button onclick="qa(this)" data-hit>Ça marche sur téléphone <i>+</i></button><div class="a"><p>Le studio complet tourne dans le navigateur mobile. Utilise Chrome ou Safari : le navigateur intégré de TikTok bloque le téléchargement des vidéos.</p></div></div>
         <div class="qa"><button onclick="qa(this)" data-hit>À qui appartiennent les vidéos <i>+</i></button><div class="a"><p>À toi, usage commercial compris. Tes exports sortent sans filigrane BeatCut. Sur le plan Studio, vous pouvez ajouter votre propre logo.</p></div></div>
         <div class="qa"><button onclick="qa(this)" data-hit>Pourquoi pas CapCut <i>+</i></button><div class="a"><p>CapCut monte tout, à condition d'y passer deux heures et de caler chaque coupe à la main. BeatCut fait une seule chose, tout seul.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="securite">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <h2 class="h-lg">Tes sons<br>restent à toi</h2>
+        <p class="lead">Le montage tourne dans ton navigateur. Ton morceau part chiffré vers ta sauvegarde et personne chez BeatCut ne l'écoute.</p>
+      </div>
+      <div class="caps">
+        <div class="cap rv" data-hit><div class="k">Tes fichiers</div><div><h3>Personne ne les regarde</h3><p>Tes morceaux et tes clips servent à une seule chose : retrouver ton projet. Ils sont stockés chiffrés, aucun humain n'y accède, et tu peux tout effacer.</p></div></div>
+        <div class="cap rv" data-hit><div class="k">Zéro IA générative</div><div><h3>Rien n'est inventé, rien n'est réutilisé</h3><p>BeatCut n'utilise aucune IA générative. Des algorithmes de détection mesurent le tempo et repèrent tes paroles, c'est tout. Tes sons n'entraînent aucun modèle.</p></div></div>
+        <div class="cap rv" data-hit><div class="k">Ton compte</div><div><h3>Tu pars quand tu veux</h3><p>Un bouton dans ton compte supprime tout : morceaux, fichiers, abonnement. Sans email à envoyer, sans délai caché.</p></div></div>
       </div>
     </div>
   </section>
@@ -330,8 +344,8 @@ section{padding:var(--s72) 0}
 </main>
 
 <footer><div class="wrap foot">
-  <span>BeatCut</span>
-  <span><a href="/cgv" data-hit>Conditions</a> · <a href="/confidentialite" data-hit>Confidentialité</a> · <a href="mailto:contact@beat-cut.com" data-hit>contact@beat-cut.com</a></span>
+  <a href="/" class="mark" data-hit>Beatcut<i></i></a>
+  <span><a href="/cgv" data-hit>CGV</a> · <a href="/confidentialite" data-hit>Confidentialité</a> · <a href="/mentions-legales" data-hit>Mentions légales</a> · <a href="mailto:contact@beat-cut.com" data-hit>contact@beat-cut.com</a></span>
 </div></footer>
 
 <script>
@@ -399,6 +413,110 @@ function qa(b){b.parentElement.classList.toggle('open');}
   const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.15});
   document.querySelectorAll('.rv').forEach(el=>io.observe(el));
 })();
+
+/* Langue : FR par défaut, EN si navigateur non francophone — bouton FR/EN partagé avec le studio (bc_lang) */
+let LANG='fr';
+try{LANG=localStorage.getItem('bc_lang')||(((navigator.language||'').toLowerCase().startsWith('fr'))?'fr':'en');}catch(e){}
+const EN={
+"Se connecter":"Log in","La méthode":"The method","Le studio":"The studio","Tarifs":"Pricing",
+"Ton son":"Your sound","mérite mieux":"deserves better",
+"L'algorithme classe ta vidéo avant d'écouter ton morceau. BeatCut la monte pour toi : les plans tombent sur le beat, tes paroles s'écrivent à l'écran, le format sort en vertical. Compte trois minutes.":"The algorithm ranks your video before it ever hears your track. BeatCut edits it for you: shots land on the beat, your lyrics write themselves on screen, the format comes out vertical. Count three minutes.",
+"Trois jours d'essai":"Three-day trial","Sept jours d'essai":"Seven-day trial","Commence maintenant":"Start now","Voir la méthode":"See the method",
+"Sept jours d'essai sur le plan Pro. Tu annules en deux clics avant le débit. Aucun filigrane sur tes vidéos.":"Seven-day trial on the Pro plan. Cancel in two clicks before any charge. No watermark on your videos.",
+"Tu annules en deux clics avant le débit. Aucun filigrane sur tes vidéos.":"Cancel in two clicks before any charge. No watermark on your videos.",
+"217 vues pour":"217 views for","trois semaines":"three weeks","de travail":"of work",
+"Tu as bloqué trois week-ends sur ce morceau, refait onze fois la prise du deuxième couplet, payé le mastering de ta poche. Tu postes, tu rafraîchis toutes les dix minutes, tu plafonnes à 217 vues. TikTok a tranché en deux secondes sur ta vidéo, sans jamais arriver au refrain, et le mois suivant tu recommences.":"You locked down three weekends on that track, redid the second-verse take eleven times, paid for mastering out of pocket. You post, you refresh every ten minutes, you cap out at 217 views. TikTok made its call on your video in two seconds, without ever reaching the chorus, and next month you start again.",
+"artistes inscrits en trois semaines":"artists signed up in three weeks",
+"entre le dépôt du son et la vidéo prête":"from track drop to finished video",
+"Zéro":"Zero","compétence en montage à apprendre":"editing skills to learn",
+"Du son":"From sound","à la vidéo":"to video",
+"Tu règles un morceau une fois. Ensuite tu en tires autant de vidéos que tu veux pendant le mois.":"Set a track up once. Then pull as many videos as you want from it all month.",
+"Dépose ton son":"Drop your track",
+"MP3, WAV ou M4A. BeatCut trouve le tempo et pose la grille de beats. Tu choisis l'extrait à montrer : le refrain, le drop, un couplet.":"MP3, WAV or M4A. BeatCut finds the tempo and lays the beat grid. You pick the extract to show: the chorus, the drop, a verse.",
+"Trente secondes":"Thirty seconds","BeatCut découpe et cale":"BeatCut cuts and syncs",
+"Tes clips deviennent des plans posés sur chaque temps. Tes paroles s'affichent mot par mot, réglées sur ta voix.":"Your clips become shots placed on every beat. Your lyrics appear word by word, timed to your voice.",
+"Deux minutes":"Two minutes","Exporte et poste":"Export and post",
+"Tu récupères un fichier vertical en 1080p, prêt pour TikTok, Reels et Shorts. Sans filigrane.":"You get a vertical 1080p file, ready for TikTok, Reels and Shorts. No watermark.",
+"Ce que":"What","tu règles":"you control",
+"Un studio pour une seule tâche : monter des vidéos de musique sur le beat.":"A studio built for one job: editing music videos on the beat.",
+"Coupes":"Cuts","Chaque plan tombe sur un temps":"Every shot lands on a beat",
+"Le changement de plan retient l'œil, et l'algorithme mesure ce temps de rétention.":"A shot change holds the eye, and the algorithm measures that retention time.",
+"Paroles":"Lyrics","Tes mots sur ta voix":"Your words on your voice",
+"BeatCut les détecte, ou tu colles ton texte. L'orthographe reste la tienne.":"BeatCut detects them, or you paste your text. The spelling stays yours.",
+"Karaoké, boîte, remplissage":"Karaoke, box, fill",
+"Le mot chanté se surligne, se remplit ou grossit. Douze polices, du pixel à l'abrasé.":"The sung word highlights, fills or grows. Twelve fonts, from pixel to grunge.",
+"Effets":"Effects","Glow, fisheye, caméra portée":"Glow, fisheye, handheld camera",
+"Saturation, secousse sur les coupures, VHS, grain de pellicule. Une case par effet.":"Saturation, shake on cuts, VHS, film grain. One checkbox per effect.",
+"Séries":"Batches","Cinq versions d'un même morceau":"Five versions of the same track",
+"Tu gardes les meilleures et tu postes toute la semaine sans rien remonter.":"Keep the best ones and post all week without re-editing anything.",
+"Partout":"Anywhere","Dans le navigateur":"In the browser",
+"Rien à installer, téléphone compris. Interface française et anglaise.":"Nothing to install, phone included. French and English interface.",
+"ça coûte":"it costs",
+"Trois jours d'essai sur le plan Pro. Tu enregistres ta carte, le débit arrive à la fin, tu annules en deux clics avant.":"Three-day trial on the Pro plan. You save your card, the charge lands at the end, and you cancel in two clicks before that.",
+"Sept jours d'essai sur le plan Pro. Tu enregistres ta carte, le débit arrive à la fin, tu annules en deux clics avant.":"Seven-day trial on the Pro plan. You save your card, the charge lands at the end, and you cancel in two clicks before that.",
+"Essentiel":"Essential","Pour sortir un morceau de temps en temps":"For dropping a track now and then",
+"par mois":"per month","Facturation mensuelle":"Monthly billing",
+"Quinze exports par mois":"Fifteen exports per month","Tous les styles et effets":"All styles and effects",
+"Banque de clips incluse":"Clip library included","Séries de vidéos":"Video batches","Choisir":"Choose",
+"Le plus choisi":"Most popular","Pour poster chaque semaine":"For posting every week",
+"Exports illimités":"Unlimited exports","Toutes les polices et tous les effets":"Every font and every effect",
+"Nouveautés en premier":"New features first","Essayer":"Try it",
+"Trente-huit pour cent":"Thirty-eight percent off","Pro annuel":"Yearly Pro",
+"Une année réglée en une fois":"A full year paid once","149 € une fois par an":"€149 once a year",
+"Tout le plan Pro":"Everything in Pro","90,88 € économisés":"€90.88 saved",
+"Quatre mois et demi offerts":"Four and a half months free","Un seul paiement":"One single payment",
+"Prendre l'année":"Get the year","Labels, managers, structures":"Labels, managers, teams",
+"par an":"per year","8,32 € par artiste et par mois":"€8.32 per artist per month",
+"Cinq profils artistes séparés":"Five separate artist profiles","Trois utilisateurs simultanés":"Three simultaneous users",
+"Votre logo sur les vidéos":"Your logo on the videos","Prise en main et support prioritaire":"Onboarding and priority support",
+"Demander une démo":"Request a demo",
+"Écris à contact@beat-cut.com si la tienne manque. Je réponds moi-même.":"Write to contact@beat-cut.com if yours is missing. I answer myself.",
+"Comment marche l'essai":"How the trial works",
+"Trois jours d'accès complet au plan Pro. Tu enregistres ta carte à l'inscription, le débit arrive à la fin de l'essai. Un email de rappel part avant l'échéance, et tu annules en deux clics jusqu'au dernier moment.":"Three days of full access to the Pro plan. You save your card at sign-up, the charge lands when the trial ends. A reminder email goes out before the deadline, and you can cancel in two clicks up to the last moment.",
+"Sept jours d'accès complet au plan Pro. Tu enregistres ta carte à l'inscription, le débit arrive à la fin de l'essai. Un email de rappel part avant l'échéance, et tu annules en deux clics jusqu'au dernier moment.":"Seven days of full access to the Pro plan. You save your card at sign-up, the charge lands when the trial ends. A reminder email goes out before the deadline, and you can cancel in two clicks up to the last moment.",
+"Sécurité":"Security","Tes sons":"Your tracks","restent à toi":"stay yours",
+"Le montage tourne dans ton navigateur. Ton morceau part chiffré vers ta sauvegarde et personne chez BeatCut ne l'écoute.":"The editing runs in your browser. Your track travels encrypted to your backup and nobody at BeatCut listens to it.",
+"Tes fichiers":"Your files","Personne ne les regarde":"Nobody looks at them",
+"Tes morceaux et tes clips servent à une seule chose : retrouver ton projet. Ils sont stockés chiffrés, aucun humain n'y accède, et tu peux tout effacer.":"Your tracks and clips serve one purpose: getting your project back. They sit encrypted in storage, no human opens them, and you can wipe everything.",
+"Zéro IA générative":"Zero generative AI","Rien n'est inventé, rien n'est réutilisé":"Nothing invented, nothing reused",
+"BeatCut n'utilise aucune IA générative. Des algorithmes de détection mesurent le tempo et repèrent tes paroles, c'est tout. Tes sons n'entraînent aucun modèle.":"BeatCut uses no generative AI. Detection algorithms measure the tempo and locate your lyrics, that's it. Your tracks train no model.",
+"Ton compte":"Your account","Tu pars quand tu veux":"Leave whenever you want",
+"Un bouton dans ton compte supprime tout : morceaux, fichiers, abonnement. Sans email à envoyer, sans délai caché.":"One button in your account deletes everything: tracks, files, subscription. No email to send, no hidden delay.",
+"BeatCut · Aucune IA générative, uniquement des algorithmes de détection":"BeatCut · Zero generative AI, detection algorithms only",
+"Je ne sais pas monter":"I don't know how to edit",
+"Le tempo, les coupes et le calage des paroles se règlent sans toi. Il te reste à choisir un style, et des préréglages existent pour ça.":"Tempo, cuts and lyric timing handle themselves. All that's left is picking a style, and presets exist for that.",
+"Ça marche sur téléphone":"Does it work on a phone",
+"Le studio complet tourne dans le navigateur mobile. Utilise Chrome ou Safari : le navigateur intégré de TikTok bloque le téléchargement des vidéos.":"The full studio runs in the mobile browser. Use Chrome or Safari: TikTok's built-in browser blocks video downloads.",
+"À qui appartiennent les vidéos":"Who owns the videos",
+"À toi, usage commercial compris. Tes exports sortent sans filigrane BeatCut. Sur le plan Studio, vous pouvez ajouter votre propre logo.":"You do, commercial use included. Your exports come out with no BeatCut watermark. On the Studio plan, you can add your own logo.",
+"Pourquoi pas CapCut":"Why not CapCut",
+"CapCut monte tout, à condition d'y passer deux heures et de caler chaque coupe à la main. BeatCut fait une seule chose, tout seul.":"CapCut edits anything, as long as you spend two hours on it and sync every cut by hand. BeatCut does one thing, on its own.",
+"Sors-le":"Put it out","comme il faut":"the right way","Commencer maintenant":"Start now",
+"Conditions":"Terms","CGV":"Terms","Mentions légales":"Legal notice","Confidentialité":"Privacy"
+};
+function applyLang(){
+  document.documentElement.lang=LANG;
+  document.title=LANG==='en'?'BeatCut — Your sound deserves better':'BeatCut — Ton son mérite mieux';
+  const md=document.querySelector('meta[name="description"]');
+  if(md){
+    if(md.__fr===undefined) md.__fr=md.getAttribute('content');
+    md.setAttribute('content', LANG==='en'
+      ? "Drop your track. BeatCut finds the tempo, lands the shots on the beat and writes your lyrics on screen. Seven-day trial on the Pro plan."
+      : md.__fr);
+  }
+  const b=document.getElementById('langBtn'); if(b)b.textContent=LANG==='fr'?'EN':'FR';
+  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode(n){
+    const p=n.parentNode&&n.parentNode.nodeName; return (p==='SCRIPT'||p==='STYLE')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT;}});
+  let n;
+  while(n=w.nextNode()){
+    const raw=(n.__fr!==undefined)?n.__fr:n.nodeValue, k=raw.trim(); if(!k) continue;
+    const kk=k.replace(/[’]/g,"'");
+    if(LANG==='en'){ if(EN[kk]!==undefined){ if(n.__fr===undefined)n.__fr=raw; n.nodeValue=raw.replace(k,EN[kk]); } }
+    else if(n.__fr!==undefined){ n.nodeValue=n.__fr; }
+  }
+}
+function swapLang(){ LANG=(LANG==='fr')?'en':'fr'; try{localStorage.setItem('bc_lang',LANG);}catch(e){} applyLang(); }
+applyLang();
 </script>
 </body>
 </html>

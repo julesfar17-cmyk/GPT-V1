@@ -386,7 +386,7 @@ export default function Admin() {
                   onChange={(e) => setCustEmail(e.target.value)}
                   placeholder="email@client.com"
                   data-testid="admin-customer-search-input"
-                  className="flex-1 min-w-[240px] bg-background border border-border px-4 py-2.5 text-sm focus:border-[#d9ffd0] focus:outline-none"
+                  className="flex-1 min-w-[240px] bg-background border border-border px-4 py-2.5 text-sm focus:border-[#fc1c46] focus:outline-none"
                 />
                 <button type="submit" disabled={custBusy} data-testid="admin-customer-search-button"
                   className="border border-border px-5 py-2.5 text-xs font-osd tracking-wider hover:border-foreground transition-colors disabled:opacity-50">
@@ -525,10 +525,10 @@ export default function Admin() {
                                 <div key={opt}>
                                   <div className="flex items-center justify-between text-sm mb-1">
                                     <span>{ONB_ANSWER_LABELS[opt] || opt}</span>
-                                    <span className="font-osd text-[#d9ffd0]">{r.pct} % ({r.count})</span>
+                                    <span className="font-osd text-[#fc1c46]">{r.pct} % ({r.count})</span>
                                   </div>
                                   <div className="h-2 bg-secondary overflow-hidden">
-                                    <div className="h-full bg-[#d9ffd0]" style={{ width: `${r.pct}%` }} />
+                                    <div className="h-full bg-[#fc1c46]" style={{ width: `${r.pct}%` }} />
                                   </div>
                                 </div>
                               ))}

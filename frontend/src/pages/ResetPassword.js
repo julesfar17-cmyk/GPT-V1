@@ -60,7 +60,7 @@ export default function ResetPassword() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Nouveau mot de passe (6 caractères min.)"
                   data-testid="reset-password-input"
-                  className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#d9ffd0] focus:outline-none transition-colors"
+                  className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#fc1c46] focus:outline-none transition-colors"
                 />
                 <input
                   type="password"
@@ -70,7 +70,7 @@ export default function ResetPassword() {
                   onChange={(e) => setConfirm(e.target.value)}
                   placeholder="Confirme le mot de passe"
                   data-testid="reset-confirm-input"
-                  className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#d9ffd0] focus:outline-none transition-colors"
+                  className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#fc1c46] focus:outline-none transition-colors"
                 />
                 {error && (
                   <p className="text-sm text-primary" data-testid="reset-error-message">{error}</p>

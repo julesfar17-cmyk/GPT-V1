@@ -123,7 +123,7 @@ export default function Dashboard() {
   const promoBadge = (plan) =>
     affPrice(plan) ? (
       <span
-        className="absolute -top-2.5 left-2 bg-[#d9ffd0] text-background font-osd text-[9px] tracking-wider px-2 py-0.5"
+        className="absolute -top-2.5 left-2 bg-[#fc1c46] text-background font-osd text-[9px] tracking-wider px-2 py-0.5"
         data-testid={`promo-badge-${plan}`}
       >
         {affiliate.code}
@@ -185,6 +185,23 @@ export default function Dashboard() {
 
   const [wmBusy, setWmBusy] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const deleteAccount = async () => {
+    if (deleteText !== "SUPPRIMER") return;
+    setDeleteBusy(true);
+    try {
+      await api.delete("/auth/account");
+      toast.success("Compte supprimé. À bientôt peut-être.");
+      setTimeout(() => window.location.replace("/"), 800);
+    } catch (e) {
+      toast.error(formatApiErrorDetail(e.response?.data?.detail) || "Suppression impossible, réessaie.");
+      setDeleteBusy(false);
+    }
+  };
+
   const [cancelStep, setCancelStep] = useState("reason");
   const [cancelReason, setCancelReason] = useState("");
   const [cancelComment, setCancelComment] = useState("");
@@ -317,7 +334,7 @@ export default function Dashboard() {
 
         {checkingPayment && (
           <div
-            className="mt-8 border border-[#d9ffd0]/40 bg-[#d9ffd0]/5 p-5 font-osd text-sm text-[#d9ffd0] animate-pulse"
+            className="mt-8 border border-[#fc1c46]/40 bg-[#fc1c46]/5 p-5 font-osd text-sm text-[#fc1c46] animate-pulse"
             data-testid="payment-checking-banner"
           >
             VÉRIFICATION DU PAIEMENT EN COURS…
@@ -339,7 +356,7 @@ export default function Dashboard() {
                 }`}
                 data-testid="plan-badge"
               >
-                {isVip ? "VIP " : isTrial ? "ESSAI PRO — 3 JOURS" : canceled ? (isBasic ? "BASIC — ANNULÉ" : isEssentiel ? "ESSENTIEL — ANNULÉ" : "PRO — ANNULÉ") : isBasic ? "BASIC" : isEssentiel ? "ESSENTIEL" : isStudio ? "STUDIO " : "PRO "}
+                {isVip ? "VIP " : isTrial ? "ESSAI PRO — 7 JOURS" : canceled ? (isBasic ? "BASIC — ANNULÉ" : isEssentiel ? "ESSENTIEL — ANNULÉ" : "PRO — ANNULÉ") : isBasic ? "BASIC" : isEssentiel ? "ESSENTIEL" : isStudio ? "STUDIO " : "PRO "}
               </span>
             ) : (
                 <span className="font-osd text-[11px] tracking-[0.15em] px-3 py-1.5 bg-secondary text-muted-foreground" data-testid="plan-badge">
@@ -351,7 +368,7 @@ export default function Dashboard() {
             {isVip && (
               <div data-testid="vip-section">
                 <div className="flex items-center gap-2.5 text-sm">
-                  <BadgeCheck size={17} className="text-[#d9ffd0]" />
+                  <BadgeCheck size={17} className="text-[#fc1c46]" />
                   <span data-testid="subscription-status-text">Compte VIP — accès PRO illimité </span>
                 </div>
                 <p className="mt-5 text-sm text-muted-foreground leading-relaxed">
@@ -365,7 +382,7 @@ export default function Dashboard() {
               <>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   Ton studio est prêt : montage complet, aperçu et sauvegarde inclus. Choisis ton plan pour
-                  exporter tes vidéos — <b className="text-foreground">3 jours d'essai offerts</b> sur le plan Pro,
+                  exporter tes vidéos — <b className="text-foreground">7 jours d'essai offerts</b> sur le plan Pro,
                   annulable en 2 clics avant le débit.
                 </p>
                 <div className="grid gap-3 mt-6">
@@ -376,10 +393,10 @@ export default function Dashboard() {
                     className="relative inline-flex items-center justify-between gap-2 bg-primary text-white font-bold px-5 py-3.5 hover:opacity-90 transition-all hover:-translate-y-0.5 shadow-[0_0_20px_rgba(255,59,48,0.35)] disabled:opacity-50"
                   >
                     <span className="absolute -top-2.5 right-2 bg-white text-primary font-osd text-[9px] tracking-wider px-2 py-0.5">
-                      3 JOURS OFFERTS
+                      7 JOURS OFFERTS
                     </span>
                     {promoBadge("pro_monthly")}
-                    <span className="inline-flex items-center gap-2"><Crown size={16} /> PRO — essai 3 jours</span>
+                    <span className="inline-flex items-center gap-2"><Crown size={16} /> PRO — essai 7 jours</span>
                     <span className="font-display" data-testid="price-pro-monthly">
                       {affPrice("pro_monthly") ? (
                         <><s className="opacity-60 mr-1.5">19,99 €</s>{fmtEUR(affPrice("pro_monthly").after_cents)} €/mois</>
@@ -430,7 +447,7 @@ export default function Dashboard() {
                   </a>
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground text-center">
-                  Sans engagement (mensuel) · 3 jours offerts avec rappel par email avant le débit · Paiement sécurisé Stripe.
+                  Sans engagement (mensuel) · 7 jours offerts avec rappel par email avant le débit · Paiement sécurisé Stripe.
                 </p>
               </>
             )}
@@ -438,7 +455,7 @@ export default function Dashboard() {
             {isPro && !canceled && !isVip && (
               <>
                 <div className="flex items-center gap-2.5 text-sm">
-                  <BadgeCheck size={17} className="text-[#d9ffd0]" />
+                  <BadgeCheck size={17} className="text-[#fc1c46]" />
                   <span data-testid="subscription-status-text">
                     {isTrial ? "Essai Pro en cours — accès complet" : isBasic ? "Abonnement BASIC actif" : isEssentiel ? "Abonnement ESSENTIEL actif" : isStudio ? "Abonnement STUDIO actif" : "Abonnement PRO actif"}
                   </span>
@@ -453,7 +470,7 @@ export default function Dashboard() {
                 </div>
                 {isTrial && (
                   <div className="mt-4 border border-primary/40 bg-primary/5 px-4 py-3 font-osd text-xs tracking-wider text-primary" data-testid="trial-day-banner">
-                    ESSAI PRO — J{Math.min(3, Math.max(1, 3 - Math.max(0, Math.ceil((new Date(sub.current_period_end) - Date.now()) / 86400000)) + 1))}/3
+                    ESSAI PRO — J{Math.min(7, Math.max(1, 7 - Math.max(0, Math.ceil((new Date(sub.current_period_end) - Date.now()) / 86400000)) + 1))}/7
                   </div>
                 )}
                 {isTrial && (
@@ -519,7 +536,7 @@ export default function Dashboard() {
                   </p>
                 )}
                 {sub.promo && (
-                  <div className="mt-4 border border-[#d9ffd0]/40 bg-[#d9ffd0]/5 px-4 py-3 text-sm" data-testid="promo-access-banner">
+                  <div className="mt-4 border border-[#fc1c46]/40 bg-[#fc1c46]/5 px-4 py-3 text-sm" data-testid="promo-access-banner">
                     Code promo : accès PRO offert jusqu'au <b>{fmtDate(sub.promo_until)}</b>
                     {sub.plan && sub.plan !== "promo" && sub.plan !== "pro_monthly" && sub.plan !== "pro_yearly"
                       ? " — ton abonnement actuel continue normalement, rien ne change sur ta facturation."
@@ -567,13 +584,13 @@ export default function Dashboard() {
           <section className="bg-card border border-border p-8 flex flex-col" data-testid="studio-card">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-display text-lg font-bold">Le studio</h2>
-              <span className="font-osd text-[11px] tracking-[0.15em] text-[#d9ffd0] flex items-center gap-2">
+              <span className="font-osd text-[11px] tracking-[0.15em] text-[#fc1c46] flex items-center gap-2">
                 <span className="rec-dot" /> READY
               </span>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed flex-1">
-              Dépose ton track, ajoute tes clips, lance la détection IA des paroles et exporte ta vidéo
-              calée sur le beat. Tout se passe dans ton navigateur — rien n'est envoyé sur nos serveurs.
+              Dépose ton track, ajoute tes clips, lance la détection des paroles et exporte ta vidéo
+              calée sur le beat. Tout se passe dans ton navigateur.
             </p>
             <Link
               to="/studio"
@@ -649,7 +666,7 @@ export default function Dashboard() {
             {refInfo?.ref_code && (
               <>
                 <div className="mt-5 bg-background border border-border px-4 py-3 flex items-center gap-3 overflow-hidden">
-                  <code className="font-osd text-xs text-[#d9ffd0] truncate flex-1" data-testid="referral-link">
+                  <code className="font-osd text-xs text-[#fc1c46] truncate flex-1" data-testid="referral-link">
                     {window.location.origin}/register?ref={refInfo.ref_code}
                   </code>
                   <button
@@ -680,7 +697,7 @@ export default function Dashboard() {
                 onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                 placeholder="EX: LAUNCH30"
                 data-testid="promo-input"
-                className="flex-1 bg-background border border-border px-4 py-2.5 text-sm font-osd tracking-wider focus:border-[#d9ffd0] focus:outline-none transition-colors"
+                className="flex-1 bg-background border border-border px-4 py-2.5 text-sm font-osd tracking-wider focus:border-[#fc1c46] focus:outline-none transition-colors"
               />
               <button
                 type="submit"
@@ -701,6 +718,22 @@ export default function Dashboard() {
             </Link>
           </p>
         )}
+
+        {/* ===== Suppression du compte ===== */}
+        <section className="mt-6 bg-card border border-border p-8" data-testid="danger-zone-card">
+          <h2 className="font-display text-lg font-bold mb-3">Supprimer mon compte</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Tu effaces tout : morceaux, fichiers, abonnement. L'abonnement en cours s'annule sur-le-champ,
+            sans nouveau débit. Aucune récupération possible ensuite.
+          </p>
+          <button
+            onClick={() => { setDeleteText(""); setDeleteOpen(true); }}
+            data-testid="delete-account-button"
+            className="mt-5 border border-border text-muted-foreground px-5 py-2.5 text-sm hover:border-primary hover:text-primary transition-colors"
+          >
+            Supprimer mon compte
+          </button>
+        </section>
       </main>
 
       <Footer />
@@ -800,6 +833,42 @@ export default function Dashboard() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-md" data-testid="delete-account-modal">
+          <DialogHeader>
+            <DialogTitle className="font-display">Supprimer définitivement ton compte ?</DialogTitle>
+            <DialogDescription>
+              Ton abonnement s'annule tout de suite, tes morceaux et tes fichiers sont effacés.
+              Écris <b className="text-foreground">SUPPRIMER</b> pour confirmer.
+            </DialogDescription>
+          </DialogHeader>
+          <input
+            value={deleteText}
+            onChange={(e) => setDeleteText(e.target.value.toUpperCase())}
+            placeholder="SUPPRIMER"
+            data-testid="delete-account-confirm-input"
+            className="bg-background border border-border px-4 py-2.5 text-sm font-osd tracking-wider focus:border-primary focus:outline-none transition-colors"
+          />
+          <div className="grid gap-2 mt-1">
+            <button
+              onClick={deleteAccount}
+              disabled={deleteText !== "SUPPRIMER" || deleteBusy}
+              data-testid="confirm-delete-account-button"
+              className="bg-primary text-white font-bold px-5 py-3 hover:opacity-90 transition-colors disabled:opacity-40"
+            >
+              {deleteBusy ? "…" : "Supprimer mon compte pour de bon"}
+            </button>
+            <button
+              onClick={() => setDeleteOpen(false)}
+              data-testid="cancel-delete-account-button"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+            >
+              Garder mon compte
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 

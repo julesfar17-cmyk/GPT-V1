@@ -762,3 +762,27 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Interface à 90 % : html{zoom:.9} dans v3-skin.css (studio) et index.css (app React), avec html:has(body.no-cur){zoom:1} pour éviter le double zoom sur les routes iframe (/ landing reste 100 %, /studio parent 1 × studio .9). Vérifié : login/dashboard 0.9, parents iframe 1.
 - Cache-buster → ?v=13.11.
 - 21 août (fix) : html{zoom:.9} RETIRÉ du studio (décalait le curseur custom et cassait canvas/timeline — incompatible coordonnées souris). App React : 90 % obtenu via html{font-size:14.4px} (rem Tailwind, aucun impact coordonnées), pages iframe exclues (:has(body.no-cur)). Alignement curseur vérifié au pixel (600,400=600,400). Cache → ?v=13.12. NE PLUS JAMAIS utiliser zoom CSS dans le studio.
+
+## Bande noire + aperçus mots + landing EN (21 août 2026)
+- ✅ Bande noire bas d'écran : body.editing masque le header (56px) mais #pageEdit gardait calc(100vh-56px) → ajout v3-skin : body.editing #pageEdit{height:100dvh} + grid-rows 58px 1fr 185px (desktop ≥901px seulement, mobile intact). Vérifié : peBottom == innerHeight.
+- ✅ Aperçus animés « Apparition des mots » : #fAnim devient .wa-grid avec 6 cartes animées (wa-card-none/pop/fade/slide/zoom/shake), handlers existants intacts ($$('#fAnim button')).
+- ✅ Landing bilingue : dict EN + applyLang (TreeWalker) dans landing.html, détection navigator.language, bouton FR/EN (bc_lang partagé studio).
+
+## Batch pricing 7j + suppression compte + purge IA + onboarding v3 (21 août 2026)
+- ✅ Essai 3 → 7 jours PARTOUT : backend TRIAL_DAYS=7 (Stripe LIVE trial_period_days), emails, paywall, CGV (J+7), Dashboard (badge J/7), AuthPage, i18n, landing, bannière studio.
+- ✅ DELETE /api/auth/account : annule Stripe, efface GridFS (metadata.user_id), projects, backups, sessions, user. UI : carte « Supprimer mon compte » (Dashboard) + modal confirmation tapée SUPPRIMER. Testé (iteration_29 : 100% PASS).
+- ✅ Landing : CTA héro « Commence maintenant », section #securite (fichiers chiffrés, zéro IA générative, suppression compte), phrases sous CTA héro et lead tarifs SUPPRIMÉES (demande user).
+- ✅ Purge mentions IA (studio aiBar « Analyse · », tuto, hints, Dashboard) — seule mention restante : section Sécurité landing.
+- ✅ Footer unifié PARTOUT (logo Beatcut■ + CGV · Confidentialité · Mentions légales · contact@beat-cut.com, RIEN d'autre) : landing, React Footer.js, studio #studioFoot (masqué en édition).
+- ✅ Navbar React v3 cohérente : MES MORCEAUX → /studio, MON COMPTE → /dashboard, pill FR/EN, logout. Lien « Mon compte » ajouté au header studio. /projects délié (route existe encore).
+- ✅ Verts (#d9ffd0) → rouge (#fc1c46) sur toutes les pages React (Dashboard, Admin, Auth, ForgotPassword, ResetPassword, ProtectedRoute, AuthCallback).
+- ✅ Onboarding studio v3 : overlay noir, progress cramoisie, gros chiffres info (2×, 80 %, 45 min), options pill animées (stagger), écran final avec barres d'onde animées + dropzone v3. Textes réécrits stop-slop (sans IA, sans tirets cadratins).
+- ✅ Modal « Versions du morceau » (bkPop) refait v3 (.bk-box/.bk-row, boutons ghost pill) + purge derniers tokens old-style (paywall, trial-cap, webview banner, trial banner → var(--void)/var(--hair-2)/var(--graphite)).
+- Cache CSS → ?v=13.16. Testé : iteration_29 (100% PASS batch précédent) + screenshots dashboard/versions/landing pour les retours visuels.
+- Guide d'écriture user : /app memory — règles stop-slop (pas d'adverbes, voix active, pas de « — », direct).
+
+## Backlog restant
+- P2 : Tester sur iPhone (menu latéral + export complet Safari).
+- P4 : Pré-remplir la recherche de vidéos gratuites selon le style choisi à l'onboarding.
+- P5 : Jauge de stockage utilisé dans le compte.
+- Futur : tracker vignettes manquantes par navigateur (admin).

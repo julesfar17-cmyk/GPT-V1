@@ -67,7 +67,7 @@ export default function AuthPage() {
               {isRegister ? "Rejoins le studio." : "Content de te revoir."}
             </h1>
             {refCode && isRegister && (
-              <div className="mb-5 border border-[#d9ffd0]/40 bg-[#d9ffd0]/5 px-4 py-3 font-osd text-[11px] tracking-wider text-[#d9ffd0]" data-testid="ref-banner">
+              <div className="mb-5 border border-[#fc1c46]/40 bg-[#fc1c46]/5 px-4 py-3 font-osd text-[11px] tracking-wider text-[#fc1c46]" data-testid="ref-banner">
                 Parrainage actif : code <b>{refCode}</b> — +1 mois offert dès ton 1er paiement
               </div>
             )}
@@ -105,7 +105,7 @@ export default function AuthPage() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ton nom ou pseudo"
                   data-testid="auth-name-input"
-                  className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#d9ffd0] focus:outline-none transition-colors"
+                  className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#fc1c46] focus:outline-none transition-colors"
                 />
               )}
               <input
@@ -115,7 +115,7 @@ export default function AuthPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ton@email.com"
                 data-testid="auth-email-input"
-                className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#d9ffd0] focus:outline-none transition-colors"
+                className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#fc1c46] focus:outline-none transition-colors"
               />
               <input
                 type="password"
@@ -125,7 +125,7 @@ export default function AuthPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={isRegister ? "Mot de passe (6 caractères min.)" : "Mot de passe"}
                 data-testid="auth-password-input"
-                className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#d9ffd0] focus:outline-none transition-colors"
+                className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#fc1c46] focus:outline-none transition-colors"
               />
               {!isRegister && (
                 <div className="text-right">
@@ -194,7 +194,7 @@ export default function AuthPage() {
             </p>
           </div>
           <p className="mt-5 font-osd text-[11px] text-muted-foreground text-center tracking-wider">
-            3 JOURS D'ESSAI OFFERTS SUR LE PLAN PRO • ANNULABLE EN 2 CLICS
+            7 JOURS D'ESSAI OFFERTS SUR LE PLAN PRO • ANNULABLE EN 2 CLICS
           </p>
         </div>
       </div>

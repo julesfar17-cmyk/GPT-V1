@@ -1,0 +1,77 @@
+{
+  "summary": "Iter29 (FR) — Batch changements BeatCut testé de bout en bout : (1) essai 7 jours partout (landing + login + backend), (2) DELETE /api/auth/account fonctionnel (register → delete → login refusé 401), (3) landing avec CTA 'Commence maintenant'/'Start now', section Sécurité #securite, footer 'Aucune IA générative', bascule FR/EN OK, (4) purge mentions 'IA' effectuée (dashboard=1 occurrence unique = 'Aucune IA générative'), (5) footer unifié Dashboard + studio (studioFoot), lien 'Mon compte' (data-testid=studio-nav-account) présent dans header studio, (6) onboarding v3 : overlay noir plein écran, 4 options persona pill, aucune mention IA, onb-skip → onb-drop → onb-later ferme, (7) badge PRÊT + ✕ visuellement alignés sur cartes v3-thumb, (8) grille #fAnim avec 6 cartes (wa-card-none/pop/fade/slide/zoom/shake), sélection unique .on, (9) mode édition : #pageEdit.bottom == innerHeight (diff=0), body.editing=true, #studioFoot display:none. Score 100% des exigences critiques validées.",
+  "credentials_used": "demo@beatcut.fr / Demo1234! (jamais confirmé la suppression) + compte jetable deltest_1b14eaa060@test.fr créé puis supprimé (validation flux complet). Aucune requête Stripe checkout n'a été lancée.",
+  "test_matrix": {
+    "backend_pytest_3_3_pass": {
+      "delete_account_unauthenticated": "PASS — 401/403 sans session",
+      "full_delete_account_flow": "PASS — register(cgv_accepted=true, 200) → me(200) → DELETE /api/auth/account(200 message='Compte supprimé') → login refusé (401 'Email ou mot de passe incorrect')",
+      "no_3_days_in_quota_api": "PASS — GET /api/export/quota ne contient plus '3 jours' ni '3 days'"
+    },
+    "landing_/landing.html_FR": {
+      "hero_CTA_commence_maintenant": "PASS — <a class='pill'>Commence maintenant</a> visible (data-hit)",
+      "sept_jours_essai": "PASS — 'Sept jours d'essai sur le plan Pro' visible sous le CTA + section pricing + FAQ",
+      "section_securite_anchor": "PASS — #securite présent, contient 'Zéro IA générative'",
+      "footer_aucune_IA": "PASS — 'BeatCut · Aucune IA générative, uniquement des algorithmes de détection'",
+      "no_3_jours_leftover": "PASS — aucune occurrence de '3 jours'/'Trois jours' dans le rendu",
+      "FR_EN_toggle": "PASS — clic bouton EN → 'YOUR SOUND DESERVES BETTER', 'START NOW', 'Seven-day trial', 'Zero generative AI', 'detection algorithms only'"
+    },
+    "login_/login": {
+      "trial_footer_7_jours": "PASS — '7 JOURS D'ESSAI OFFERTS SUR LE PLAN PRO • ANNULABLE EN 2 CLICS' présent",
+      "no_3_jours": "PASS"
+    },
+    "dashboard_React": {
+      "delete_account_card_visible": "PASS — 'SUPPRIMER MON COMPTE' + bouton [data-testid=delete-account-button]",
+      "modal_opens_on_click": "PASS — modal 'Supprimer définitivement ton compte ?'",
+      "confirm_disabled_before_typing": "PASS — is_disabled=True",
+      "confirm_disabled_with_partial_text_suppr": "PASS — is_disabled=True",
+      "confirm_enabled_after_SUPPRIMER": "PASS — is_disabled=False",
+      "cancel_button_closes_modal_without_delete": "PASS — 'Garder mon compte' ferme le modal (démo intact)",
+      "no_3_jours_no_IA_mentions": "PASS — 0 '3 jours', 1 seule occurrence 'IA' correspondant à 'Aucune IA générative' du footer unifié",
+      "footer_unified_Conditions_Confidentialite": "PASS — 'Conditions · Confidentialité · Mentions légales · contact@beat-cut.com' présent"
+    },
+    "studio_/studio.html_home": {
+      "studio_nav_account_link": "PASS — [data-testid=studio-nav-account] visible avec texte 'Mon compte'",
+      "studioFoot_visible_on_home": "PASS — #studioFoot visible avec 'Aucune IA générative...' + Conditions/Confidentialité",
+      "v3_thumb_badges": "PASS visuel — badge 'PRÊT' + bouton ✕ alignés sur même ligne (top-right) sans chevauchement sur les 2 cartes (Recette 150BPM, Morceau Série Test)"
+    },
+    "studio_edit_mode_projet_032e4762018d45": {
+      "body_editing_true": "PASS",
+      "no_black_band_bottom": "PASS — #pageEdit.getBoundingClientRect().bottom=900 == innerHeight=900 (diff=0.00 ≤ 2)",
+      "studioFoot_hidden_editing": "PASS — display=none, height=0",
+      "STYLE_tab_ANIMATION_subtab": "PASS — clic STYLE puis ANIMATION affiche 'Apparition des mots' + grille #fAnim",
+      "fAnim_grid_6_cards": "PASS — total=6 cards : wa-card-none, pop, fade, slide, zoom, shake (tous présents)",
+      "single_selection_on_click": "PASS — clic wa-card-pop → 1 seul .on = wa-card-pop"
+    },
+    "onboarding_v3_new_account": {
+      "overlay_visible_black_bg": "PASS — [data-testid=onboarding-overlay] visible, backgroundColor=rgb(0,0,0)",
+      "persona_options_4": "PASS — [data-testid=onb-option-persona-0..3] cliquables (pill animées visuellement)",
+      "no_IA_mentions_in_onboarding": "PASS — 0 occurrence de 'IA' dans le texte d'onboarding",
+      "content_step1": "PASS — 'QUESTION 1 / 5 — TU ES PLUTÔT... Artiste/Beatmaker/Manager/Créateur'",
+      "onb_skip_leads_to_drop_screen": "PASS — [data-testid=onb-skip] → écran final avec [data-testid=onb-drop] visible",
+      "onb_later_closes_overlay": "PASS — [data-testid=onb-later] ferme l'overlay (visible=false)"
+    },
+    "full_deletion_flow_test_account": {
+      "delete_confirm_after_typing_SUPPRIMER": "PASS — bouton devient actif",
+      "redirect_to_landing": "PASS — après DELETE 200, URL redirigée vers https://.../ (accueil)",
+      "post_delete_login_refused": "PASS — POST /api/auth/login → 401 'Email ou mot de passe incorrect'"
+    }
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_delete_account_iter29.py", "/app/test_reports/pytest/iter29_delete.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:742-765 delete_account : implémentation propre — annule Stripe subscription si présente, purge media.files (GridFS), projects, project_backups, user_sessions, users. Clear cookies. Log correct.",
+    "server.py:57 TRIAL_DAYS=7 utilisé cohérentement pour trial_period_days Stripe (l.1133) et propagation user doc (l.1042). Un commentaire l.1216 mentionne encore '3 jours avant la fin de l'essai (7 jours)' — sémantiquement correct (webhook Stripe trial_will_end).",
+    "landing.html:426 dictionnaire i18n contient encore 'Trois jours d'essai':'Three-day trial' — inoffensif car la source FR utilisée est 'Sept jours d'essai' partout. À nettoyer pour hygiène si souhaité.",
+    "landing.html:496 'Commencer maintenant':'Start now' — variante utilisée dans certains blocs, mais le hero utilise 'Commence maintenant' (l.223) qui n'est pas dans le dict — vérifier que la traduction EN 'Start now' s'applique bien au CTA hero (visuellement OK sur capture)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (3/3 pytest)", "frontend": "100% des exigences validées (landing + login + dashboard + studio + onboarding + delete flow)"},
+  "test_credentials": "demo@beatcut.fr / Demo1234! (non supprimé), compte jetable deltest_1b14eaa060@test.fr (supprimé après test)",
+  "seed_data_creation": "Aucune donnée persistante — le compte de test créé a été supprimé dans le même test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Tout le batch V29 (essai 7j, delete account, landing #securite/FR-EN, purge IA, footer unifié, onboarding v3, badges cards, anim grid, plein écran édition) est validé end-to-end. Backend pytest : /app/backend/tests/test_delete_account_iter29.py (3/3 PASS). Aucun paiement Stripe déclenché. Attention register exige cgv_accepted:true (400 sinon).",
+  "rca of the issue": "Aucun bug détecté. Test complet réussi."
+}

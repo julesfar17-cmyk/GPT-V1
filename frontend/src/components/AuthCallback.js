@@ -42,7 +42,7 @@ export default function AuthCallback() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="font-osd text-sm text-[#d9ffd0] animate-pulse" data-testid="auth-callback-loading">
+      <div className="font-osd text-sm text-[#fc1c46] animate-pulse" data-testid="auth-callback-loading">
         CONNEXION EN COURS…
       </div>
     </div>

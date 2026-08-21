@@ -54,7 +54,7 @@ export default function ForgotPassword() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="ton@email.com"
                     data-testid="forgot-email-input"
-                    className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#d9ffd0] focus:outline-none transition-colors"
+                    className="w-full bg-background border border-border px-4 py-3 text-sm focus:border-[#fc1c46] focus:outline-none transition-colors"
                   />
                   {error && (
                     <p className="text-sm text-primary" data-testid="forgot-error-message">{error}</p>
@@ -75,8 +75,8 @@ export default function ForgotPassword() {
                   ✓ Si un compte existe avec <b>{email}</b>, un lien de réinitialisation a été envoyé.
                 </p>
                 {devLink && (
-                  <div className="mt-5 border border-[#d9ffd0]/40 bg-[#d9ffd0]/5 p-4">
-                    <p className="font-osd text-[11px] tracking-wider text-[#d9ffd0] mb-2">
+                  <div className="mt-5 border border-[#fc1c46]/40 bg-[#fc1c46]/5 p-4">
+                    <p className="font-osd text-[11px] tracking-wider text-[#fc1c46] mb-2">
                       MODE DÉMO — EMAILS PAS ENCORE ACTIVÉS
                     </p>
                     <p className="text-xs text-muted-foreground mb-3">
@@ -85,7 +85,7 @@ export default function ForgotPassword() {
                     <a
                       href={devLink}
                       data-testid="dev-reset-link"
-                      className="text-sm text-[#d9ffd0] underline underline-offset-4 break-all"
+                      className="text-sm text-[#fc1c46] underline underline-offset-4 break-all"
                     >
                       Réinitialiser mon mot de passe →
                     </a>

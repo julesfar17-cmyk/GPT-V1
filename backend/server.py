@@ -50,11 +50,11 @@ BASIC_PRICE_CENTS = 699
 BASIC_MONTHLY_EXPORTS = 10
 # --- Nouvelle grille tarifaire (juin 2026) ---
 ESSENTIEL_PRICE_CENTS = 999      # Essentiel — 9,99 €/mois, 15 exports/mois
-PRO2_PRICE_CENTS = 1999          # Pro — 19,99 €/mois, essai 3 jours
+PRO2_PRICE_CENTS = 1999          # Pro — 19,99 €/mois, essai 7 jours
 PRO2_YEAR_CENTS = 14900          # Pro annuel — 149 €/an
 STUDIO_YEAR_CENTS = 49900        # Studio — 499 €/an
 ESSENTIEL_MONTHLY_EXPORTS = 15
-TRIAL_DAYS = 3
+TRIAL_DAYS = 7
 TRIAL_EXPORT_CAP = 15            # plafond anti-abus pendant l'essai (invisible marketing)
 NEW_PLANS = ("essentiel", "pro_monthly", "pro_yearly", "studio")
 ANNUAL_PLANS = ("yearly", "pro_yearly", "studio")
@@ -176,7 +176,7 @@ def sub_confirmed_email_html(period_end) -> str:
 def trial_started_email_html(trial_end) -> str:
     return _email_html(
         "Ton essai Pro a commencé ",
-        f"Tu as 3 jours d'accès Pro complet : exports illimités, séries de vidéos, tous les styles. "
+        f"Tu as 7 jours d'accès Pro complet : exports illimités, séries de vidéos, tous les styles. "
         f"Ton abonnement Pro (19,99 €/mois) démarre automatiquement le {_fmt_date_fr(trial_end)}. "
         f"Tu peux annuler à tout moment avant cette date, en 2 clics, depuis ton compte — rien ne sera débité.",
         "Gérer mon abonnement", "https://beat-cut.com/dashboard",
@@ -739,6 +739,32 @@ async def logout(request: Request, response: Response):
     return {"message": "Déconnecté"}
 
 
+@api_router.delete("/auth/account")
+async def delete_account(request: Request, response: Response):
+    """Suppression définitive : abonnement Stripe annulé, fichiers, projets et compte effacés."""
+    user = await get_current_user(request)
+    uid = user["user_id"]
+    sub_id = (user.get("subscription") or {}).get("stripe_subscription_id")
+    if sub_id:
+        try:
+            await asyncio.to_thread(stripe.Subscription.cancel, sub_id)
+        except Exception as e:
+            logger.warning(f"delete_account: annulation Stripe impossible ({e})")
+    async for f in db["media.files"].find({"metadata.user_id": uid}, {"_id": 1}):
+        try:
+            await media_fs.delete(f["_id"])
+        except Exception:
+            pass
+    await db.projects.delete_many({"user_id": uid})
+    await db.project_backups.delete_many({"user_id": uid})
+    await db.user_sessions.delete_many({"user_id": uid})
+    await db.users.delete_one({"user_id": uid})
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("session_token", path="/")
+    logger.info(f"delete_account: compte {uid} supprimé")
+    return {"message": "Compte supprimé"}
+
+
 # ---------------------------------------------------------------------------
 # Télémétrie — navigateurs incompatibles WebCodecs (écran bloquant de l'éditeur)
 # ---------------------------------------------------------------------------
@@ -1097,7 +1123,7 @@ def _build_checkout_params(user: dict, plan: str, pricing: dict, origin: str, re
 
 
 async def _maybe_add_trial(params: dict, user: dict, plan: str) -> bool:
-    """Essai 3 jours : un seul par email ET par carte (empreinte vérifiée après le checkout)."""
+    """Essai 7 jours : un seul par email ET par carte (empreinte vérifiée après le checkout)."""
     sub = user.get("subscription") or {}
     if plan != "pro_monthly" or sub.get("stripe_subscription_id"):
         return False
@@ -1187,7 +1213,7 @@ async def _wh_checkout_completed(obj):
 
 
 async def _wh_trial_will_end(obj):
-    """Stripe envoie cet événement 3 jours avant la fin — trop tôt pour un essai de 3 jours.
+    """Stripe envoie cet événement 3 jours avant la fin de l'essai (7 jours).
     On n'envoie ici que si la fin est réellement dans moins de 36 h ; sinon _trial_reminder_loop
     (rappel J-1) s'en charge."""
     sub_id = obj.get("id")
@@ -1723,7 +1749,7 @@ async def register_export(user: dict = Depends(get_current_user)):
     if tier == "free":
         raise HTTPException(status_code=402, detail={
             "code": "paywall",
-            "message": "Ta vidéo est prête. Débloque-la avec 3 jours offerts.",
+            "message": "Ta vidéo est prête. Débloque-la avec 7 jours offerts.",
         })
     if info.get("trial"):
         since = (user.get("subscription") or {}).get("started_at") or _month_start_iso()
@@ -2409,7 +2435,7 @@ async def _store_media_file(user: dict, path: str, filename: str, content_type: 
         })
         if nvids >= 5:
             raise HTTPException(status_code=403,
-                                detail="5 clips maximum sans abonnement — débloque tout avec ton essai Pro (3 jours offerts).")
+                                detail="5 clips maximum sans abonnement. Débloque tout avec ton essai Pro, 7 jours offerts.")
     with open(path, "rb") as f:
         media_id = await media_fs.upload_from_stream(
             filename or "media",
@@ -3120,7 +3146,7 @@ async def admin_stats(user: dict = Depends(get_current_user)):
     for key in ("essentiel", "pro_monthly", "pro_yearly", "studio", "basic", "yearly"):
         plans[key] = await db.users.count_documents({**real_paid_filter, "subscription.plan": key})
     plans["monthly"] = max(0, real_paid - sum(plans.values()))  # legacy PRO mensuel (plan par défaut)
-    # Essai gratuit 3 jours : en cours / démarrés / convertis en payant réel
+    # Essai gratuit 7 jours : en cours / démarrés / convertis en payant réel
     trial_users = await db.users.count_documents({
         "subscription.status": "trialing",
         "subscription.current_period_end": {"$gt": iso(now_utc())},

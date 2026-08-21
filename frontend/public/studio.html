@@ -525,7 +525,7 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   .hero{padding:22px 16px}
 }
 </style>
-<link rel="stylesheet" href="/v3-skin.css?v=13.12">
+<link rel="stylesheet" href="/v3-skin.css?v=13.16">
 <script>
 /* Thème V3 : partagé avec la landing via bc_theme */
 (function(){try{const s=localStorage.getItem('bc_theme');if(s)document.documentElement.dataset.theme=s;}catch(e){}})();
@@ -579,6 +579,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <a href="#/accueil" data-nav="accueil">Accueil</a>
     <a href="#/morceaux" data-nav="morceaux">Mes morceaux</a>
     <a href="#/serie" data-nav="serie">Série de vidéos</a>
+    <a href="/dashboard" data-testid="studio-nav-account" onclick="try{window.top.location.href='/dashboard'}catch(e){};return false">Mon compte</a>
   </nav>
   <div class="head-right">
     <button class="small ghost" id="langBtn" onclick="toggleLang()" title="Switch language">EN</button>
@@ -754,13 +755,13 @@ document.addEventListener('DOMContentLoaded',function(){
 
       <div id="panelParoles">
         <div class="choice2" id="lyricsChoice">
-          <button onclick="detectLyrics()"><b>Détecter les paroles</b><span>L'IA isole d'abord la voix, puis écrit chaque mot au bon moment.</span></button>
+          <button onclick="detectLyrics()"><b>Détecter les paroles</b><span>La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.</span></button>
           <button onclick="showPaste()"><b>J'ai mes paroles</b><span>Colle ton texte : il sera calé sur ta voix, orthographe intacte.</span></button>
         </div>
         <div id="pasteZone" style="display:none">
           <textarea id="pasteText" placeholder="Colle tes paroles ici…"></textarea>
           <button class="primary" style="width:100%;margin-top:8px" onclick="applyPaste()">Caler mes paroles</button>
-          <p class="hint" style="margin-top:6px">Ton texte est calé mot par mot sur ta voix (transcription IA + alignement) — orthographe intacte.</p>
+          <p class="hint" style="margin-top:6px">Ton texte se cale mot par mot sur ta voix. Orthographe intacte.</p>
         </div>
         <div id="detectStatus" style="display:none;margin-bottom:10px">
           <div class="lyric-line" style="display:block">
@@ -931,8 +932,13 @@ document.addEventListener('DOMContentLoaded',function(){
         </div>
         <div id="subAnim" style="display:none">
           <div class="field"><label>Apparition des mots</label>
-            <div class="seg" id="fAnim">
-              <button data-v="none">Aucune</button><button data-v="pop" class="on">Pop</button><button data-v="fade">Fondu</button><button data-v="slide">Glissé</button><button data-v="zoom">Zoom</button><button data-v="shake">Secousse</button>
+            <div class="wa-grid" id="fAnim">
+              <button data-v="none" data-testid="wa-card-none"><span class="fx-demo wad-none"><i>BEATCUT<u></u></i></span><span class="wa-name">Aucune</span></button>
+              <button data-v="pop" class="on" data-testid="wa-card-pop"><span class="fx-demo wad-pop"><i>BEATCUT<u></u></i></span><span class="wa-name">Pop</span></button>
+              <button data-v="fade" data-testid="wa-card-fade"><span class="fx-demo wad-fade"><i>BEATCUT<u></u></i></span><span class="wa-name">Fondu</span></button>
+              <button data-v="slide" data-testid="wa-card-slide"><span class="fx-demo wad-slide"><i>BEATCUT<u></u></i></span><span class="wa-name">Glissé</span></button>
+              <button data-v="zoom" data-testid="wa-card-zoom"><span class="fx-demo wad-zoom"><i>BEATCUT<u></u></i></span><span class="wa-name">Zoom</span></button>
+              <button data-v="shake" data-testid="wa-card-shake"><span class="fx-demo wad-shake"><i>BEATCUT<u></u></i></span><span class="wa-name">Secousse</span></button>
             </div>
           </div>
           <div class="field"><label><input type="checkbox" id="fHold" checked style="width:auto;margin-right:6px">Le mot reste affiché jusqu'au suivant</label></div>
@@ -1083,7 +1089,11 @@ document.addEventListener('DOMContentLoaded',function(){
     <button class="small" onclick="try{window.top.location.href='/dashboard'}catch(e){}">Mon compte</button>
   </div>
 </div>
-<div class="ai-bar" id="aiBar" data-testid="ai-progress-bar"><div class="track"><div class="fill" id="aiBarFill"></div></div><div class="lbl" id="aiBarLbl">IA en cours…</div></div>
+<footer class="v3-foot" id="studioFoot">
+  <span style="font-weight:700;letter-spacing:-.045em;color:var(--frost,#fff);text-transform:uppercase">Beatcut<i style="display:inline-block;width:5px;height:5px;background:var(--crimson,#fc1c46);margin-left:4px"></i></span>
+  <span><a href="/cgv" target="_top">CGV</a> · <a href="/confidentialite" target="_top">Confidentialité</a> · <a href="/mentions-legales" target="_top">Mentions légales</a> · <a href="mailto:contact@beat-cut.com">contact@beat-cut.com</a></span>
+</footer>
+<div class="ai-bar" id="aiBar" data-testid="ai-progress-bar"><div class="track"><div class="fill" id="aiBarFill"></div></div><div class="lbl" id="aiBarLbl">Analyse en cours…</div></div>
 
 <script src="/vendor/mp4-muxer.min.js"></script>
 <script src="/vendor/mp4box.all.min.js"></script>
@@ -1336,12 +1346,12 @@ function renderTrialBanner(){
   let b=document.getElementById('trialBanner');
   if(!API.trial){ if(b) b.remove(); return; }
   if(!b){ b=document.createElement('a'); b.id='trialBanner'; b.setAttribute('data-testid','trial-banner'); b.href='/dashboard'; b.target='_top';
-    b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:#151A21;border:1px solid #FF453A;color:#fff;font-size:12px;padding:7px 14px;border-radius:999px;text-decoration:none;box-shadow:0 4px 18px rgba(0,0,0,.4)';
+    b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:80;background:var(--void,#000);border:1px solid var(--crimson,#fc1c46);color:var(--frost,#fff);font-size:12px;padding:7px 14px;border-radius:999px;text-decoration:none;box-shadow:0 4px 18px rgba(0,0,0,.4)';
     document.body.appendChild(b); }
   const end=API.trialEnd?new Date(API.trialEnd):null;
   const daysLeft=end?Math.max(0,Math.ceil((end-Date.now())/86400000)):0;
-  const day=Math.min(3,Math.max(1,3-daysLeft+1));
-  b.innerHTML='Essai Pro — J'+day+'/3 · <b style="color:#FF453A">Gérer</b>';
+  const day=Math.min(7,Math.max(1,7-daysLeft+1));
+  b.innerHTML='Essai Pro — J'+day+'/7 · <b style="color:var(--crimson,#fc1c46)">Gérer</b>';
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -1499,8 +1509,8 @@ const EN={
 "Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Plein écran":"Fullscreen","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
 "Glisse la zone rouge pour déplacer l'extrait · tire ses bords pour l'allonger ou le raccourcir · il joue en boucle pendant que tu ajustes.":"Drag the red zone to move the extract · pull its edges to stretch or shorten it · it loops while you adjust.",
 "Tempo du morceau":"Track tempo","Tape TAP en rythme sur le beat, ou entre la valeur si tu la connais.":"Hit TAP on the beat, or type the value if you know it.",
-"Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","L'IA isole d'abord la voix, puis écrit chaque mot au bon moment.":"AI isolates the vocals first, then writes each word at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
-"Ton texte est calé mot par mot sur ta voix (transcription IA + alignement) — orthographe intacte.":"Your text is synced word by word to your vocals (AI transcription + alignment) — spelling untouched.",
+"Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.":"The vocals get isolated first, then each word lands at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
+"Ton texte se cale mot par mot sur ta voix. Orthographe intacte.":"Your text syncs word by word to your vocals. Spelling untouched.",
 "1. Isolation de la voix…":"1. Isolating vocals…","2. Détection des paroles…":"2. Detecting lyrics…","Recaler les paroles":"Re-sync lyrics","Repartir de zéro":"Start over",
 "Double-clique un mot pour le corriger · bouton « + » entre les mots pour en insérer un · double-clique la piste paroles de la timeline pour ajouter un mot à cet instant.":"Double-click a word to fix it · \"+\" button between words to insert one · double-click the lyrics track on the timeline to add a word at that moment.",
 "Sur la timeline : Maj-clic / Ctrl-clic pour sélectionner plusieurs mots, puis glisse-les en groupe, ⧉ copie, colle au curseur ou supprime (touche Suppr).":"On the timeline: Shift-click / Ctrl-click to select several words, then drag them as a group, ⧉ copy, paste at cursor or delete (Del key).",
@@ -1513,7 +1523,9 @@ const EN={
 "Chaque vidéo garde tes paroles calées : seuls les plans et le style changent. Seules celles que tu gardes comptent dans tes exports.":"Every video keeps your synced lyrics: only the shots and style change. Only the ones you keep count toward your exports.",
 "← Régler autrement":"← Adjust settings","Exporter la sélection (":"Export selection (",
 "L'export se fait en temps réel, vidéo par vidéo — reste sur cet onglet. Chaque vidéo exportée compte dans ton quota.":"Export runs one video at a time — stay on this tab. Each exported video counts toward your quota.",
-"Connecte-toi pour créer tes vidéos.":"Sign in to create your videos.","Continuer avec Google":"Continue with Google","Connexion sécurisée avec ton compte Google.":"Secure sign-in with your Google account.","Choisis le moment exact":"Pick the exact moment","＋ Ajouter ce plan":"＋ Add this shot","Coupes sur ce temps":"Cuts on this beat","Verrouiller ce plan":"Lock this shot","4 coupes = 4 images sur ce temps (parfait pour un roll de batterie).":"4 cuts = 4 frames on this beat (perfect for a drum roll).","IA en cours…":"AI working…",
+"Connecte-toi pour créer tes vidéos.":"Sign in to create your videos.","Continuer avec Google":"Continue with Google","Connexion sécurisée avec ton compte Google.":"Secure sign-in with your Google account.","Choisis le moment exact":"Pick the exact moment","＋ Ajouter ce plan":"＋ Add this shot","Coupes sur ce temps":"Cuts on this beat","Verrouiller ce plan":"Lock this shot","4 coupes = 4 images sur ce temps (parfait pour un roll de batterie).":"4 cuts = 4 frames on this beat (perfect for a drum roll).","Analyse en cours…":"Analyzing…",
+"Analyse · isolation de la voix…":"Analysis · isolating vocals…","Analyse · détection des paroles…":"Analysis · detecting lyrics…","Analyse · calage précis sur ta voix…":"Analysis · precise sync to your vocals…","Analyse · détection de la grille temporelle…":"Analysis · detecting the time grid…","Analyse · calage de tes paroles sur ta voix…":"Analysis · syncing your lyrics to your vocals…","Analyse · recalage des timings…":"Analysis · re-syncing timings…",
+"BeatCut · Aucune IA générative, uniquement des algorithmes de détection":"BeatCut · Zero generative AI, detection algorithms only","Conditions":"Terms","CGV":"Terms","Mentions légales":"Legal notice","Confidentialité":"Privacy",
 "ex : néon, fumée, ville la nuit…":"e.g. neon, smoke, city at night…","Colle tes paroles ici…":"Paste your lyrics here…",
 "Annuler (Ctrl+Z)":"Undo (Ctrl+Z)","Contour blanc":"White outline","Contour noir":"Black outline","Dézoomer":"Zoom out","Exports restants ce mois":"Exports left this month","Format de la vidéo":"Video format","Historique des versions du morceau":"Track version history","La durée exacte pour que la vidéo boucle parfaitement":"The exact length for a perfect loop","Plein écran (F)":"Fullscreen (F)","Régler le tempo":"Set the tempo","Zoomer":"Zoom in","Paroles & style":"Lyrics & style",
 "Un export est déjà en cours — attends la fin":"An export is already running — wait for it to finish","Dépose d'abord ton morceau":"Drop your track first","Téléchargement lancé ✓":"Download started ✓","Morceau supprimé":"Track deleted","Ta vidéo est prête":"Your video is ready","vidéos prêtes":"videos ready","Télécharger":"Download","Re-télécharger":"Download again","téléchargée ✓":"downloaded ✓","Fermer":"Close",
@@ -1529,7 +1541,7 @@ const EN={
 "Clips":"Clips",
 "Ajoute tes vidéos — elles se placent toutes seules sur la timeline, calées sur le beat.":"Add your videos — they land on the timeline by themselves, snapped to the beat.",
 "Paroles":"Lyrics",
-"L'IA écrit tes sous-titres synchronisés avec ta voix. Tu corriges un mot en un tap.":"AI writes your subtitles in sync with your vocals. Fix any word with one tap.",
+"Tes sous-titres s'écrivent tout seuls, synchronisés avec ta voix. Tu corriges un mot en un tap.":"Your subtitles write themselves, synced to your vocals. Fix any word with one tap.",
 "Style":"Style",
 "Presets, polices, couleurs, effets VHS / glitch, mise en avant des sous-titres — ta patte visuelle.":"Presets, fonts, colors, VHS / glitch effects, subtitle highlights — your visual signature.",
 "La timeline":"The timeline",
@@ -1540,10 +1552,10 @@ const EN={
 "Ton morceau":"Your track",
 "Dépose ton son au centre : le BPM est détecté automatiquement et tu règles l'extrait juste en dessous.":"Drop your track in the middle: the BPM is detected automatically and you adjust the extract right below.",
 "Ajoute tes vidéos ici — elles se placent toutes seules sur la timeline, calées sur le beat.":"Add your videos here — they land on the timeline by themselves, snapped to the beat.",
-"L'IA écrit tes sous-titres synchronisés avec ta voix. Double-clique un mot pour le corriger.":"AI writes your subtitles in sync with your vocals. Double-click a word to fix it.",
+"Tes sous-titres s'écrivent tout seuls, synchronisés avec ta voix. Double-clique un mot pour le corriger.":"Your subtitles write themselves, synced to your vocals. Double-click a word to fix it.",
 "Clique un plan pour le découper ou le verrouiller · glisse un clip dessus pour le remplacer. Le trait rouge suit la musique.":"Click a shot to split or lock it · drag a clip onto it to swap it. The red line follows the music.",
 "Maintenant, tes vidéos ":"Now, your videos ",
-"Ajoute tes propres clips, ou pioche dans notre banque de vidéos gratuites — ils se caleront tout seuls sur le beat.":"Add your own clips, or pick from our free video library — they'll snap to the beat by themselves.",
+"Ajoute tes propres clips ou pioche dans la banque de vidéos gratuites. Ils se calent tout seuls sur le beat.":"Add your own clips or pick from the free video library. They snap to the beat on their own.",
 "＋ Ajouter mes vidéos":"＋ Add my videos",
 "Banque de vidéos gratuites":"Free video library",
 "Plus tard":"Later"
@@ -2421,15 +2433,15 @@ async function openBackups(){
   const d=document.createElement('div'); d.id='bkPop';
   d.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(8,8,12,.8);display:grid;place-items:center';
   const box=document.createElement('div');
-  box.style.cssText='background:#15181f;border:1px solid #2a2f3a;border-radius:12px;padding:18px;width:min(440px,92vw);max-height:70vh;overflow:auto';
-  box.innerHTML='<div style="font-weight:700;margin-bottom:6px">Versions du morceau</div><div class="hint" style="margin-bottom:8px">Sauvegardées automatiquement — restaure si ton projet a un problème.</div>';
+  box.className='bk-box';
+  box.innerHTML='<div class="bk-title">Versions du morceau</div><div class="bk-sub">Sauvegardées automatiquement. Restaure si ton projet a un problème.</div>';
   backups.forEach(b=>{
     const row=document.createElement('div');
-    row.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #232833;font-size:13px';
+    row.className='bk-row';
     const dt=new Date(b.created_at);
     const lbl=document.createElement('span');
     lbl.textContent=dt.toLocaleDateString('fr-FR')+' '+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' · '+b.clips+' vidéo(s) · '+b.plans+' plan(s)';
-    const btn=document.createElement('button'); btn.className='small'; btn.textContent='Restaurer';
+    const btn=document.createElement('button'); btn.textContent='Restaurer';
     btn.setAttribute('data-testid','backup-restore-button');
     btn.onclick=async()=>{
       if(!confirm('Restaurer cette version ? La version actuelle sera d\u2019abord conservée dans l\u2019historique.')) return;
@@ -2439,7 +2451,7 @@ async function openBackups(){
     };
     row.append(lbl,btn); box.append(row);
   });
-  const close=document.createElement('button'); close.className='small'; close.style.marginTop='12px'; close.textContent='Fermer'; close.onclick=()=>d.remove();
+  const close=document.createElement('button'); close.className='onb-skip'; close.style.marginTop='14px'; close.textContent='Fermer'; close.onclick=()=>d.remove();
   box.append(close); d.append(box);
   d.onclick=e=>{ if(e.target===d) d.remove(); };
   document.body.append(d);
@@ -2734,19 +2746,19 @@ async function detectLyrics(){
     let audioForStt=wav;
     // Étape 1 — acapella (PRO) : transcription bien plus fiable sur la voix isolée
     if(API.plan==='pro'){
-      aiBar.start('IA · isolation de la voix…');
-      try{ audioForStt=await API.acapella(wav, n=>aiBar.set('IA · isolation de la voix… ('+(n*5)+' s)', 5+Math.min(45,n*4))); s1.textContent='1. Voix isolée ✓'; s1.style.color='var(--ok)'; }
+      aiBar.start('Analyse · isolation de la voix…');
+      try{ audioForStt=await API.acapella(wav, n=>aiBar.set('Analyse · isolation de la voix… ('+(n*5)+' s)', 5+Math.min(45,n*4))); s1.textContent='1. Voix isolée ✓'; s1.style.color='var(--ok)'; }
       catch(e){ s1.textContent='1. Voix : mix complet (isolation indisponible)'; s1.style.color='var(--muted)'; }
     }else{
-      aiBar.start('IA · détection des paroles…');
+      aiBar.start('Analyse · détection des paroles…');
       s1.textContent='1. Isolation de la voix : réservée au plan PRO'; s1.style.color='var(--muted)';
     }
     s2.style.opacity='1'; s2.style.color='var(--accent)';
-    aiBar.set('IA · détection des paroles…',55);
+    aiBar.set('Analyse · détection des paroles…',55);
     // Étape 2 — transcription (mots relatifs à l'extrait → temps absolus)
     const words=await API.transcribe(audioForStt);
     if(!words.length){ fail('Aucune parole détectée sur cet extrait — essaie un autre passage ou colle ton texte.'); return; }
-    aiBar.set('IA · calage précis sur ta voix…',88);
+    aiBar.set('Analyse · calage précis sur ta voix…',88);
     s2.textContent='2. Paroles détectées ✓'; s2.style.color='var(--ok)';
     pushHistory();
     M.words=refineTimings(words.map(w=>({text:w.text, start:w.start+ext.start, end:w.end+ext.start})));
@@ -2771,15 +2783,15 @@ async function applyPaste(){
   }
   // Pas encore de grille : transcription d'abord (chronométrage), puis calage du texte collé
   toast('Détection de la grille temporelle — ton texte sera calé dessus…');
-  aiBar.start(API.plan==='pro'?'IA · isolation de la voix…':'IA · détection de la grille temporelle…');
+  aiBar.start(API.plan==='pro'?'Analyse · isolation de la voix…':'Analyse · détection de la grille temporelle…');
   try{
     const wav=extractWavBlob(ext.start, ext.dur);
     let audioForStt=wav;
     if(API.plan==='pro'){ try{ audioForStt=await API.acapella(wav, n=>aiBar.set(null, 5+Math.min(40,n*4))); }catch(e){} }
-    aiBar.set('IA · détection de la grille temporelle…',50);
+    aiBar.set('Analyse · détection de la grille temporelle…',50);
     const words=await API.transcribe(audioForStt);
     if(!words.length) throw new Error('aucune voix détectée sur cet extrait');
-    aiBar.set('IA · calage de tes paroles sur ta voix…',85);
+    aiBar.set('Analyse · calage de tes paroles sur ta voix…',85);
     pushHistory();
     const anchors=refineTimings(words.map(w=>({text:w.text,start:w.start+ext.start,end:w.end+ext.start})));
     M.words=remapPasted(list, anchors);
@@ -2792,7 +2804,7 @@ async function applyPaste(){
     aiBar.done();
     // Repli : répartition provisoire sur l'extrait
     seedWords(list);
-    toast('Paroles posées (répartition provisoire — la détection IA n\u2019a pas pu chronométrer : '+(e.message||'')+')');
+    toast('Paroles posées (répartition provisoire — la détection n\u2019a pas pu chronométrer : '+(e.message||'')+')');
   }
 }
 
@@ -2836,15 +2848,15 @@ async function retime(){
   /* Recalage : le texte ne change pas, seuls les timings s'affinent (re-transcription) */
   if(!buffer||!M.words||!M.words.length){ toast('Rien à recaler'); return; }
   toast('Recalage des timings sur ta voix…');
-  aiBar.start('IA · recalage des timings…');
+  aiBar.start('Analyse · recalage des timings…');
   try{
     const wav=extractWavBlob(ext.start, ext.dur);
     let audioForStt=wav;
     if(API.plan==='pro'){ try{ audioForStt=await API.acapella(wav, n=>aiBar.set(null, 5+Math.min(40,n*4))); }catch(e){} }
-    aiBar.set('IA · recalage des timings…',50);
+    aiBar.set('Analyse · recalage des timings…',50);
     const words=await API.transcribe(audioForStt);
     if(!words.length) throw new Error('aucune voix détectée');
-    aiBar.set('IA · calage précis sur ta voix…',85);
+    aiBar.set('Analyse · calage précis sur ta voix…',85);
     pushHistory();
     const anchors=refineTimings(words.map(w=>({text:w.text,start:w.start+ext.start,end:w.end+ext.start})));
     M.words=remapPasted(M.words.map(w=>w.text), anchors);
@@ -3107,7 +3119,7 @@ $('#xEmphFont').onchange=e=>{style.emphFont=e.target.value;dirty();};
 });
 function renderEmphWords(){
   const root=$('#xEmphWords'); if(!root) return; root.innerHTML='';
-  if(!M||!M.words||!M.words.length){ root.innerHTML='<span style="font-size:12px;color:#5A6472">Ajoute d\u2019abord tes paroles (onglet Paroles)</span>'; return; }
+  if(!M||!M.words||!M.words.length){ root.innerHTML='<span style="font-size:12px;color:var(--graphite,#7a7a7a)">Ajoute d\u2019abord tes paroles (onglet Paroles)</span>'; return; }
   M.words.forEach((w,i)=>{
     const ch=document.createElement('span'); ch.className='ew'+(w.emph?' on':''); ch.textContent=w.text; ch.dataset.i=i;
     ch.setAttribute('data-testid','emph-word-'+i);
@@ -3207,15 +3219,15 @@ function showUnsupportedScreen(){
     d.setAttribute('data-testid','unsupported-browser-screen');
     d.style.cssText='position:fixed;inset:0;z-index:10000;background:rgba(8,8,12,.96);display:grid;place-items:center;padding:20px';
     d.innerHTML=
-      '<div style="max-width:520px;background:#15181f;border:1px solid #2a2f3a;border-radius:14px;padding:28px;text-align:center">'+
+      '<div style="max-width:520px;background:var(--void,#000);border:1px solid var(--hair-2,#3a3a3e);border-radius:18px;padding:28px;text-align:center">'+
       '<div style="font-size:38px;margin-bottom:10px"></div>'+
       '<h2 style="font-size:20px;margin-bottom:10px">BeatCut a besoin d\u2019un navigateur récent</h2>'+
       '<p class="hint" style="margin-bottom:16px;line-height:1.6">L\u2019éditeur vidéo utilise les toutes dernières technologies (WebCodecs). Mets ton navigateur à jour ou installe l\u2019un de ceux-ci — Chrome, Edge, Safari ou Firefox à jour. <b style="color:var(--text)">Tes vidéos exportées, elles, se lisent partout.</b></p>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:16px">'+
-      '<a class="small" data-testid="link-chrome" href="https://www.google.com/chrome/" target="_blank" rel="noopener" style="text-decoration:none;padding:9px 14px;border:1px solid #2a2f3a;border-radius:8px;color:var(--text)">Chrome</a>'+
-      '<a class="small" data-testid="link-edge" href="https://www.microsoft.com/edge" target="_blank" rel="noopener" style="text-decoration:none;padding:9px 14px;border:1px solid #2a2f3a;border-radius:8px;color:var(--text)">Edge</a>'+
-      '<a class="small" data-testid="link-firefox" href="https://www.mozilla.org/firefox/new/" target="_blank" rel="noopener" style="text-decoration:none;padding:9px 14px;border:1px solid #2a2f3a;border-radius:8px;color:var(--text)">Firefox</a>'+
-      '<a class="small" data-testid="link-safari" href="https://support.apple.com/fr-fr/108382" target="_blank" rel="noopener" style="text-decoration:none;padding:9px 14px;border:1px solid #2a2f3a;border-radius:8px;color:var(--text)">Safari (mise à jour)</a>'+
+      '<a class="small" data-testid="link-chrome" href="https://www.google.com/chrome/" target="_blank" rel="noopener" style="text-decoration:none;padding:9px 14px;border:1px solid var(--hair-2,#3a3a3e);border-radius:999px;color:var(--text)">Chrome</a>'+
+      '<a class="small" data-testid="link-edge" href="https://www.microsoft.com/edge" target="_blank" rel="noopener" style="text-decoration:none;padding:9px 14px;border:1px solid var(--hair-2,#3a3a3e);border-radius:999px;color:var(--text)">Edge</a>'+
+      '<a class="small" data-testid="link-firefox" href="https://www.mozilla.org/firefox/new/" target="_blank" rel="noopener" style="text-decoration:none;padding:9px 14px;border:1px solid var(--hair-2,#3a3a3e);border-radius:999px;color:var(--text)">Firefox</a>'+
+      '<a class="small" data-testid="link-safari" href="https://support.apple.com/fr-fr/108382" target="_blank" rel="noopener" style="text-decoration:none;padding:9px 14px;border:1px solid var(--hair-2,#3a3a3e);border-radius:999px;color:var(--text)">Safari (mise à jour)</a>'+
       '</div>'+
       '<button class="small" data-testid="unsupported-back-btn" onclick="document.getElementById(\'unsupportedOv\').style.display=\'none\';go(\'morceaux\')">← Retour à mes morceaux</button>'+
       '</div>';
@@ -4710,26 +4722,26 @@ function _bcModal(id,html){
 }
 function showPaywall(){
   const d=_bcModal('paywall-modal',
-    '<div style="background:#12161D;border:1px solid #232B36;border-radius:16px;max-width:420px;width:100%;padding:26px 22px">'+
+    '<div style="background:var(--void,#000);border:1px solid var(--hair-2,#3a3a3e);border-radius:18px;max-width:420px;width:100%;padding:26px 22px">'+
     '<h2 style="font-size:21px;margin:0 0 4px">Ta vidéo est prête.</h2>'+
-    '<p style="color:#8B95A3;font-size:14px;margin:0 0 18px">Débloque-la avec <b style="color:#fff">3 jours offerts</b>.</p>'+
-    '<button class="primary" data-testid="paywall-pro-trial" onclick="bcCheckout(\'pro_monthly\')" style="width:100%;padding:14px;font-size:15px">Essayer 3 jours offerts — Pro</button>'+
-    '<div style="text-align:center;color:#8B95A3;font-size:11.5px;margin:6px 0 14px">Puis 19,99 €/mois · annulable en 2 clics pendant l\u2019essai</div>'+
-    '<button class="ghost" data-testid="paywall-essentiel" onclick="bcCheckout(\'essentiel\')" style="width:100%;padding:11px;margin-bottom:8px">Essentiel — 9,99 €/mois <span style="color:#8B95A3">(15 exports/mois)</span></button>'+
-    '<button class="ghost" data-testid="paywall-pro-yearly" onclick="bcCheckout(\'pro_yearly\')" style="width:100%;padding:11px;margin-bottom:8px">Pro Annuel — 12,42 €/mois <span style="color:#8B95A3">(149 €/an · −38 %)</span></button>'+
-    '<a data-testid="paywall-studio" href="mailto:jules.beatcut@gmail.com?subject=D%C3%A9mo%20BeatCut%20Studio" target="_top" style="display:block;text-align:center;padding:11px;border:1px solid #232B36;border-radius:12px;color:#fff;text-decoration:none;margin-bottom:12px">Studio — 499 €/an · Planifier une démo</a>'+
-    '<div style="text-align:center"><button data-testid="paywall-close" onclick="document.getElementById(\'paywall-modal\').remove()" style="background:none;border:none;color:#8B95A3;font-size:12.5px;cursor:pointer;text-decoration:underline">Plus tard</button></div>'+
+    '<p style="color:var(--graphite,#7a7a7a);font-size:14px;margin:0 0 18px">Débloque-la avec <b style="color:#fff">7 jours offerts</b>.</p>'+
+    '<button class="primary" data-testid="paywall-pro-trial" onclick="bcCheckout(\'pro_monthly\')" style="width:100%;padding:14px;font-size:15px">Essayer 7 jours offerts — Pro</button>'+
+    '<div style="text-align:center;color:var(--graphite,#7a7a7a);font-size:11.5px;margin:6px 0 14px">Puis 19,99 €/mois · annulable en 2 clics pendant l\u2019essai</div>'+
+    '<button class="ghost" data-testid="paywall-essentiel" onclick="bcCheckout(\'essentiel\')" style="width:100%;padding:11px;margin-bottom:8px">Essentiel — 9,99 €/mois <span style="color:var(--graphite,#7a7a7a)">(15 exports/mois)</span></button>'+
+    '<button class="ghost" data-testid="paywall-pro-yearly" onclick="bcCheckout(\'pro_yearly\')" style="width:100%;padding:11px;margin-bottom:8px">Pro Annuel — 12,42 €/mois <span style="color:var(--graphite,#7a7a7a)">(149 €/an · −38 %)</span></button>'+
+    '<a data-testid="paywall-studio" href="mailto:jules.beatcut@gmail.com?subject=D%C3%A9mo%20BeatCut%20Studio" target="_top" style="display:block;text-align:center;padding:11px;border:1px solid var(--hair-2,#3a3a3e);border-radius:999px;color:#fff;text-decoration:none;margin-bottom:12px">Studio — 499 €/an · Planifier une démo</a>'+
+    '<div style="text-align:center"><button data-testid="paywall-close" onclick="document.getElementById(\'paywall-modal\').remove()" style="background:none;border:none;color:var(--graphite,#7a7a7a);font-size:12.5px;cursor:pointer;text-decoration:underline">Plus tard</button></div>'+
     '</div>');
   return d;
 }
 function showTrialCap(){
   const end=API.trialEnd?new Date(API.trialEnd).toLocaleDateString('fr-FR',{day:'numeric',month:'long'}):'la fin de ton essai';
   _bcModal('trial-cap-modal',
-    '<div style="background:#12161D;border:1px solid #232B36;border-radius:16px;max-width:420px;width:100%;padding:26px 22px">'+
+    '<div style="background:var(--void,#000);border:1px solid var(--hair-2,#3a3a3e);border-radius:18px;max-width:420px;width:100%;padding:26px 22px">'+
     '<h2 style="font-size:19px;margin:0 0 8px">Tu as atteint la limite de l\u2019essai</h2>'+
-    '<p style="color:#8B95A3;font-size:14px;margin:0 0 18px">Ton accès illimité démarre avec ton abonnement le <b style="color:#fff">'+end+'</b>, ou active-le maintenant.</p>'+
+    '<p style="color:var(--graphite,#7a7a7a);font-size:14px;margin:0 0 18px">Ton accès illimité démarre avec ton abonnement le <b style="color:#fff">'+end+'</b>, ou active-le maintenant.</p>'+
     '<button class="primary" data-testid="trial-activate-now" onclick="bcActivateNow()" style="width:100%;padding:13px">Activer mon abonnement maintenant</button>'+
-    '<div style="text-align:center;margin-top:10px"><button onclick="document.getElementById(\'trial-cap-modal\').remove()" style="background:none;border:none;color:#8B95A3;font-size:12.5px;cursor:pointer;text-decoration:underline">Attendre</button></div>'+
+    '<div style="text-align:center;margin-top:10px"><button onclick="document.getElementById(\'trial-cap-modal\').remove()" style="background:none;border:none;color:var(--graphite,#7a7a7a);font-size:12.5px;cursor:pointer;text-decoration:underline">Attendre</button></div>'+
     '</div>');
 }
 async function bcActivateNow(){
@@ -4766,7 +4778,7 @@ const DESKTUTO_STEPS=[
  {t:null,h:'Bienvenue dans le studio ',b:'Clips à gauche, aperçu au centre, paroles & style à droite, timeline en bas. Petit tour en 20 secondes.'},
  {t:'#stageWrap',h:'Ton morceau',b:'Dépose ton son au centre : le BPM est détecté automatiquement et tu règles l\u2019extrait juste en dessous.'},
  {t:'#clipDrop',h:'Clips',b:'Ajoute tes vidéos ici — elles se placent toutes seules sur la timeline, calées sur le beat.'},
- {t:'#tabP',h:'Paroles',b:'L\u2019IA écrit tes sous-titres synchronisés avec ta voix. Double-clique un mot pour le corriger.'},
+ {t:'#tabP',h:'Paroles',b:'Tes sous-titres s\u2019écrivent tout seuls, synchronisés avec ta voix. Double-clique un mot pour le corriger.'},
  {t:'#tabS',h:'Style',b:'Presets, polices, couleurs, effets VHS / glitch, mise en avant des sous-titres — ta patte visuelle.'},
  {t:'#trPlans',h:'La timeline',b:'Clique un plan pour le découper ou le verrouiller · glisse un clip dessus pour le remplacer. Le trait rouge suit la musique.'},
  {t:'#exportBtn',h:'Exporter',b:'Ta vidéo sort en MP4 prêt pour TikTok, Reels et Shorts. À toi de jouer '},
@@ -4837,12 +4849,12 @@ function showMobTutorial(STEPS){
 /* ---------- Fenêtre « Ajoute ta vidéo » (après le tuto, flux onboarding) ---------- */
 function showOnbVideoPrompt(){
   const d=_bcModal('onb-video-modal',
-    '<div style="background:#12161D;border:1px solid #232B36;border-radius:16px;max-width:420px;width:100%;padding:26px 22px">'+
-    '<h2 style="font-size:19px;margin:0 0 8px">'+T('Maintenant, tes vidéos ')+'</h2>'+
-    '<p style="color:#8B95A3;font-size:14px;margin:0 0 18px">'+T('Ajoute tes propres clips, ou pioche dans notre banque de vidéos gratuites — ils se caleront tout seuls sur le beat.')+'</p>'+
+    '<div style="background:var(--void,#000);border:1px solid var(--hair-2,#3a3a3e);border-radius:18px;max-width:420px;width:100%;padding:28px 24px">'+
+    '<h2 style="font-size:19px;margin:0 0 8px;text-transform:uppercase;letter-spacing:-.01em">'+T('Maintenant, tes vidéos ')+'</h2>'+
+    '<p style="color:var(--graphite,#7a7a7a);font-size:14px;margin:0 0 18px;text-transform:none">'+T('Ajoute tes propres clips ou pioche dans la banque de vidéos gratuites. Ils se calent tout seuls sur le beat.')+'</p>'+
     '<button class="primary" data-testid="onb-video-add" style="width:100%;padding:13px">'+T('＋ Ajouter mes vidéos')+'</button>'+
     '<button class="ghost" data-testid="onb-video-bank" style="width:100%;padding:12px;margin-top:8px">'+T('Banque de vidéos gratuites')+'</button>'+
-    '<div style="text-align:center;margin-top:12px"><button data-testid="onb-video-later" style="background:none;border:none;color:#8B95A3;font-size:12.5px;cursor:pointer;text-decoration:underline">'+T('Plus tard')+'</button></div>'+
+    '<div style="text-align:center;margin-top:12px"><button data-testid="onb-video-later" class="onb-skip" style="margin-top:0">'+T('Plus tard')+'</button></div>'+
     '</div>');
   const mob=()=>window.matchMedia('(max-width:700px)').matches;
   d.querySelector('[data-testid=onb-video-add]').onclick=()=>{ onbTel('onb_video_add',1); d.remove(); setTimeout(()=>{ if(mob()) mobSheet('clips'); $('#clipInput').click(); },0); };
@@ -4855,14 +4867,14 @@ function showOnbVideoPrompt(){
 /* ---------- Onboarding (5 écrans + activation) ---------- */
 const ONB_SCREENS=[
  {f:'persona',q:'Tu es plutôt...',opts:[['Artiste — je fais ma promo','artiste'],['Beatmaker/producteur — je mets en avant mes prods','beatmaker'],['Manager/label — je gère plusieurs artistes','manager'],['Créateur de contenu — je fais des vidéos musique','createur']]},
- {info:true,ic:'',q:'Un artiste poste en moyenne 2 fois par semaine.',sub:'Avec BeatCut, tu peux poster tous les jours : une vidéo se monte en moins de 2 minutes, calée sur le beat.'},
+ {info:true,big:'2×',q:'Un artiste poste en moyenne deux fois par semaine.',sub:'Avec BeatCut tu peux poster tous les jours : une vidéo se monte en moins de deux minutes, calée sur le beat.'},
  {f:'genre',q:'Ton style principal ?',opts:[['Rap / Drill','rap_drill'],['Plugg / Cloud / Hyperpop','plugg_hyperpop'],['Afro / Shatta','afro_shatta'],['Pop / Chanson','pop_chanson'],['Électro / Club','electro_club'],['Autre','autre']]},
  {f:'release_timing',q:'Tu sors un son quand ?',opts:[['Cette semaine','cette_semaine'],['Ce mois-ci','ce_mois'],['J\u2019en prépare plusieurs','plusieurs'],['Pas de date pour l\u2019instant','pas_de_date']]},
- {info:true,ic:'',q:'80 % des streams d\u2019un son se jouent dans ses 2 premières semaines.',sub:'C\u2019est la régularité des vidéos qui fait décoller un morceau — pas une seule grosse vidéo.'},
+ {info:true,big:'80 %',q:'Les streams d\u2019un son se jouent dans ses deux premières semaines.',sub:'La régularité fait décoller un morceau, pas une seule grosse vidéo.'},
  {f:'current_method',q:'Aujourd\u2019hui, tes vidéos de promo, tu les fais comment ?',opts:[['CapCut / montage à la main','capcut'],['Une pochette fixe avec le son','pochette'],['Je poste rarement, c\u2019est trop long','rarement'],['Je débute, premières promos','debute']]},
- {info:true,ic:'',q:'Un montage à la main : ~45 minutes. BeatCut : moins de 2.',sub:'Plans coupés sur le beat, paroles écrites et synchronisées par l\u2019IA — toi, tu choisis juste le style.'},
+ {info:true,big:'45 min',q:'Un montage à la main te coûte 45 minutes. BeatCut en demande deux.',sub:'Les plans se coupent sur le beat, tes paroles s\u2019écrivent et se calent toutes seules. Toi, tu choisis le style.'},
  {f:'source',q:'Comment tu nous as trouvés ?',opts:[['TikTok','tiktok'],['Un(e) ami(e) / un artiste m\u2019en a parlé','bouche_a_oreille'],['Instagram','instagram'],['Discord / groupe Facebook','communautes'],['Recherche Google','google'],['Autre','autre']]},
- {f:'ready',q:'ES-TU PRÊT À ENFIN PERCER GRÂCE À TES VIDÉOS ?',opts:[['OUI','oui'],['OUI ','oui']]},
+ {f:'ready',q:'Es-tu prêt à enfin percer grâce à tes vidéos ?',opts:[['OUI','oui'],['OUI ','oui']]},
 ];
 const ONB_PRESET_MAP={rap_drill:'impact',plugg_hyperpop:'neon',afro_shatta:'comics',pop_chanson:'karaoke',electro_club:'glitch'};
 function onbPost(data){ return fetch('/api/onboarding',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(()=>{}); }
@@ -4870,20 +4882,20 @@ function onbTel(event,step){ fetch('/api/telemetry/onboarding',{method:'POST',cr
 function showOnboarding(){
   let step=0;
   const d=document.createElement('div'); d.id='onbOverlay'; d.setAttribute('data-testid','onboarding-overlay');
-  d.style.cssText='position:fixed;inset:0;z-index:500;background:#0B0E13;display:flex;flex-direction:column;overflow:auto';
+  d.style.cssText='position:fixed;inset:0;z-index:500;background:var(--void,#000);display:flex;flex-direction:column;overflow:auto';
   document.body.appendChild(d);
   function renderStep(){
     const s=ONB_SCREENS[step];
     const pn=Math.min(ONB_SCREENS.slice(0,step+1).filter(x=>!x.info).length,5);
-    const prog='<div style="height:3px;background:#232B36"><div data-testid="onb-progress" style="height:100%;width:'+(pn/5*100)+'%;background:#FF453A;transition:width .3s"></div></div>';
+    const prog='<div class="onb-prog"><i data-testid="onb-progress" style="width:'+(pn/5*100)+'%"></i></div>';
     if(s.info){
       d.innerHTML=prog+
-        '<div style="flex:1;display:flex;flex-direction:column;justify-content:center;max-width:440px;width:100%;margin:0 auto;padding:24px 20px;text-align:center">'+
-        '<div style="font-size:42px;margin-bottom:14px">'+s.ic+'</div>'+
-        '<h2 style="font-size:22px;margin:0 0 10px;line-height:1.3">'+s.q+'</h2>'+
-        '<p style="color:#8B95A3;font-size:14.5px;line-height:1.55;margin:0 0 26px">'+s.sub+'</p>'+
-        '<button class="primary" data-testid="onb-info-next" style="width:100%;padding:14px;font-size:15px">Continuer →</button>'+
-        '<div style="text-align:center;margin-top:14px"><button data-testid="onb-skip" style="background:none;border:none;color:#5A6472;font-size:12.5px;cursor:pointer;text-decoration:underline">Passer</button></div>'+
+        '<div class="onb-wrap" style="text-align:center">'+
+        (s.big?'<div class="onb-info-n onb-fade">'+s.big+'</div>':'')+
+        '<h2 class="onb-q onb-fade" style="animation-delay:.08s">'+s.q+'</h2>'+
+        '<p class="onb-sub onb-fade" style="animation-delay:.16s">'+s.sub+'</p>'+
+        '<div class="onb-fade" style="animation-delay:.24s"><button class="onb-cta" data-testid="onb-info-next" style="width:100%">Continuer</button></div>'+
+        '<div><button data-testid="onb-skip" class="onb-skip">Passer</button></div>'+
         '</div>';
       d.querySelector('[data-testid=onb-info-next]').onclick=()=>{
         onbTel('onboarding_info_'+pn,pn);
@@ -4894,11 +4906,11 @@ function showOnboarding(){
       return;
     }
     d.innerHTML=prog+
-      '<div style="flex:1;display:flex;flex-direction:column;justify-content:center;max-width:440px;width:100%;margin:0 auto;padding:24px 20px">'+
-      '<div style="color:#8B95A3;font-size:12px;letter-spacing:.1em;margin-bottom:10px">'+pn+'/5</div>'+
-      '<h2 style="font-size:'+(s.f==='ready'?'26px':'22px')+';margin:0 0 22px;line-height:1.25">'+s.q+'</h2>'+
-      s.opts.map((o,i)=>'<button data-testid="onb-option-'+s.f+'-'+i+'" data-v="'+o[1]+'" style="display:block;width:100%;text-align:left;background:#151A21;border:1px solid #232B36;border-radius:14px;color:#fff;font-size:15.5px;padding:16px 18px;margin-bottom:10px;cursor:pointer">'+o[0]+'</button>').join('')+
-      '<div style="text-align:center;margin-top:14px"><button data-testid="onb-skip" style="background:none;border:none;color:#5A6472;font-size:12.5px;cursor:pointer;text-decoration:underline">Passer</button></div>'+
+      '<div class="onb-wrap">'+
+      '<div class="onb-eyebrow onb-fade">Question '+pn+' / 5</div>'+
+      '<h2 class="onb-q onb-fade" style="animation-delay:.06s">'+s.q+'</h2>'+
+      s.opts.map((o,i)=>'<button class="onb-opt" style="animation-delay:'+(0.12+i*0.06).toFixed(2)+'s" data-testid="onb-option-'+s.f+'-'+i+'" data-v="'+o[1]+'"><span>'+o[0]+'</span></button>').join('')+
+      '<div style="text-align:center"><button data-testid="onb-skip" class="onb-skip">Passer</button></div>'+
       '</div>';
     d.querySelectorAll('button[data-v]').forEach(b=>{ b.onclick=()=>{
       if(s.f!=='ready') onbPost({[s.f]:b.dataset.v});
@@ -4910,17 +4922,18 @@ function showOnboarding(){
     d.querySelector('[data-testid=onb-skip]').onclick=()=>{ onbPost({skipped_at:pn}); onbTel('onboarding_skipped',pn); renderFinal(); };
   }
   function renderFinal(){
-    d.innerHTML='<div style="height:3px;background:#232B36"><div style="height:100%;width:100%;background:#FF453A"></div></div>'+
-      '<div style="flex:1;display:flex;flex-direction:column;justify-content:center;max-width:440px;width:100%;margin:0 auto;padding:24px 20px;text-align:center">'+
-      '<h2 style="font-size:26px;margin:0 0 8px">C\u2019est parti.<br>Dépose ton son.</h2>'+
-      '<p style="color:#8B95A3;font-size:14px;margin:0 0 24px">MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls.</p>'+
-      '<div data-testid="onb-drop" id="onbDrop" style="border:2px dashed #3A4450;border-radius:16px;padding:46px 20px;cursor:pointer;background:#12161D"><div style="font-size:34px;margin-bottom:8px"></div><b>Dépose ton morceau ici</b><div style="color:#8B95A3;font-size:12.5px;margin-top:5px">ou touche pour choisir un fichier</div></div>'+
+    d.innerHTML='<div class="onb-prog"><i style="width:100%"></i></div>'+
+      '<div class="onb-wrap" style="text-align:center">'+
+      '<div class="onb-bars onb-fade" aria-hidden="true">'+Array.from({length:24},(_,i)=>'<i style="height:'+(30+Math.round(60*Math.abs(Math.sin(i/2.4))))+'%;animation-delay:'+(-(i*0.07)%1.1).toFixed(2)+'s"></i>').join('')+'</div>'+
+      '<h2 class="onb-q onb-fade" style="animation-delay:.08s">C\u2019est parti.<br>Dépose ton son.</h2>'+
+      '<p class="onb-sub onb-fade" style="animation-delay:.14s">MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.</p>'+
+      '<div class="onb-drop onb-fade" style="animation-delay:.22s" data-testid="onb-drop" id="onbDrop"><b>Dépose ton morceau ici</b><div class="onb-sub" style="margin:8px 0 0">ou touche pour choisir un fichier</div></div>'+
       '<input type="file" id="onbFile" style="display:none">'+
-      '<div style="margin-top:18px"><button data-testid="onb-later" id="onbLater" style="background:none;border:none;color:#5A6472;font-size:12.5px;cursor:pointer;text-decoration:underline">Plus tard</button></div>'+
+      '<div><button data-testid="onb-later" id="onbLater" class="onb-skip">Plus tard</button></div>'+
       '</div>';
     const dz=d.querySelector('#onbDrop'), fi=d.querySelector('#onbFile');
     dz.onclick=()=>fi.click();
-    ['dragover','dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.style.borderColor=(ev==='dragover')?'#FF453A':'#3A4450';}));
+    ['dragover','dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.style.borderColor=(ev==='dragover')?'var(--crimson,#fc1c46)':'';}));
     dz.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) onbStart(e.dataTransfer.files[0]); });
     fi.onchange=()=>{ if(fi.files[0]) onbStart(fi.files[0]); };
     d.querySelector('#onbLater').onclick=async()=>{ await onbPost({done:true}); onbTel('onboarding_done'); API.onboardingDone=true; d.remove(); };
