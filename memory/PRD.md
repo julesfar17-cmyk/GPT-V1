@@ -756,3 +756,8 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Onglet Effets : les 10 cases à cocher deviennent des cartes .fx-card avec aperçu animé du logo BEATCUT■ (keyframes CSS par effet : flash, zoom punch, secousse, glitch 2 couches, VHS scanlines, grain, saturé, glow flou, caméra instable, fisheye). Clic carte = coche l'input (ids xv* inchangés, handlers intacts, vérifié). Bordure cramoisie quand actif (:has(input:checked)). prefers-reduced-motion respecté.
 - ✅ Barres de scroll masquées dans les colonnes du studio (.col scrollbar-width:none + webkit display:none, overflow-x hidden) — le défilement reste actif.
 - Cache-buster v3-skin.css → ?v=13.10.
+
+## Curseur avec marges + interface 90 % (21 août 2026, suite)
+- ✅ input[type=range] : margin-right 16px — le rail/pouce s'arrête 14px avant le bord de la case (mesuré : dropRight 199 / rangeRight 184).
+- ✅ Interface à 90 % : html{zoom:.9} dans v3-skin.css (studio) et index.css (app React), avec html:has(body.no-cur){zoom:1} pour éviter le double zoom sur les routes iframe (/ landing reste 100 %, /studio parent 1 × studio .9). Vérifié : login/dashboard 0.9, parents iframe 1.
+- Cache-buster → ?v=13.11.

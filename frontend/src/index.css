@@ -48,6 +48,9 @@ select {
     box-shadow: none !important;
     text-shadow: none !important;
 }
+/* Interface app à 90 % (demande fondateur) — sauf pages iframe (landing/studio gèrent leur propre échelle) */
+html { zoom: 0.9; }
+html:has(body.no-cur) { zoom: 1; }
 
 .font-osd {
     font-family: 'Space Grotesk', sans-serif;

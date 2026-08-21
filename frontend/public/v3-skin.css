@@ -23,6 +23,8 @@
 }
 /* Interdits V3 : aucune ombre, aucun rayon hors pilules */
 *{box-shadow:none!important;text-shadow:none!important}
+/* Interface studio à 90 % (demande fondateur) */
+html{zoom:.9}
 body{font-variant-numeric:tabular-nums}
 ::selection{background:var(--crimson);color:#fff}
 h1,h2,h3{color:var(--frost);text-transform:uppercase;letter-spacing:-.024em}
@@ -194,8 +196,8 @@ body.editing header{display:none}
 .canvas-wrap{background:var(--lift)!important}
 #fsBtn{background:var(--void)!important;border:1px solid var(--hair-2)!important;color:var(--frost)!important;
   border-radius:var(--pill);text-transform:uppercase;font-size:11px;letter-spacing:.04em}
-/* le pouce du curseur de valeur ne doit jamais sortir de sa case */
-input[type=range]{max-width:calc(100% - 12px);margin-left:2px}
+/* le curseur de valeur garde une marge nette à droite : le pouce ne touche jamais le bord */
+input[type=range]{margin-right:16px;margin-left:2px;min-width:0}
 
 /* ---------- Effets : cartes avec aperçu animé sur le logo ---------- */
 .fx-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
