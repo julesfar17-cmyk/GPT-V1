@@ -188,6 +188,16 @@ export default function Dashboard() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [storage, setStorage] = useState(null);
+
+  useEffect(() => {
+    api.get("/me/storage").then((r) => setStorage(r.data)).catch(() => {});
+  }, []);
+
+  const fmtBytes = (b) =>
+    b >= 1024 ** 3 ? (b / 1024 ** 3).toFixed(2).replace(".", ",") + " Go"
+    : b >= 1024 ** 2 ? Math.round(b / 1024 ** 2) + " Mo"
+    : Math.max(0, Math.round(b / 1024)) + " Ko";
 
   const deleteAccount = async () => {
     if (deleteText !== "SUPPRIMER") return;
@@ -443,7 +453,7 @@ export default function Dashboard() {
                     className="relative inline-flex items-center justify-between gap-2 border border-border text-foreground font-bold px-5 py-3.5 hover:border-foreground transition-all hover:-translate-y-0.5"
                   >
                     <span>STUDIO — 5 profils artistes</span>
-                    <span className="font-display">499 €/an · Planifier une démo</span>
+                    <span className="font-display">Planifier une démo</span>
                   </a>
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground text-center">
@@ -717,6 +727,28 @@ export default function Dashboard() {
               → Tableau de bord admin
             </Link>
           </p>
+        )}
+
+        {/* ===== Stockage ===== */}
+        {storage && (
+          <section className="mt-6 bg-card border border-border p-8" data-testid="storage-card">
+            <div className="flex items-baseline justify-between gap-4 mb-4 flex-wrap">
+              <h2 className="font-display text-lg font-bold">Stockage</h2>
+              <span className="text-xs text-muted-foreground" data-testid="storage-usage-label">
+                {fmtBytes(storage.used_bytes)} utilisés sur {fmtBytes(storage.limit_bytes)}
+              </span>
+            </div>
+            <div className="h-2 bg-background border border-border overflow-hidden" data-testid="storage-bar">
+              <div
+                className="h-full bg-primary transition-all duration-700"
+                style={{ width: `${Math.min(100, (storage.used_bytes / storage.limit_bytes) * 100).toFixed(1)}%` }}
+              />
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {storage.files} fichier{storage.files > 1 ? "s" : ""} (morceaux, clips et exports sauvegardés).
+              Supprime un morceau dans le studio pour libérer de l'espace.
+            </p>
+          </section>
         )}
 
         {/* ===== Suppression du compte ===== */}

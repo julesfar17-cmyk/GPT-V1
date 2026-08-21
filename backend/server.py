@@ -1433,6 +1433,22 @@ async def get_subscription(user: dict = Depends(get_current_user)):
     return sub_info(user)
 
 
+STORAGE_LIMITS_GB = {"free": 2, "basic": 15, "essentiel": 15, "pro": 50, "studio": 100}
+
+
+@api_router.get("/me/storage")
+async def my_storage(user: dict = Depends(get_current_user)):
+    agg = await db["media.files"].aggregate([
+        {"$match": {"metadata.user_id": user["user_id"]}},
+        {"$group": {"_id": None, "total": {"$sum": "$length"}, "count": {"$sum": 1}}},
+    ]).to_list(1)
+    used = int(agg[0]["total"]) if agg else 0
+    count = int(agg[0]["count"]) if agg else 0
+    tier = sub_info(user).get("tier", "free")
+    limit_gb = STORAGE_LIMITS_GB.get(tier, 15)
+    return {"used_bytes": used, "files": count, "limit_bytes": limit_gb * 1024 ** 3, "tier": tier}
+
+
 @api_router.post("/subscription/cancel")
 async def cancel_subscription(user: dict = Depends(get_current_user)):
     if (user.get("email") or "").lower() in PRO_WHITELIST:

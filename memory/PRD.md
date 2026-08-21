@@ -823,3 +823,8 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ jules.beatcut@gmail.com remplacé partout par contact@beat-cut.com : LegalLayout (CONTACT_EMAIL → toutes pages légales), Dashboard (démo Studio), paywall studio.html.
 - ✅ Emails Resend : reply_to=contact@beat-cut.com ajouté (expéditeur reste no-reply@beat-cut.com) → les réponses des utilisateurs arrivent dans la boîte IONOS du user.
 - Boîte créée par le user chez IONOS (Mail Basic inclus, MX auto).
+
+## Prix Studio masqué + Jauge stockage (21 août 2026)
+- ✅ Prix Studio retiré des pages publiques : landing (« Sur mesure »), Dashboard (« Planifier une démo » seul), CGV (« sur devis »), paywall (déjà « Sur démo »). Admin/AffiliateAdmin gardent le label interne.
+- ✅ GET /api/me/storage : somme GridFS (media.files, metadata.user_id) + limites d'affichage par plan (free 2 Go, basic/essentiel 15 Go, pro 50 Go, studio 100 Go — indicatif, non bloquant).
+- ✅ Carte « Stockage » dans Mon compte (data-testid storage-card) : barre rouge, X utilisés sur Y, nb fichiers. Testé API (12 Mo/15 Go pour demo) + screenshot.
