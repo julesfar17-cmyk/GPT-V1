@@ -259,24 +259,41 @@ def _check_sid(user: dict, sid: str):
         raise HTTPException(status_code=401, detail="Ton compte a été connecté sur un autre appareil.")
 
 
-def set_jwt_cookie(response: Response, token: str):
+def cookie_domain_for(request: Request | None) -> str | None:
+    """Domaine du cookie déduit de l'hôte visité : '.beat-cut.com' pour apex+www,
+    None (host-only) pour la preview/localhost. COOKIE_DOMAIN (env) prime si défini."""
+    if COOKIE_DOMAIN:
+        return COOKIE_DOMAIN
+    if request is None:
+        return None
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(":")[0].lower()
+    if not host or host == "localhost" or host.endswith(".emergentagent.com") or host.replace(".", "").isdigit():
+        return None
+    parts = host.split(".")
+    if len(parts) < 2:
+        return None
+    return "." + ".".join(parts[-2:])
+
+
+def set_jwt_cookie(response: Response, token: str, request: Request | None = None):
     response.set_cookie(
         key="access_token", value=token, httponly=True, secure=True,
-        samesite="lax", max_age=ACCESS_TOKEN_DAYS * 86400, path="/", domain=COOKIE_DOMAIN,
+        samesite="lax", max_age=ACCESS_TOKEN_DAYS * 86400, path="/", domain=cookie_domain_for(request),
     )
 
 
-def set_session_cookie(response: Response, token: str):
+def set_session_cookie(response: Response, token: str, request: Request | None = None):
     response.set_cookie(
         key="session_token", value=token, httponly=True, secure=True,
-        samesite="none", max_age=7 * 86400, path="/", domain=COOKIE_DOMAIN,
+        samesite="none", max_age=7 * 86400, path="/", domain=cookie_domain_for(request),
     )
 
 
-def clear_auth_cookies(response: Response, jwt_only: bool = False):
-    response.delete_cookie("access_token", path="/", domain=COOKIE_DOMAIN)
-    if not jwt_only:
-        response.delete_cookie("session_token", path="/", domain=COOKIE_DOMAIN)
+def clear_auth_cookies(response: Response, jwt_only: bool = False, request: Request | None = None):
+    for dom in {cookie_domain_for(request), None}:
+        response.delete_cookie("access_token", path="/", domain=dom)
+        if not jwt_only:
+            response.delete_cookie("session_token", path="/", domain=dom)
 
 
 # ---------------------------------------------------------------------------
@@ -616,7 +633,7 @@ class TemplateIn(BaseModel):
 # Auth endpoints
 # ---------------------------------------------------------------------------
 @api_router.post("/auth/register")
-async def register(data: RegisterIn, response: Response):
+async def register(data: RegisterIn, request: Request, response: Response):
     email = data.email.strip().lower()
     if "@" not in email or "." not in email:
         raise HTTPException(status_code=400, detail="Adresse email invalide")
@@ -648,7 +665,7 @@ async def register(data: RegisterIn, response: Response):
     await db.users.insert_one(user)
     sid = uuid.uuid4().hex
     await register_sid(user, sid)
-    set_jwt_cookie(response, create_access_token(user["user_id"], email, sid))
+    set_jwt_cookie(response, create_access_token(user["user_id"], email, sid), request)
     return public_user(user)
 
 
@@ -666,12 +683,12 @@ async def login(data: LoginIn, request: Request, response: Response):
     await clear_attempts(identifier)
     sid = uuid.uuid4().hex
     await register_sid(user, sid)
-    set_jwt_cookie(response, create_access_token(user["user_id"], email, sid))
+    set_jwt_cookie(response, create_access_token(user["user_id"], email, sid), request)
     return public_user(user)
 
 
 @api_router.post("/auth/google/session")
-async def google_session(data: GoogleSessionIn, response: Response):
+async def google_session(data: GoogleSessionIn, request: Request, response: Response):
     # Échange le session_id (fragment d'URL) contre les données utilisateur — appel serveur uniquement
     async with httpx.AsyncClient(timeout=15) as http:
         r = await http.get(EMERGENT_SESSION_DATA_URL, headers={"X-Session-ID": data.session_id})
@@ -710,8 +727,8 @@ async def google_session(data: GoogleSessionIn, response: Response):
         "created_at": iso(now_utc()),
     })
     await register_sid(user, session_token)
-    clear_auth_cookies(response, jwt_only=True)
-    set_session_cookie(response, session_token)
+    clear_auth_cookies(response, jwt_only=True, request=request)
+    set_session_cookie(response, session_token, request)
     return public_user(user)
 
 
@@ -762,7 +779,7 @@ async def logout(request: Request, response: Response):
     session_token = request.cookies.get("session_token")
     if session_token:
         await db.user_sessions.delete_one({"session_token": session_token})
-    clear_auth_cookies(response)
+    clear_auth_cookies(response, request=request)
     return {"message": "Déconnecté"}
 
 
@@ -786,7 +803,7 @@ async def delete_account(request: Request, response: Response):
     await db.project_backups.delete_many({"user_id": uid})
     await db.user_sessions.delete_many({"user_id": uid})
     await db.users.delete_one({"user_id": uid})
-    clear_auth_cookies(response)
+    clear_auth_cookies(response, request=request)
     logger.info(f"delete_account: compte {uid} supprimé")
     return {"message": "Compte supprimé"}
 
@@ -3818,7 +3835,7 @@ async def startup():
 app.include_router(api_router)
 
 # CORS : chaque origine listée est complétée par sa jumelle www/apex (www.beat-cut.com ↔ beat-cut.com)
-_cors_origins = [o.strip() for o in os.environ.get('CORS_ORIGINS', '').split(',') if o.strip()]
+_cors_origins = [o.strip() for o in (os.environ.get('CORS_ORIGINS') or '*').split(',') if o.strip()]
 for _o in list(_cors_origins):
     _twin = _o.replace('://www.', '://', 1) if '://www.' in _o else _o.replace('://', '://www.', 1)
     if _twin not in _cors_origins:

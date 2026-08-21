@@ -847,3 +847,9 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ⚠️ BACKLOG (code review HIGH confirmé, non traité) : bonus parrainage « +1 mois offert » jamais réellement accordé (current_period_end écrasé par la sync Stripe ; bonus_until jamais lu). À reconcevoir via coupon Stripe ou lecture de bonus_until dans sub_info.
 - ✅ Deployment readiness re-run : PASS (aucun bloqueur).
 - ACTIONS USER pour la prod : ajouter secrets APP_URL=https://beat-cut.com, COOKIE_DOMAIN=.beat-cut.com, CORS_ORIGINS=https://beat-cut.com,https://www.beat-cut.com puis REDÉPLOYER.
+
+## Secrets prod rendus inutiles (21 août 2026)
+- ✅ cookie_domain_for(request) : Domain=.beat-cut.com déduit du Host (x-forwarded-host prioritaire) pour tout domaine custom ; None pour *.emergentagent.com/localhost. COOKIE_DOMAIN env prime si défini. Tous les set/delete cookies passent request (register, login, google_session, logout, delete_account) ; clear_auth_cookies supprime sur les deux domaines (avec et sans Domain).
+- ✅ CORS_ORIGINS fallback '*' si vide (Starlette renvoie l'origine exacte avec credentials) + jumeaux www/apex auto.
+- ✅ APP_URL défaut https://beat-cut.com (surchargé en preview par .env).
+- → L'utilisateur n'a AUCUN secret à ajouter : il suffit de redéployer.
