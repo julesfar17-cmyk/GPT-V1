@@ -853,3 +853,8 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ CORS_ORIGINS fallback '*' si vide (Starlette renvoie l'origine exacte avec credentials) + jumeaux www/apex auto.
 - ✅ APP_URL défaut https://beat-cut.com (surchargé en preview par .env).
 - → L'utilisateur n'a AUCUN secret à ajouter : il suffit de redéployer.
+
+## Point login Google prod (21 août 2026, fin de soirée)
+- Diagnostic complet : la prod tourne le dernier build (vérifié fichier par fichier : cookie_domain_for, api.js same-origin, device_conflict, register_sid). Flux front relu ligne à ligne (loginWithGoogle conforme playbook, AuthCallback POST via api relatif, App.js intercepte #session_id avant le routing).
+- Logs prod : dernières tentatives Google à 17:05-17:07, AVANT le redeploy correctif de 18:54. Aucune tentative Google depuis → le bug rapporté concernait l'ancien build ; la version corrigée n'a jamais été testée avec Google.
+- EN ATTENTE : re-test utilisateur de la connexion Google sur beat-cut.com. Si échec : demander statut du POST /api/auth/google/session + corps du 401 de /auth/me (« Non authentifié » = transport ; « autre appareil » = anti-partage).
