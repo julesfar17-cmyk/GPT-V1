@@ -750,3 +750,4 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Bouton ADMIN « Revoir tuto » (header studio, role==='admin' uniquement, data-testid=admin-replay-tuto-btn) : relance le questionnaire d'entrée (showOnboarding) + efface bc_mobtuto_done → tutoriels remontrés. Vérifié en screenshot avec le compte admin.
 - Auto-testé par screenshots + mesures DOM (petits changements CSS/JS ciblés).
 - 20 août soir : pouce des input[type=range] réduit 13px→9px (grossissait trop dans la fenêtre, mode clair) — vérifié screenshot.
+- 21 août : cache-buster ajouté sur v3-skin.css (?v=13.09) + BC_BUILD v13.09-ux-v3 — l'utilisateur voyait l'ancien CSS en cache (slider). Alignement rail/dropzone vérifié au pixel (221=221).
