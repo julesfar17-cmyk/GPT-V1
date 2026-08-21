@@ -828,3 +828,8 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Prix Studio retiré des pages publiques : landing (« Sur mesure »), Dashboard (« Planifier une démo » seul), CGV (« sur devis »), paywall (déjà « Sur démo »). Admin/AffiliateAdmin gardent le label interne.
 - ✅ GET /api/me/storage : somme GridFS (media.files, metadata.user_id) + limites d'affichage par plan (free 2 Go, basic/essentiel 15 Go, pro 50 Go, studio 100 Go — indicatif, non bloquant).
 - ✅ Carte « Stockage » dans Mon compte (data-testid storage-card) : barre rouge, X utilisés sur Y, nb fichiers. Testé API (12 Mo/15 Go pour demo) + screenshot.
+
+## Fix déconnexion login Google (21 août 2026)
+- ✅ RCA : /auth/google/session ne faisait pas register_sid() (contrairement au login/register email) → avec la protection anti-partage (_check_sid, limite 1 appareil), tout compte ayant déjà des sids était rejeté au premier /auth/me → déconnexion immédiate après login Google.
+- ✅ Fix : register_sid(user, session_token) ajouté dans google_session. Testé par simulation (ancien sid présent → nouveau token accepté, éviction de l'ancien conforme à la limite).
+- ⚠️ PROD : correctif présent en preview seulement — nécessite un redéploiement pour beat-cut.com.

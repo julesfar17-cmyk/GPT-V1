@@ -684,6 +684,7 @@ async def google_session(data: GoogleSessionIn, response: Response):
         "expires_at": iso(now_utc() + timedelta(days=7)),
         "created_at": iso(now_utc()),
     })
+    await register_sid(user, session_token)
     set_session_cookie(response, session_token)
     return public_user(user)
 
