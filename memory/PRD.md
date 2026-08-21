@@ -839,3 +839,11 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Fix : get_current_user essaie toutes les branches (jwt cookie → session cookie → bearer) avant de lever le 401 conflit ; google_session supprime le cookie access_token obsolète.
 - ✅ Testé curl : vieux jwt + session google valide = 200 (avant 401) ; session écrasée seule = 401 (anti-partage intact) ; login normal = 200.
 - ⚠️ REDÉPLOIEMENT REQUIS pour beat-cut.com.
+
+## RCA prod login bounce + readiness (21 août 2026, nuit)
+- ✅ RCA deployer (prod) : les visiteurs sur www.beat-cut.com appelaient l'API en absolu sur l'apex (beat-cut.com) → cross-origin, cookies non honorés → /auth/me 401 → bounce /login. Le build prod avait bien les fixes sids.
+- ✅ Fixes appliqués : api.js baseURL relatif '/api' quand origine ≠ REACT_APP_BACKEND_URL ; CORS élargi automatiquement aux jumeaux www/apex ; COOKIE_DOMAIN optionnel (env) sur tous les cookies (set + delete via clear_auth_cookies) ; URLs d'emails → APP_URL (env, ajouté au .env preview) ; .gitignore débloqué (.env patterns retirés).
+- ✅ Code review : fix funnel essai Stripe — checkout avec trial renvoie payment_status="no_payment_required" : désormais accepté (webhook checkout_completed, poll /payments/status qui renvoie "paid" normalisé, réconciliation).
+- ⚠️ BACKLOG (code review HIGH confirmé, non traité) : bonus parrainage « +1 mois offert » jamais réellement accordé (current_period_end écrasé par la sync Stripe ; bonus_until jamais lu). À reconcevoir via coupon Stripe ou lecture de bonus_until dans sub_info.
+- ✅ Deployment readiness re-run : PASS (aucun bloqueur).
+- ACTIONS USER pour la prod : ajouter secrets APP_URL=https://beat-cut.com, COOKIE_DOMAIN=.beat-cut.com, CORS_ORIGINS=https://beat-cut.com,https://www.beat-cut.com puis REDÉPLOYER.

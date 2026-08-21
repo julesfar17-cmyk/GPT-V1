@@ -1,7 +1,12 @@
 import axios from "axios";
 
+// Same-origin d'abord : si la page n'est pas servie depuis REACT_APP_BACKEND_URL
+// (ex. www.beat-cut.com vs beat-cut.com), on passe en chemin relatif pour que les
+// cookies httpOnly suivent toujours (l'ingress route /api/* sur chaque hôte).
+const backendOrigin = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
+const sameOrigin = typeof window !== "undefined" && window.location.origin === backendOrigin;
 const api = axios.create({
-  baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`,
+  baseURL: sameOrigin ? `${backendOrigin}/api` : "/api",
   withCredentials: true,
 });
 

@@ -68,6 +68,8 @@ stripe.api_key = os.environ['STRIPE_API_KEY']
 
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
+APP_URL = (os.environ.get('APP_URL') or 'https://beat-cut.com').rstrip('/')
+COOKIE_DOMAIN = os.environ.get('COOKIE_DOMAIN') or None
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
 PEXELS_API_KEY = os.environ.get('PEXELS_API_KEY', '')
 REPLICATE_API_TOKEN = os.environ.get('REPLICATE_API_TOKEN', '')
@@ -179,7 +181,7 @@ def trial_started_email_html(trial_end) -> str:
         f"Tu as 7 jours d'accès Pro complet : exports illimités, séries de vidéos, tous les styles. "
         f"Ton abonnement Pro (19,99 €/mois) démarre automatiquement le {_fmt_date_fr(trial_end)}. "
         f"Tu peux annuler à tout moment avant cette date, en 2 clics, depuis ton compte — rien ne sera débité.",
-        "Gérer mon abonnement", "https://beat-cut.com/dashboard",
+        "Gérer mon abonnement", f"{APP_URL}/dashboard",
     )
 
 
@@ -190,8 +192,8 @@ def trial_reminder_email_html(trial_end) -> str:
         f"Ton abonnement Pro (19,99 €/mois) démarre automatiquement à cette date. "
         f"Si tu veux continuer, tu n'as rien à faire. Sinon, annule en 2 clics avant le débit — rien ne sera prélevé. "
         f"Déjà convaincu ? Active ton abonnement maintenant et débloque l'illimité tout de suite.",
-        "Passer en illimité maintenant", "https://beat-cut.com/dashboard?activate=1",
-        "Gérer ou annuler", "https://beat-cut.com/dashboard",
+        "Passer en illimité maintenant", f"{APP_URL}/dashboard?activate=1",
+        "Gérer ou annuler", f"{APP_URL}/dashboard",
     )
 
 
@@ -260,15 +262,21 @@ def _check_sid(user: dict, sid: str):
 def set_jwt_cookie(response: Response, token: str):
     response.set_cookie(
         key="access_token", value=token, httponly=True, secure=True,
-        samesite="lax", max_age=ACCESS_TOKEN_DAYS * 86400, path="/",
+        samesite="lax", max_age=ACCESS_TOKEN_DAYS * 86400, path="/", domain=COOKIE_DOMAIN,
     )
 
 
 def set_session_cookie(response: Response, token: str):
     response.set_cookie(
         key="session_token", value=token, httponly=True, secure=True,
-        samesite="none", max_age=7 * 86400, path="/",
+        samesite="none", max_age=7 * 86400, path="/", domain=COOKIE_DOMAIN,
     )
+
+
+def clear_auth_cookies(response: Response, jwt_only: bool = False):
+    response.delete_cookie("access_token", path="/", domain=COOKIE_DOMAIN)
+    if not jwt_only:
+        response.delete_cookie("session_token", path="/", domain=COOKIE_DOMAIN)
 
 
 # ---------------------------------------------------------------------------
@@ -702,7 +710,7 @@ async def google_session(data: GoogleSessionIn, response: Response):
         "created_at": iso(now_utc()),
     })
     await register_sid(user, session_token)
-    response.delete_cookie("access_token", path="/")
+    clear_auth_cookies(response, jwt_only=True)
     set_session_cookie(response, session_token)
     return public_user(user)
 
@@ -754,8 +762,7 @@ async def logout(request: Request, response: Response):
     session_token = request.cookies.get("session_token")
     if session_token:
         await db.user_sessions.delete_one({"session_token": session_token})
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("session_token", path="/")
+    clear_auth_cookies(response)
     return {"message": "Déconnecté"}
 
 
@@ -779,8 +786,7 @@ async def delete_account(request: Request, response: Response):
     await db.project_backups.delete_many({"user_id": uid})
     await db.user_sessions.delete_many({"user_id": uid})
     await db.users.delete_one({"user_id": uid})
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("session_token", path="/")
+    clear_auth_cookies(response)
     logger.info(f"delete_account: compte {uid} supprimé")
     return {"message": "Compte supprimé"}
 
@@ -1202,11 +1208,13 @@ async def payment_status(session_id: str, user: dict = Depends(get_current_user)
         {"session_id": session_id},
         {"$set": {"status": session.status, "payment_status": session.payment_status, "updated_at": iso(now_utc())}},
     )
-    if session.payment_status == "paid":
+    activatable = session.payment_status == "paid" or (session.payment_status == "no_payment_required" and session.status == "complete")
+    if activatable:
         await _claim_and_activate(session_id, session.get("customer"), session.get("subscription"))
         fresh = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0, "trial_refused_at": 1, "subscription": 1})
         if fresh and fresh.get("trial_refused_at") and ((fresh.get("subscription") or {}).get("status") == "expired"):
             return {"status": session.status, "payment_status": "trial_refused"}
+        return {"status": session.status, "payment_status": "paid"}
     return {"status": session.status, "payment_status": session.payment_status}
 
 
@@ -1228,7 +1236,8 @@ async def get_webhook_secret() -> str:
 
 
 async def _wh_checkout_completed(obj):
-    if obj.get("payment_status") == "paid":
+    # Essai gratuit (trial_period_days) : Stripe renvoie payment_status="no_payment_required" (aucun débit immédiat)
+    if obj.get("payment_status") in ("paid", "no_payment_required"):
         await _claim_and_activate(obj["id"], obj.get("customer"), obj.get("subscription"))
 
 
@@ -1331,7 +1340,7 @@ async def reconcile_payments() -> dict:
         except Exception as e:
             logger.warning("Réconciliation session %s : %s", tx["session_id"], e)
             continue
-        if session.payment_status == "paid":
+        if session.payment_status == "paid" or (session.payment_status == "no_payment_required" and session.status == "complete"):
             await _claim_and_activate(tx["session_id"], session.get("customer"), session.get("subscription"))
             activated += 1
             emails.append(tx.get("email"))
@@ -3700,7 +3709,7 @@ def reengage_email_html(days_since: int) -> str:
         "Une vidéo postée sur TikTok cette semaine vaut 100 fois celle du mois prochain. "
         "On t'offre 50 % sur ton premier mois avec le code <b>BIENVENUE50</b> — direct dans ton compte."
     )
-    return _email_html(title, body, "Activer mon code", "https://pro-mailer-2.preview.emergentagent.com/dashboard")
+    return _email_html(title, body, "Activer mon code", f"{APP_URL}/dashboard")
 
 
 async def _reengage_loop():
@@ -3808,10 +3817,17 @@ async def startup():
 
 app.include_router(api_router)
 
+# CORS : chaque origine listée est complétée par sa jumelle www/apex (www.beat-cut.com ↔ beat-cut.com)
+_cors_origins = [o.strip() for o in os.environ.get('CORS_ORIGINS', '').split(',') if o.strip()]
+for _o in list(_cors_origins):
+    _twin = _o.replace('://www.', '://', 1) if '://www.' in _o else _o.replace('://', '://www.', 1)
+    if _twin not in _cors_origins:
+        _cors_origins.append(_twin)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '').split(','),
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
