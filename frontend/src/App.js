@@ -17,6 +17,7 @@ import CGV from "@/pages/legal/CGV";
 import Confidentialite from "@/pages/legal/Confidentialite";
 import MentionsLegales from "@/pages/legal/MentionsLegales";
 import Contact from "@/pages/legal/Contact";
+import Aide from "@/pages/Aide";
 
 function AppRouter() {
   const location = useLocation(); // hash lu ici (réactif) et non via window.location.hash
@@ -43,6 +44,7 @@ function AppRouter() {
       <Route path="/confidentialite" element={<Confidentialite />} />
       <Route path="/mentions-legales" element={<MentionsLegales />} />
       <Route path="/contact" element={<Contact />} />
+      <Route path="/aide" element={<Aide />} />
       <Route
         path="/dashboard"
         element={

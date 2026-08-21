@@ -876,3 +876,8 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Case newsletter à l'inscription (AuthPage, cochée par défaut, champ RegisterIn.newsletter) — vérifié en DB.
 - Collection Mongo : newsletter_campaigns {campaign_id, subject, mode, recipients, sent, failed, opened_by[], status, created_at}.
 - Testé : login admin, subscribers (193), toggle, preview, pixel, unsubscribe, register newsletter=false. PAS d'envoi réel à la base (clés live).
+
+## Page d'aide /aide (21 août 2026)
+- ✅ /app/frontend/src/pages/Aide.js : guide complet FR (pages du site, 4 étapes, barre du haut PC, panneaux Clips/Son/Paroles/Style, timeline, studio mobile CapCut, série de vidéos, export, raccourcis clavier) + sommaire ancré + CTA contact. Responsive mobile/PC, zéro emoji.
+- ✅ Liens ajoutés : Navbar desktop+mobile ("Aide"), Footer React, footer landing.html, footer studio.html, bouton "Aide & guide complet" dans le menu Plus mobile du studio.
+- Route publique /aide dans App.js.

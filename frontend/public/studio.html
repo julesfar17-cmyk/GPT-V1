@@ -1097,6 +1097,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <button class="small" onclick="undo()">↶ Annuler la dernière action</button>
     <button class="small" onclick="mobSheet('more');openBackups()">Versions du morceau</button>
     <button class="small" onclick="mobSheet('more');restartMobTuto()" data-testid="mob-restart-tuto">Revoir le tutoriel</button>
+    <button class="small" onclick="try{window.top.location.href='/aide'}catch(e){}" data-testid="mob-aide-btn">Aide &amp; guide complet</button>
     <button class="small" onclick="toggleLang()">Français / English</button>
     <button class="small" onclick="mobSheet('more');go('accueil')">Retour à l'accueil</button>
     <button class="small" onclick="try{window.top.location.href='/dashboard'}catch(e){}">Mon compte</button>
@@ -1104,7 +1105,7 @@ document.addEventListener('DOMContentLoaded',function(){
 </div>
 <footer class="v3-foot" id="studioFoot">
   <span style="font-weight:700;letter-spacing:-.045em;color:var(--frost,#fff);text-transform:uppercase">Beatcut<i style="display:inline-block;width:5px;height:5px;background:var(--crimson,#fc1c46);margin-left:4px"></i></span>
-  <span><a href="/cgv" target="_top">CGV</a> · <a href="/confidentialite" target="_top">Confidentialité</a> · <a href="/mentions-legales" target="_top">Mentions légales</a> · <a href="mailto:contact@beat-cut.com">contact@beat-cut.com</a></span>
+  <span><a href="/aide" target="_top">Aide</a> · <a href="/cgv" target="_top">CGV</a> · <a href="/confidentialite" target="_top">Confidentialité</a> · <a href="/mentions-legales" target="_top">Mentions légales</a> · <a href="mailto:contact@beat-cut.com">contact@beat-cut.com</a></span>
 </footer>
 <div class="ai-bar" id="aiBar" data-testid="ai-progress-bar"><div class="track"><div class="fill" id="aiBarFill"></div></div><div class="lbl" id="aiBarLbl">Analyse en cours…</div></div>
 

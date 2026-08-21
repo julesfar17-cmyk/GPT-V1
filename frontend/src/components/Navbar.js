@@ -48,6 +48,9 @@ export default function Navbar() {
               Se connecter
             </Link>
           )}
+          <Link to="/aide" data-testid="nav-aide-link" className={linkCls}>
+            Aide
+          </Link>
           <button
             onClick={() => setLang(lang === "fr" ? "en" : "fr")}
             data-testid="lang-toggle"
@@ -115,6 +118,9 @@ export default function Navbar() {
               </Link>
             </>
           )}
+          <Link to="/aide" onClick={() => setOpen(false)} className="text-sm text-muted-foreground" data-testid="nav-mobile-aide">
+            Aide
+          </Link>
           <button
             onClick={() => setLang(lang === "fr" ? "en" : "fr")}
             data-testid="nav-mobile-lang"
