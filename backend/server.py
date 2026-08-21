@@ -148,7 +148,7 @@ async def send_email(to: str, subject: str, html: str) -> bool:
         logger.info("[EMAIL simulé] to=%s | subject=%s", to, subject)
         return False
     try:
-        params = {"from": SENDER_EMAIL, "to": [to], "subject": subject, "html": html}
+        params = {"from": SENDER_EMAIL, "to": [to], "subject": subject, "html": html, "reply_to": ["contact@beat-cut.com"]}
         await asyncio.to_thread(resend.Emails.send, params)
         return True
     except Exception as e:

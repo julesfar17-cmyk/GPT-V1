@@ -818,3 +818,8 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 ## Waveform mobile landing (21 août 2026)
 - ✅ La waveform animée du héro s'affiche désormais aussi sur mobile (≤960px) : bande pleine largeur en bas du héro, opacité .45, masque dégradé latéral. Vérifié 390px.
 - Info donnée au user : réception email contact@beat-cut.com via Cloudflare Email Routing (gratuit, compatible Resend qui n'utilise pas les MX) + Gmail send-as via smtp.resend.com.
+
+## Adresse contact@beat-cut.com généralisée (21 août 2026)
+- ✅ jules.beatcut@gmail.com remplacé partout par contact@beat-cut.com : LegalLayout (CONTACT_EMAIL → toutes pages légales), Dashboard (démo Studio), paywall studio.html.
+- ✅ Emails Resend : reply_to=contact@beat-cut.com ajouté (expéditeur reste no-reply@beat-cut.com) → les réponses des utilisateurs arrivent dans la boîte IONOS du user.
+- Boîte créée par le user chez IONOS (Mail Basic inclus, MX auto).

@@ -1,7 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-export const CONTACT_EMAIL = "jules.beatcut@gmail.com";
+export const CONTACT_EMAIL = "contact@beat-cut.com";
 export const COMPANY_NAME = "société FAUT";
 
 export default function LegalLayout({ title, updated, children, testid }) {
