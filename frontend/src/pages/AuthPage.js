@@ -23,6 +23,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [cgvOk, setCgvOk] = useState(false);
+  const [newsOk, setNewsOk] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +37,7 @@ export default function AuthPage() {
     setLoading(true);
     try {
       if (isRegister) {
-        await register(name, email, password, refCode || null, cgvOk);
+        await register(name, email, password, refCode || null, cgvOk, newsOk);
         toast.success("Compte créé — bienvenue sur BEATCUT !");
       } else {
         await login(email, password);
@@ -166,6 +167,18 @@ export default function AuthPage() {
                       Politique de confidentialité
                     </Link>.
                   </span>
+                </label>
+              )}
+              {isRegister && (
+                <label className="flex items-start gap-2.5 text-xs text-muted-foreground cursor-pointer select-none" data-testid="newsletter-accept-label">
+                  <input
+                    type="checkbox"
+                    checked={newsOk}
+                    onChange={(e) => setNewsOk(e.target.checked)}
+                    data-testid="newsletter-accept-checkbox"
+                    className="mt-0.5 accent-[#FF453A]"
+                  />
+                  <span>Je veux recevoir les nouveautés et conseils BEATCUT par email (désinscription en 1 clic).</span>
                 </label>
               )}
               {error && (

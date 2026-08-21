@@ -865,3 +865,14 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ AuthCallback : filet anti-rejeu — si l'échange échoue, GET /auth/me ; si session valide → setUser + /studio (testé : ticket bidon → reste connecté sur Mes morceaux, hash purgé). decodeURIComponent(ticket) + purge du hash en cas d'échec.
 - ✅ Cookie session_token → SameSite=Lax (Safari mobile) ; logging détaillé du 401 upstream (UA, corps) dans google_session ; liens landing /login,/cgv,... target=_top (sortie d'iframe).
 - ⚠️ REDÉPLOIEMENT REQUIS pour beat-cut.com.
+
+## Newsletter admin (21 août 2026, suite)
+- ✅ Onglet NEWSLETTER dans /admin (tabs TABLEAU DE BORD / NEWSLETTER, composant NewsletterAdmin.js).
+- ✅ Rédaction : mode Éditeur (gabarit DA v3 noir/cramoisi) ou import HTML brut ; aperçu iframe ; envoi test à un email.
+- ✅ Envoi à toute la base (users avec newsletter != false, défaut inscrit) en tâche de fond, 0,6 s entre chaque envoi (limite Resend), suivi progression en live.
+- ✅ Liste de diffusion : recherche + cases à cocher pour exclure/réinscrire un email (POST /admin/newsletter/subscription).
+- ✅ Taux d'ouverture : pixel GET /api/newsletter/open/{campaign}/{uid} ($addToSet opened_by) + tableau campagnes (envoyés, ouvertures, taux, statut).
+- ✅ Lien de désinscription légal dans chaque email : GET /api/newsletter/unsubscribe?u={user_id} (page HTML noire).
+- ✅ Case newsletter à l'inscription (AuthPage, cochée par défaut, champ RegisterIn.newsletter) — vérifié en DB.
+- Collection Mongo : newsletter_campaigns {campaign_id, subject, mode, recipients, sent, failed, opened_by[], status, created_at}.
+- Testé : login admin, subscribers (193), toggle, preview, pixel, unsubscribe, register newsletter=false. PAS d'envoi réel à la base (clés live).

@@ -588,6 +588,7 @@ class RegisterIn(BaseModel):
     password: str = Field(min_length=6, max_length=128)
     ref_code: str | None = None
     cgv_accepted: bool = False
+    newsletter: bool = True
 
 
 class LoginIn(BaseModel):
@@ -661,6 +662,7 @@ async def register(data: RegisterIn, request: Request, response: Response):
         "ref_code": f"REF{uuid.uuid4().hex[:6].upper()}",
         "referred_by": referred_by,
         "onboarding_done": False,
+        "newsletter": bool(data.newsletter),
         "cgv_accepted_at": iso(now_utc()),
         "created_at": iso(now_utc()),
     }
@@ -693,6 +695,7 @@ async def login(data: LoginIn, request: Request, response: Response):
 async def google_session(data: GoogleSessionIn, request: Request, response: Response):
     # Échange le session_id (fragment d'URL) contre les données utilisateur — appel serveur uniquement
     sid_raw = (data.session_id or "").strip()
+    logger.info(f"google_session ENTER: sid_len={len(sid_raw)} ua={request.headers.get('user-agent','?')[:120]}")
     async with httpx.AsyncClient(timeout=15) as http:
         r = await http.get(EMERGENT_SESSION_DATA_URL, headers={"X-Session-ID": sid_raw})
     if r.status_code != 200:
@@ -3369,6 +3372,185 @@ async def admin_all_users(user: dict = Depends(get_current_user)):
             "onboarding": u.get("onboarding") or {},
         })
     return {"count": len(users), "users": users}
+
+
+# ---------------------------------------------------------------------------
+# Newsletter (admin) : envoi à toute la base, désinscriptions, taux d'ouverture
+# ---------------------------------------------------------------------------
+import base64
+from fastapi.responses import HTMLResponse
+
+NEWSLETTER_PIXEL_GIF = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+
+
+class NewsletterToggleIn(BaseModel):
+    email: str
+    subscribed: bool
+
+
+class NewsletterSendIn(BaseModel):
+    subject: str = Field(min_length=1, max_length=200)
+    mode: str = "editor"   # editor (texte mis en forme DA v3) | html (code importé tel quel)
+    content: str = Field(min_length=1)
+    test_email: str | None = None
+
+
+def _newsletter_html(subject: str, mode: str, content: str, user_id: str = "", campaign_id: str = "") -> str:
+    if mode == "html":
+        html = content
+    else:
+        paragraphs = "".join(
+            f'<p style="margin:0 0 14px">{line.strip()}</p>' for line in content.split("\n") if line.strip()
+        )
+        html = _email_html(subject, paragraphs or content)
+    unsub = (
+        f'<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" '
+        f'style="font-family:Arial,sans-serif;font-size:11px;color:#4c4c4c;padding:16px 0 6px">'
+        f'Tu recois cet email car tu as un compte BEATCUT. '
+        f'<a href="{APP_URL}/api/newsletter/unsubscribe?u={user_id}" style="color:#4c4c4c">Se desinscrire</a>'
+        f'</td></tr></table>'
+    ) if user_id else ""
+    pixel = (
+        f'<img src="{APP_URL}/api/newsletter/open/{campaign_id}/{user_id}" width="1" height="1" '
+        f'style="display:block;border:0" alt="">'
+    ) if (campaign_id and user_id) else ""
+    return html + unsub + pixel
+
+
+async def _newsletter_send_job(campaign_id: str, subject: str, mode: str, content: str, recipients: list):
+    sent = failed = 0
+    for r in recipients:
+        html = _newsletter_html(subject, mode, content, r.get("user_id", ""), campaign_id)
+        ok = await send_email(r["email"], subject, html)
+        if ok:
+            sent += 1
+        else:
+            failed += 1
+        await db.newsletter_campaigns.update_one(
+            {"campaign_id": campaign_id}, {"$set": {"sent": sent, "failed": failed}}
+        )
+        await asyncio.sleep(0.6)  # limite Resend ~2 req/s
+    await db.newsletter_campaigns.update_one(
+        {"campaign_id": campaign_id},
+        {"$set": {"status": "done", "finished_at": iso(now_utc())}},
+    )
+
+
+@api_router.get("/admin/newsletter/subscribers")
+async def newsletter_subscribers(q: str = "", user: dict = Depends(get_current_user)):
+    await require_admin(user)
+    docs = await db.users.find(
+        {}, {"_id": 0, "email": 1, "name": 1, "newsletter": 1, "created_at": 1}
+    ).sort("created_at", -1).to_list(50000)
+    ql = q.strip().lower()
+    users = []
+    for u in docs:
+        if ql and ql not in (u.get("email") or "").lower() and ql not in (u.get("name") or "").lower():
+            continue
+        users.append({
+            "email": u.get("email"),
+            "name": u.get("name"),
+            "subscribed": u.get("newsletter", True) is not False,
+            "created_at": u.get("created_at"),
+        })
+    total_subscribed = sum(1 for u in docs if u.get("newsletter", True) is not False)
+    return {"count": len(users), "total": len(docs), "total_subscribed": total_subscribed, "users": users}
+
+
+@api_router.post("/admin/newsletter/subscription")
+async def newsletter_toggle_subscription(data: NewsletterToggleIn, user: dict = Depends(get_current_user)):
+    await require_admin(user)
+    r = await db.users.update_one(
+        {"email": data.email.strip().lower()}, {"$set": {"newsletter": bool(data.subscribed)}}
+    )
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    return {"ok": True, "email": data.email, "subscribed": data.subscribed}
+
+
+@api_router.post("/admin/newsletter/preview")
+async def newsletter_preview(data: NewsletterSendIn, user: dict = Depends(get_current_user)):
+    await require_admin(user)
+    return {"html": _newsletter_html(data.subject, data.mode, data.content)}
+
+
+@api_router.post("/admin/newsletter/send")
+async def newsletter_send(data: NewsletterSendIn, user: dict = Depends(get_current_user)):
+    await require_admin(user)
+    if data.test_email:
+        html = _newsletter_html(data.subject, data.mode, data.content, user.get("user_id", ""), "")
+        ok = await send_email(data.test_email.strip().lower(), f"[TEST] {data.subject}", html)
+        return {"test": True, "sent": ok}
+    docs = await db.users.find(
+        {"newsletter": {"$ne": False}}, {"_id": 0, "email": 1, "user_id": 1}
+    ).to_list(50000)
+    recipients = [d for d in docs if d.get("email")]
+    if not recipients:
+        raise HTTPException(status_code=400, detail="Aucun destinataire inscrit à la newsletter")
+    campaign_id = f"nl_{uuid.uuid4().hex[:10]}"
+    await db.newsletter_campaigns.insert_one({
+        "campaign_id": campaign_id,
+        "subject": data.subject,
+        "mode": data.mode,
+        "recipients": len(recipients),
+        "sent": 0,
+        "failed": 0,
+        "opened_by": [],
+        "status": "sending",
+        "created_at": iso(now_utc()),
+        "sent_by": user.get("email"),
+    })
+    asyncio.create_task(_newsletter_send_job(campaign_id, data.subject, data.mode, data.content, recipients))
+    return {"campaign_id": campaign_id, "recipients": len(recipients)}
+
+
+@api_router.get("/admin/newsletter/campaigns")
+async def newsletter_campaigns_list(user: dict = Depends(get_current_user)):
+    await require_admin(user)
+    docs = await db.newsletter_campaigns.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    campaigns = []
+    for c in docs:
+        opens = len(c.get("opened_by") or [])
+        sent = c.get("sent", 0)
+        campaigns.append({
+            "campaign_id": c.get("campaign_id"),
+            "subject": c.get("subject"),
+            "recipients": c.get("recipients", 0),
+            "sent": sent,
+            "failed": c.get("failed", 0),
+            "opens": opens,
+            "open_rate": round(opens / sent * 100, 1) if sent else None,
+            "status": c.get("status"),
+            "created_at": c.get("created_at"),
+        })
+    return {"campaigns": campaigns}
+
+
+@api_router.get("/newsletter/open/{campaign_id}/{uid}")
+async def newsletter_track_open(campaign_id: str, uid: str):
+    if campaign_id.startswith("nl_") and uid:
+        await db.newsletter_campaigns.update_one(
+            {"campaign_id": campaign_id}, {"$addToSet": {"opened_by": uid}}
+        )
+    return Response(content=NEWSLETTER_PIXEL_GIF, media_type="image/gif",
+                    headers={"Cache-Control": "no-store, no-cache"})
+
+
+@api_router.get("/newsletter/unsubscribe")
+async def newsletter_unsubscribe(u: str = ""):
+    done = False
+    if u:
+        r = await db.users.update_one({"user_id": u}, {"$set": {"newsletter": False}})
+        done = bool(r.matched_count)
+    msg = "Tu es bien desinscrit de la newsletter BEATCUT." if done else "Lien de desinscription invalide."
+    return HTMLResponse(f"""<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>BEATCUT</title></head>
+<body style="background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">
+<div style="text-align:center;padding:32px;border:1px solid #171717;max-width:420px">
+<p style="font-size:18px;font-weight:bold;letter-spacing:-0.04em">BEATCUT<span style="color:#fc1c46">&#9632;</span></p>
+<p style="color:#ccc;font-size:14px;line-height:1.6">{msg}</p>
+<a href="{APP_URL}" style="color:#fc1c46;font-size:13px;text-decoration:none;font-weight:bold">Retour au site</a>
+</div></body></html>""")
 
 
 @api_router.get("/admin/customer")

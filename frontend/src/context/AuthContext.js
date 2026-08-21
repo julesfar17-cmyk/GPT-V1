@@ -30,8 +30,8 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const register = async (name, email, password, refCode = null, cgvAccepted = false) => {
-    const payload = { name, email, password, cgv_accepted: cgvAccepted };
+  const register = async (name, email, password, refCode = null, cgvAccepted = false, newsletter = true) => {
+    const payload = { name, email, password, cgv_accepted: cgvAccepted, newsletter };
     if (refCode) payload.ref_code = refCode;
     const { data } = await api.post("/auth/register", payload);
     setUser(data);
@@ -40,7 +40,9 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = () => {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    let redirectUrl = window.location.origin + "/studio";
+    // IMPORTANT: pas "/studio" — en prod l'hébergeur statique résout /studio vers le fichier
+    // studio.html qui avale le fragment #session_id. /dashboard n'a pas d'équivalent statique.
+    let redirectUrl = window.location.origin + "/dashboard";
     try {
       const ref = sessionStorage.getItem("beatcut_ref");
       if (ref) redirectUrl += `?ref=${encodeURIComponent(ref)}`;

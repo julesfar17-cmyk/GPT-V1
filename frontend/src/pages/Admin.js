@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { AffiliateAdmin } from "@/components/AffiliateAdmin";
 import { PreviewTelemetryAdmin } from "@/components/PreviewTelemetryAdmin";
+import { NewsletterAdmin } from "@/components/NewsletterAdmin";
 
 const fmt = (n, suffix = "") => `${n}${suffix}`;
 
@@ -50,6 +51,7 @@ export default function Admin() {
   const [webhook, setWebhook] = useState(null);
   const [cancellations, setCancellations] = useState(null);
   const [onbStats, setOnbStats] = useState(null);
+  const [tab, setTab] = useState("dashboard");
 
   const load = useCallback(async () => {
     try {
@@ -196,11 +198,30 @@ export default function Admin() {
       <Navbar />
       <main className="flex-1 mx-auto w-full max-w-6xl px-5 sm:px-8 py-12">
         <p className="font-osd text-xs tracking-[0.25em] text-primary mb-3">[ ADMIN ]</p>
-        <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight mb-10">
+        <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight mb-8">
           Tableau de bord
         </h1>
 
-        {loading || !stats ? (
+        <div className="flex gap-2 mb-10">
+          <button
+            onClick={() => setTab("dashboard")}
+            data-testid="admin-tab-dashboard"
+            className={`px-5 py-2.5 text-xs font-osd tracking-wider border transition-colors ${tab === "dashboard" ? "border-primary text-primary" : "border-border text-muted-foreground hover:border-foreground"}`}
+          >
+            TABLEAU DE BORD
+          </button>
+          <button
+            onClick={() => setTab("newsletter")}
+            data-testid="admin-tab-newsletter"
+            className={`px-5 py-2.5 text-xs font-osd tracking-wider border transition-colors ${tab === "newsletter" ? "border-primary text-primary" : "border-border text-muted-foreground hover:border-foreground"}`}
+          >
+            NEWSLETTER
+          </button>
+        </div>
+
+        {tab === "newsletter" ? (
+          <NewsletterAdmin />
+        ) : loading || !stats ? (
           <p className="font-osd text-sm text-muted-foreground animate-pulse">CHARGEMENT…</p>
         ) : (
           <>
