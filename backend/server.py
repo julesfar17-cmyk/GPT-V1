@@ -283,9 +283,11 @@ def set_jwt_cookie(response: Response, token: str, request: Request | None = Non
 
 
 def set_session_cookie(response: Response, token: str, request: Request | None = None):
+    # SameSite=Lax (comme le cookie email) : tout est same-origin désormais,
+    # et Safari iOS rejette parfois les cookies SameSite=None → login Google KO sur mobile.
     response.set_cookie(
         key="session_token", value=token, httponly=True, secure=True,
-        samesite="none", max_age=7 * 86400, path="/", domain=cookie_domain_for(request),
+        samesite="lax", max_age=7 * 86400, path="/", domain=cookie_domain_for(request),
     )
 
 
