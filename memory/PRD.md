@@ -881,3 +881,8 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ /app/frontend/src/pages/Aide.js : guide complet FR (pages du site, 4 étapes, barre du haut PC, panneaux Clips/Son/Paroles/Style, timeline, studio mobile CapCut, série de vidéos, export, raccourcis clavier) + sommaire ancré + CTA contact. Responsive mobile/PC, zéro emoji.
 - ✅ Liens ajoutés : Navbar desktop+mobile ("Aide"), Footer React, footer landing.html, footer studio.html, bouton "Aide & guide complet" dans le menu Plus mobile du studio.
 - Route publique /aide dans App.js.
+
+## Emails prod jamais partis + fix rappel essai (21 août 2026, soir)
+- RCA deployer : RESEND_API_KEY VIDE dans les secrets de prod → TOUS les emails (fin d'essai, bienvenue, reset, newsletter) étaient en "[EMAIL simulé]" en prod. ACTION USER : remplir RESEND_API_KEY (et vérifier SENDER_EMAIL="BeatCut <no-reply@beat-cut.com>") dans Deploy → Secrets puis redéployer. STRIPE_WEBHOOK_SECRET aussi vide (webhook à réactiver via bouton admin après redeploy).
+- ✅ Fix code : trial_reminder_sent n'est plus marqué True si send_email échoue (webhook _wh_trial_will_end + _trial_reminder_loop) → les rappels seront retentés au passage suivant une fois la clé posée.
+- Limite : les users dont le flag a déjà été posé à tort en prod ne seront pas rattrapés (essais probablement déjà terminés).

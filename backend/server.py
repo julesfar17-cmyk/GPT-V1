@@ -1282,8 +1282,9 @@ async def _wh_trial_will_end(obj):
     end_dt = datetime.fromtimestamp(te, tz=timezone.utc) if te else parse_dt((u.get("subscription") or {}).get("current_period_end"))
     if not end_dt or end_dt - now_utc() > timedelta(hours=36):
         return
-    await send_email(u["email"], "Ton essai Pro se termine bientôt — BEATCUT", trial_reminder_email_html(iso(end_dt)))
-    await db.users.update_one({"user_id": u["user_id"]}, {"$set": {"subscription.trial_reminder_sent": True}})
+    ok = await send_email(u["email"], "Ton essai Pro se termine bientôt — BEATCUT", trial_reminder_email_html(iso(end_dt)))
+    if ok:
+        await db.users.update_one({"user_id": u["user_id"]}, {"$set": {"subscription.trial_reminder_sent": True}})
 
 
 async def _trial_reminder_loop():
@@ -1299,8 +1300,10 @@ async def _trial_reminder_loop():
                 end = parse_dt((u.get("subscription") or {}).get("current_period_end"))
                 if not end or not (timedelta(0) < end - now <= timedelta(hours=24)):
                     continue
-                await send_email(u["email"], "Ton essai Pro se termine demain — BEATCUT",
-                                 trial_reminder_email_html(iso(end)))
+                ok = await send_email(u["email"], "Ton essai Pro se termine demain — BEATCUT",
+                                      trial_reminder_email_html(iso(end)))
+                if not ok:
+                    continue  # clé Resend absente/erreur : on réessaiera au prochain passage
                 await db.users.update_one({"user_id": u["user_id"]},
                                           {"$set": {"subscription.trial_reminder_sent": True}})
                 logger.info("Rappel J-1 d'essai envoyé à %s", u["email"])
