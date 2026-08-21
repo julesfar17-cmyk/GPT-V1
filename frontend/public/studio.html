@@ -529,7 +529,7 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   .hero{padding:22px 16px}
 }
 </style>
-<link rel="stylesheet" href="/v3-skin.css?v=13.17">
+<link rel="stylesheet" href="/v3-skin.css?v=13.18">
 <meta name="theme-color" id="metaTheme" content="#000000">
 <script>
 /* Thème V3 : partagé avec la landing via bc_theme */
@@ -1538,6 +1538,7 @@ const EN={
 "Connecte-toi pour créer tes vidéos.":"Sign in to create your videos.","Continuer avec Google":"Continue with Google","Connexion sécurisée avec ton compte Google.":"Secure sign-in with your Google account.","Choisis le moment exact":"Pick the exact moment","＋ Ajouter ce plan":"＋ Add this shot","Coupes sur ce temps":"Cuts on this beat","Verrouiller ce plan":"Lock this shot","4 coupes = 4 images sur ce temps (parfait pour un roll de batterie).":"4 cuts = 4 frames on this beat (perfect for a drum roll).","Analyse en cours…":"Analyzing…",
 "Analyse · isolation de la voix…":"Analysis · isolating vocals…","Analyse · détection des paroles…":"Analysis · detecting lyrics…","Analyse · calage précis sur ta voix…":"Analysis · precise sync to your vocals…","Analyse · détection de la grille temporelle…":"Analysis · detecting the time grid…","Analyse · calage de tes paroles sur ta voix…":"Analysis · syncing your lyrics to your vocals…","Analyse · recalage des timings…":"Analysis · re-syncing timings…",
 "BeatCut · Aucune IA générative, uniquement des algorithmes de détection":"BeatCut · Zero generative AI, detection algorithms only","Conditions":"Terms","CGV":"Terms","Mentions légales":"Legal notice","Confidentialité":"Privacy",
+"Export":"Export","Ta vidéo":"Your video","est prête.":"is ready.","Exports illimités, sans filigrane":"Unlimited exports, no watermark","Séries de vidéos pour poster toute la semaine":"Video batches to post all week","Tous les styles, effets et polices":"Every style, effect and font","Débloquer · 7 jours offerts":"Unlock · 7 days free","Puis 19,99 €/mois. Tu annules en deux clics pendant l'essai.":"Then €19.99/month. Cancel in two clicks during the trial.","Pro annuel":"Yearly Pro","Sur démo":"On demo","Essentiel":"Essential",
 "ex : néon, fumée, ville la nuit…":"e.g. neon, smoke, city at night…","Colle tes paroles ici…":"Paste your lyrics here…",
 "Annuler (Ctrl+Z)":"Undo (Ctrl+Z)","Contour blanc":"White outline","Contour noir":"Black outline","Dézoomer":"Zoom out","Exports restants ce mois":"Exports left this month","Format de la vidéo":"Video format","Historique des versions du morceau":"Track version history","La durée exacte pour que la vidéo boucle parfaitement":"The exact length for a perfect loop","Plein écran (F)":"Fullscreen (F)","Régler le tempo":"Set the tempo","Zoomer":"Zoom in","Paroles & style":"Lyrics & style",
 "Un export est déjà en cours — attends la fin":"An export is already running — wait for it to finish","Dépose d'abord ton morceau":"Drop your track first","Téléchargement lancé ✓":"Download started ✓","Morceau supprimé":"Track deleted","Ta vidéo est prête":"Your video is ready","vidéos prêtes":"videos ready","Télécharger":"Download","Re-télécharger":"Download again","téléchargée ✓":"downloaded ✓","Fermer":"Close",
@@ -1803,7 +1804,7 @@ function newMorceau(){
 }
 
 /* ---------- Mobile : flux de création plein écran (son puis clips) ---------- */
-function mobImportFlow(){
+function mobImportFlow(startStep){
   const old=document.getElementById('mobImport'); if(old) old.remove();
   const d=document.createElement('div'); d.id='mobImport'; d.setAttribute('data-testid','mob-import-overlay');
   d.style.cssText='position:fixed;inset:0;z-index:400;background:var(--void,#000);display:flex;flex-direction:column;overflow:auto';
@@ -1832,10 +1833,11 @@ function mobImportFlow(){
       '<div><button id="miDone" class="onb-skip" data-testid="mob-import-done">'+T('Plus tard')+'</button></div></div>';
     const ci=$('#clipInput');
     d.querySelector('#miClips').onclick=()=>{ const once=()=>{ ci.removeEventListener('change',once); d.remove(); }; ci.addEventListener('change',once); ci.click(); };
-    d.querySelector('#miBank').onclick=()=>{ d.remove(); mobSheet('clips'); const s=$('#bankSearch'); if(s){ s.scrollIntoView({block:'center'}); setTimeout(()=>s.focus(),300); } };
+    d.querySelector('#miBank').onclick=()=>{ d.remove(); if(window.matchMedia('(max-width:900px)').matches) mobSheet('clips'); const s=$('#bankSearch'); if(s){ s.scrollIntoView({block:'center'}); setTimeout(()=>s.focus(),300); } };
     d.querySelector('#miDone').onclick=()=>d.remove();
   }
-  soundStep(); document.body.appendChild(d);
+  if(startStep==='clips') clipStep(); else soundStep();
+  document.body.appendChild(d);
 }
 
 /* =====================================================================
@@ -3880,7 +3882,7 @@ function drawPreview(t, cvOverride){
     const a=0.8*Math.max(0,1-cutAge*9);
     if(a>0.01){ c.fillStyle='rgba(255,255,255,'+a.toFixed(3)+')'; c.fillRect(0,0,W,H); }
   }
-  if(API.tier==='free') drawWatermark(c,W,H);
+  if(API.tier==='free' && wmArmed()) drawWatermark(c,W,H);
   if(studioWM){ const wmw=W*0.12, wmh=wmw*studioWM.height/studioWM.width, wmm=W*0.03; c.save(); c.globalAlpha=0.85; c.drawImage(studioWM,W-wmw-wmm,H-wmh-wmm,wmw,wmh); c.restore(); }
 }
 function drawWatermark(c,W,H){
@@ -4779,17 +4781,34 @@ function _bcModal(id,html){
   d.style.cssText='position:fixed;inset:0;z-index:400;background:rgba(8,10,14,.88);backdrop-filter:blur(6px);display:grid;place-items:center;padding:16px;overflow:auto';
   d.innerHTML=html; document.body.appendChild(d); return d;
 }
+/* Filigrane différé : invisible tant que l'utilisateur n'a jamais cliqué Exporter (gratuit). */
+function wmArmed(){
+  try{ if(localStorage.getItem('bc_wm_armed')==='1') return true; }catch(e){}
+  return !!(API.user&&API.user.onboarding&&API.user.onboarding.wm_armed);
+}
+function armWatermark(){
+  if(wmArmed()) return;
+  try{ localStorage.setItem('bc_wm_armed','1'); }catch(e){}
+  if(API.user){ API.user.onboarding=API.user.onboarding||{}; API.user.onboarding.wm_armed=true; }
+  fetch('/api/onboarding',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({wm_armed:true})}).catch(()=>{});
+}
 function showPaywall(){
+  armWatermark();
   const d=_bcModal('paywall-modal',
-    '<div style="background:var(--void,#000);border:1px solid var(--hair-2,#3a3a3e);border-radius:18px;max-width:420px;width:100%;padding:26px 22px">'+
-    '<h2 style="font-size:21px;margin:0 0 4px">Ta vidéo est prête.</h2>'+
-    '<p style="color:var(--graphite,#7a7a7a);font-size:14px;margin:0 0 18px">Débloque-la avec <b style="color:#fff">7 jours offerts</b>.</p>'+
-    '<button class="primary" data-testid="paywall-pro-trial" onclick="bcCheckout(\'pro_monthly\')" style="width:100%;padding:14px;font-size:15px">Essayer 7 jours offerts — Pro</button>'+
-    '<div style="text-align:center;color:var(--graphite,#7a7a7a);font-size:11.5px;margin:6px 0 14px">Puis 19,99 €/mois · annulable en 2 clics pendant l\u2019essai</div>'+
-    '<button class="ghost" data-testid="paywall-essentiel" onclick="bcCheckout(\'essentiel\')" style="width:100%;padding:11px;margin-bottom:8px">Essentiel — 9,99 €/mois <span style="color:var(--graphite,#7a7a7a)">(15 exports/mois)</span></button>'+
-    '<button class="ghost" data-testid="paywall-pro-yearly" onclick="bcCheckout(\'pro_yearly\')" style="width:100%;padding:11px;margin-bottom:8px">Pro Annuel — 12,42 €/mois <span style="color:var(--graphite,#7a7a7a)">(149 €/an · −38 %)</span></button>'+
-    '<a data-testid="paywall-studio" href="mailto:jules.beatcut@gmail.com?subject=D%C3%A9mo%20BeatCut%20Studio" target="_top" style="display:block;text-align:center;padding:11px;border:1px solid var(--hair-2,#3a3a3e);border-radius:999px;color:#fff;text-decoration:none;margin-bottom:12px">Studio — 499 €/an · Planifier une démo</a>'+
-    '<div style="text-align:center"><button data-testid="paywall-close" onclick="document.getElementById(\'paywall-modal\').remove()" style="background:none;border:none;color:var(--graphite,#7a7a7a);font-size:12.5px;cursor:pointer;text-decoration:underline">Plus tard</button></div>'+
+    '<div class="pw-box">'+
+    '<div class="pw-eyebrow">Export</div>'+
+    '<h2 class="pw-title">Ta vidéo<br>est prête.</h2>'+
+    '<div class="pw-feat">Exports illimités, sans filigrane</div>'+
+    '<div class="pw-feat">Séries de vidéos pour poster toute la semaine</div>'+
+    '<div class="pw-feat">Tous les styles, effets et polices</div>'+
+    '<span class="halo" style="display:block;margin-top:20px"><button class="onb-cta" data-testid="paywall-pro-trial" onclick="bcCheckout(\'pro_monthly\')" style="width:100%">Débloquer · 7 jours offerts</button></span>'+
+    '<div class="pw-note">Puis 19,99 €/mois. Tu annules en deux clics pendant l\u2019essai.</div>'+
+    '<div class="pw-alts">'+
+    '<button data-testid="paywall-essentiel" onclick="bcCheckout(\'essentiel\')">Essentiel<br><b>9,99 €/mois</b></button>'+
+    '<button data-testid="paywall-pro-yearly" onclick="bcCheckout(\'pro_yearly\')">Pro annuel<br><b>12,42 €/mois</b></button>'+
+    '<a data-testid="paywall-studio" href="mailto:jules.beatcut@gmail.com?subject=D%C3%A9mo%20BeatCut%20Studio" target="_top">Studio<br><b>Sur démo</b></a>'+
+    '</div>'+
+    '<div style="text-align:center"><button data-testid="paywall-close" class="onb-skip" style="margin-top:14px" onclick="document.getElementById(\'paywall-modal\').remove()">Plus tard</button></div>'+
     '</div>');
   return d;
 }
@@ -4844,7 +4863,7 @@ const DESKTUTO_STEPS=[
 ];
 function maybeMobTutorial(){
   try{ if(localStorage.getItem('bc_mobtuto_done')){
-    if(window._onbFreshFlow){ window._onbFreshFlow=false; setTimeout(showOnbVideoPrompt,900); }
+    if(window._onbFreshFlow){ window._onbFreshFlow=false; setTimeout(()=>mobImportFlow('clips'),900); }
     return; } }catch(e){}
   if(document.getElementById('mobTuto')) return;
   setTimeout(()=>{
@@ -4870,7 +4889,7 @@ function showMobTutorial(STEPS){
   document.body.appendChild(ov);
   const spot=ov.querySelector('#mtSpot'),card=ov.querySelector('#mtCard'),dim=ov.querySelector('#mtDim');
   function done(ev){ try{localStorage.setItem('bc_mobtuto_done','1');}catch(e){} onbTel(ev,step+1); window.removeEventListener('resize',place); ov.remove();
-    if(window._onbFreshFlow){ window._onbFreshFlow=false; setTimeout(showOnbVideoPrompt,350); } }
+    if(window._onbFreshFlow){ window._onbFreshFlow=false; setTimeout(()=>mobImportFlow('clips'),350); } }
   function place(){
     const s=STEPS[step];
     const el=s.t?document.querySelector(s.t):null;

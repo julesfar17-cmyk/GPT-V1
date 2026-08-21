@@ -1902,6 +1902,8 @@ async def save_onboarding(payload: dict, user: dict = Depends(get_current_user))
     if payload.get("done"):
         sets["onboarding_done"] = True
         sets["onboarding.done_at"] = iso(now_utc())
+    if payload.get("wm_armed"):
+        sets["onboarding.wm_armed"] = True
     if sets:
         await db.users.update_one({"user_id": user["user_id"]}, {"$set": sets})
     return {"ok": True}

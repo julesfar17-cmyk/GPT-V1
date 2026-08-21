@@ -794,3 +794,12 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Flux création mobile (≤900px) : newMorceau() → mobImportFlow() plein écran Étape 1/2 « Dépose ton son » (esthétique onboarding) → Étape 2/2 « Ajoute tes clips » (multi, jusqu'à 24, bouton Banque de vidéos gratuites) → éditeur. data-testid mob-import-*.
 - ✅ Badges « Optimisation en arrière-plan » remplacés par une barre de chargement rouge discrète en bas du clip (.clip-load : % d'envoi ou animation indéterminée, tooltip conserve le libellé). Badge d'échec (clip-fail) passé du jaune au cramoisi.
 - Cache CSS → ?v=13.17. Auto-testé : screenshots mobile 390×844 (flux import + barre CapCut barTop=784/844) + desktop (fsBtn OK) + API onboarding.
+
+## Retours mobile v2 + paywall + filigrane différé (21 août 2026, soir)
+- ✅ Barre CapCut mobile : marge Safari accrue → hauteur/paddings avec max(env(safe-area-inset-bottom),16px) (barre à 76px du bord, vérifié barTop=768/844).
+- ✅ Bandes noires landing (mode clair) : Landing.js synchronise fond parent + meta theme-color via bc_theme (comme Studio.js), iframe background transparent. Vérifié parent = blanc.
+- ✅ Fin d'onboarding = mêmes écrans que le flux nouveau son : mobImportFlow('clips') remplace showOnbVideoPrompt (fonction conservée mais plus appelée) ; bouton Banque compatible desktop.
+- ✅ Paywall export redesigné v3 (.pw-*) : eyebrow [EXPORT], titre fort, 3 features à puces carrées cramoisies, CTA halo « Débloquer · 7 jours offerts », note prix, 3 alternatives discrètes (Essentiel/Pro annuel/Studio), Plus tard + clés EN ajoutées au dict.
+- ✅ Studio mobile : #exportBtn réduit (7px 12px, 10.5px), #fsBtn rond 38px icône centrée.
+- ✅ FILIGRANE DIFFÉRÉ : drawWatermark seulement si tier free ET wmArmed() (localStorage bc_wm_armed OU user.onboarding.wm_armed serveur). armWatermark() appelé au 1er showPaywall (clic Exporter) → filigrane appliqué pour toujours ensuite. Backend /api/onboarding accepte wm_armed. Vérifié : wmArmed False avant, True après paywall.
+- Cache CSS → ?v=13.18.

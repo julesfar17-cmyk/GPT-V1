@@ -325,6 +325,22 @@ body.editing .v3-foot,body.mob-edit .v3-foot{display:none}
   transition:border-color .18s,color .18s}
 .bk-row button:hover{border-color:var(--crimson);color:var(--crimson);background:transparent}
 
+/* ---------- Paywall export v3 ---------- */
+#paywall-modal{background:rgba(0,0,0,.78)!important;backdrop-filter:blur(8px)}
+.pw-box{background:var(--void);border:1px solid var(--hair-2);border-radius:18px;max-width:400px;width:100%;padding:30px 26px}
+.pw-eyebrow{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--crimson);margin-bottom:12px}
+.pw-eyebrow::before{content:'[ '}.pw-eyebrow::after{content:' ]'}
+.pw-title{font-size:clamp(24px,6vw,32px);font-weight:700;letter-spacing:-.02em;line-height:1.02;text-transform:uppercase;color:var(--frost);margin:0 0 18px}
+.pw-feat{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--hair);font-size:13px;color:var(--ash);text-transform:none}
+.pw-feat::before{content:'';width:5px;height:5px;background:var(--crimson);flex:none}
+.pw-note{text-align:center;color:var(--graphite);font-size:11px;margin:10px 0 16px;text-transform:none}
+.pw-alts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pw-alts button,.pw-alts a{display:block;text-align:center;background:transparent;border:1px solid var(--hair-2);border-radius:12px;
+  color:var(--graphite);font-size:10px;letter-spacing:.04em;text-transform:uppercase;line-height:1.5;padding:10px 4px;cursor:pointer;text-decoration:none;
+  transition:border-color .18s,color .18s;min-height:0;height:auto}
+.pw-alts b{color:var(--frost);font-weight:600;font-size:11px}
+.pw-alts button:hover,.pw-alts a:hover{border-color:var(--frost);color:var(--ash);background:transparent}
+
 /* ---------- Barres de scroll invisibles dans les colonnes (le défilement reste actif) ---------- */
 .col,.col *{scrollbar-width:none}
 .col::-webkit-scrollbar,.col *::-webkit-scrollbar{display:none}
@@ -381,7 +397,7 @@ body.editing .v3-foot,body.mob-edit .v3-foot{display:none}
   .drawer-close .lb{font-size:18px!important}
   /* --- Éditeur mobile : barre d'outils basse façon CapCut (DA BeatCut) --- */
   body.mob-edit #mobBar{display:grid!important;grid-template-columns:repeat(5,1fr);left:0;right:0;top:auto;bottom:0;width:auto;
-    height:calc(60px + env(safe-area-inset-bottom));padding:0 0 env(safe-area-inset-bottom);
+    height:calc(60px + max(env(safe-area-inset-bottom),16px));padding:0 0 max(env(safe-area-inset-bottom),16px);
     background:var(--void)!important;border-top:1px solid var(--hair)!important;border-left:none;
     z-index:120;transform:none;transition:none}
   #mobBar .drawer-close{display:none!important}
@@ -394,11 +410,14 @@ body.editing .v3-foot,body.mob-edit .v3-foot{display:none}
   #mobBar button.on .lb{color:var(--frost)!important}
   body.mob-edit #editBurger{display:none!important}
   /* la page et les panneaux s'arrêtent au-dessus de la barre (et de la barre Safari) */
-  #pageEdit.show{padding:0 0 calc(60px + env(safe-area-inset-bottom))!important}
-  .edit-main>.col,#extractZone,#mobMore,#planSheet{bottom:calc(60px + env(safe-area-inset-bottom))!important}
+  #pageEdit.show{padding:0 0 calc(60px + max(env(safe-area-inset-bottom),16px))!important}
+  .edit-main>.col,#extractZone,#mobMore,#planSheet{bottom:calc(60px + max(env(safe-area-inset-bottom),16px))!important}
   /* plein écran : icône seule sur mobile */
   #fsLb{display:none}
-  #fsBtn{width:38px;height:38px;min-height:38px;padding:0!important;display:grid;place-items:center}
+  #fsBtn{width:38px;height:38px;min-height:38px;padding:0!important;display:grid!important;place-items:center;border-radius:999px}
+  #fsBtn svg{display:block;margin:0}
+  /* bouton exporter plus discret */
+  .edit-top #exportBtn{padding:7px 12px!important;font-size:10.5px!important;min-height:32px!important;letter-spacing:.05em}
   /* barre éditeur épurée : le burger remplace logo / thème / série */
   .edit-top .logo,#editThemeBtn,#serieBtn{display:none}
   .edit-top input.title{width:100%!important;font-size:13px}
