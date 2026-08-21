@@ -803,3 +803,6 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Studio mobile : #exportBtn réduit (7px 12px, 10.5px), #fsBtn rond 38px icône centrée.
 - ✅ FILIGRANE DIFFÉRÉ : drawWatermark seulement si tier free ET wmArmed() (localStorage bc_wm_armed OU user.onboarding.wm_armed serveur). armWatermark() appelé au 1er showPaywall (clic Exporter) → filigrane appliqué pour toujours ensuite. Backend /api/onboarding accepte wm_armed. Vérifié : wmArmed False avant, True après paywall.
 - Cache CSS → ?v=13.18.
+
+## Fix scroll mobile Chrome (21 août 2026)
+- ✅ /studio (wrapper React) : h-screen (100vh) → position:fixed + height:100dvh + overflow hidden sur html/body pendant le montage. Vérifié scrollH==innerH (844/844). L'interface d'édition tient entièrement à l'écran sur Chrome et Safari mobile.

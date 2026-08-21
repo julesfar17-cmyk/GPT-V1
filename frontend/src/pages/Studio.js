@@ -20,12 +20,16 @@ export default function Studio() {
       m.setAttribute("content", c);
     };
     sync();
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
     const iv = setInterval(sync, 1500);
     return () => {
       clearInterval(iv);
       document.body.classList.remove("no-cur");
       document.documentElement.style.background = "";
       document.body.style.background = "";
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
     };
   }, []);
   const projectId = params.get("project");
@@ -36,7 +40,7 @@ export default function Studio() {
     `v=${BUST}`,
   ].filter(Boolean).join("&");
   return (
-    <div className="h-screen w-full" style={{ background: "inherit" }}>
+    <div className="w-full" style={{ background: "inherit", height: "100dvh", position: "fixed", inset: 0 }}>
       <iframe
         src={`/studio.html?${qs}`}
         title="Studio BEATCUT"
