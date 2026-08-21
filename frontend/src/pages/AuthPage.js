@@ -9,7 +9,7 @@ export default function AuthPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { login, register, loginWithGoogle } = useAuth();
+  const { login, register, loginWithGoogle, refreshUser } = useAuth();
   const isRegister = location.pathname === "/register";
   const refCode = (params.get("ref") || "").toUpperCase();
 
@@ -42,8 +42,16 @@ export default function AuthPage() {
         await login(email, password);
         toast.success("Connecté !");
       }
-      navigate("/dashboard");
+      navigate("/studio");
     } catch (e) {
+      // réponse perdue/lente : la session a pu être créée quand même → on vérifie avant d'afficher l'erreur
+      try {
+        const u = await refreshUser();
+        if (u) {
+          navigate("/studio");
+          return;
+        }
+      } catch {}
       setError(formatApiErrorDetail(e.response?.data?.detail) || e.message);
     } finally {
       setLoading(false);

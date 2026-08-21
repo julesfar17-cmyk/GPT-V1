@@ -11,8 +11,10 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.get("/auth/me");
       setUser(data);
+      return data;
     } catch {
       setUser(null);
+      return null;
     }
   }, []);
 
@@ -23,7 +25,7 @@ export function AuthProvider({ children }) {
   }, [checkAuth]);
 
   const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", { email, password });
+    const { data } = await api.post("/auth/login", { email, password }, { timeout: 15000 });
     setUser(data);
     return data;
   };
@@ -38,7 +40,7 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = () => {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    let redirectUrl = window.location.origin + "/dashboard";
+    let redirectUrl = window.location.origin + "/studio";
     try {
       const ref = sessionStorage.getItem("beatcut_ref");
       if (ref) redirectUrl += `?ref=${encodeURIComponent(ref)}`;

@@ -416,6 +416,9 @@ body.editing .v3-foot,body.mob-edit .v3-foot{display:none}
   #fsLb{display:none}
   #fsBtn{width:38px;height:38px;min-height:38px;padding:0!important;display:grid!important;place-items:center;border-radius:999px}
   #fsBtn svg{display:block;margin:0}
+  /* plein écran : la barre d'outils s'efface */
+  body.is-fs #mobBar{display:none!important}
+  body.is-fs #pageEdit.show{padding:0!important}
   /* bouton exporter plus discret */
   .edit-top #exportBtn{padding:7px 12px!important;font-size:10.5px!important;min-height:32px!important;letter-spacing:.05em}
   /* barre éditeur épurée : le burger remplace logo / thème / série */

@@ -529,7 +529,7 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   .hero{padding:22px 16px}
 }
 </style>
-<link rel="stylesheet" href="/v3-skin.css?v=13.18">
+<link rel="stylesheet" href="/v3-skin.css?v=13.19">
 <meta name="theme-color" id="metaTheme" content="#000000">
 <script>
 /* Thème V3 : partagé avec la landing via bc_theme */
@@ -1096,6 +1096,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <div style="display:flex;flex-direction:column;gap:10px">
     <button class="small" onclick="undo()">↶ Annuler la dernière action</button>
     <button class="small" onclick="mobSheet('more');openBackups()">Versions du morceau</button>
+    <button class="small" onclick="mobSheet('more');restartMobTuto()" data-testid="mob-restart-tuto">Revoir le tutoriel</button>
     <button class="small" onclick="toggleLang()">Français / English</button>
     <button class="small" onclick="mobSheet('more');go('accueil')">Retour à l'accueil</button>
     <button class="small" onclick="try{window.top.location.href='/dashboard'}catch(e){}">Mon compte</button>
@@ -1547,7 +1548,7 @@ const EN={
 "Le navigateur TikTok/Instagram bloque le téléchargement — ouvre beat-cut.com dans Chrome ou Safari (menu ⋯ → Ouvrir dans le navigateur). Rien n'a été décompté.":"The TikTok/Instagram browser blocks downloads — open beat-cut.com in Chrome or Safari (⋯ menu → Open in browser). Nothing was deducted.",
 "Plans par vidéo :":"Shots per video:","Plans par vidéo":"Shots per video","Jusqu'à 24 plans par vidéo — limité par la durée du clip.":"Up to 24 shots per video — limited by clip length.","Auto":"Auto","Sans coupes : OFF":"No cuts: OFF","Sans coupes : ON":"No cuts: ON","Vidéo entière, sans coupes ":"Full video, no cuts ","Coupes sur le beat réactivées ":"Beat cuts back on ","Texte en négatif (couleur inversée du fond)":"Negative text (inverts what's behind)","Saturé 4K":"4K saturated","Glow (halo lumineux)":"Glow (bloom)","Caméra instable":"Handheld camera","Fisheye léger":"Light fisheye","Archivo Narrow — condensé viral":"Archivo Narrow — viral condensed","Silkscreen — pixel rétro":"Silkscreen — retro pixel","Rubik Distressed — abrasé":"Rubik Distressed — distressed","Plans mélangés — chaque clip est servi équitablement (les n'ont pas bougé)":"Shots shuffled — every clip dealt fairly (untouched)","Ajoute d'abord des vidéos à gauche":"Add videos on the left first","Préparation de l'export studio…":"Preparing studio export…","Finalisation du MP4…":"Finalizing MP4…","Ajout du son (serveur)…":"Adding audio (server)…","Vérification des vidéos…":"Checking videos…",
 "Passer":"Skip","Suivant":"Next","C'est parti ":"Let's go ",
-"Bienvenue dans le studio ":"Welcome to the studio ",
+"Bienvenue dans le studio ":"Welcome to the studio ","Bienvenue dans le studio":"Welcome to the studio","Tout se fait en trois gestes : tu déposes ton son, tes clips se calent sur le beat, tu exportes. Petit tour en 30 secondes.":"Three moves and you're done: drop your track, your clips snap to the beat, you export. Quick 30-second tour.","Ton morceau vit ici : choisis l'extrait à montrer (refrain, drop). Le BPM est détecté tout seul.":"Your track lives here: pick the extract to show (chorus, drop). BPM detects itself.","Ajoute tes vidéos ou pioche dans la banque gratuite. Elles se placent toutes seules sur le beat.":"Add your videos or pick from the free library. They land on the beat by themselves.","Tes sous-titres s'écrivent tout seuls, synchronisés avec ta voix. Corrige un mot en un tap.":"Your subtitles write themselves, synced to your vocals. Fix any word with one tap.","Polices, couleurs, animation des mots, effets visuels : c'est ta patte.":"Fonts, colors, word animations, visual effects: your signature.","Annuler, versions du morceau, langue, revoir ce tuto : tout est là.":"Undo, track versions, language, replay this tour: it's all here.","Ta vidéo sort en MP4 vertical, prête pour TikTok, Reels et Shorts. À toi de jouer.":"Your video comes out as vertical MP4, ready for TikTok, Reels and Shorts. Your move.","Revoir le tutoriel":"Replay the tutorial",
 "Ton clip se monte ici : aperçu au centre, timeline en bas, et tous les outils sous le pouce. Petit tour en 20 secondes.":"Your video comes together here: preview in the middle, timeline at the bottom, every tool under your thumb. Quick 20-second tour.",
 "Son — commence ici":"Sound — start here",
 "Dépose ton morceau : le BPM est détecté automatiquement et tu choisis l'extrait à monter.":"Drop your track: the BPM is detected automatically and you pick the extract to edit.",
@@ -4669,7 +4670,7 @@ function toggleFullscreen(){
   if(wrap.requestFullscreen){ wrap.requestFullscreen().catch(()=>pseudoFs(wrap)); }
   else pseudoFs(wrap);   // iPhone : pas d'API plein écran → on simule
 }
-function setFsLabel(on){ const l=$('#fsLb'); if(l) l.textContent=on?'✕ Quitter':'Plein écran'; }
+function setFsLabel(on){ const l=$('#fsLb'); if(l) l.textContent=on?'✕ Quitter':'Plein écran'; document.body.classList.toggle('is-fs',!!on); }
 function pseudoFs(wrap){
   wrap.classList.add('pseudo-fs'); setFsLabel(true);
   fitSoon(); if(buffer&&!playing) play(startOff||ext.start);
@@ -4846,11 +4847,16 @@ async function checkPaidReturn(){
   }
 }
 /* ---------- Tutoriel mobile (premier montage) ---------- */
+function restartMobTuto(){ try{localStorage.removeItem('bc_mobtuto_done');}catch(e){} const o=document.getElementById('mobTuto'); if(o)o.remove(); showMobTutorial(MOBTUTO_STEPS); }
 const MOBTUTO_STEPS=[
- {t:null,h:'Bienvenue dans le studio',b:'Ton clip se monte ici : aperçu au centre, timeline en bas. Petit tour en 20 secondes.'},
- {t:'#editBurger',h:'Le menu',b:'Tout est là : Son (ton morceau), Clips (tes vidéos), Paroles et Style. Un tap pour ouvrir le panneau, un tap dehors pour le fermer.'},
+ {t:null,h:'Bienvenue dans le studio',b:'Tout se fait en trois gestes : tu déposes ton son, tes clips se calent sur le beat, tu exportes. Petit tour en 30 secondes.'},
+ {t:'#mobBar [data-ms=extract]',h:'Son',b:'Ton morceau vit ici : choisis l\u2019extrait à montrer (refrain, drop). Le BPM est détecté tout seul.'},
+ {t:'#mobBar [data-ms=clips]',h:'Clips',b:'Ajoute tes vidéos ou pioche dans la banque gratuite. Elles se placent toutes seules sur le beat.'},
+ {t:'#mobBar [data-ms=paroles]',h:'Paroles',b:'Tes sous-titres s\u2019écrivent tout seuls, synchronisés avec ta voix. Corrige un mot en un tap.'},
+ {t:'#mobBar [data-ms=style]',h:'Style',b:'Polices, couleurs, animation des mots, effets visuels : c\u2019est ta patte.'},
  {t:'#trPlans',h:'La timeline',b:'Touche un plan pour le remplacer, le découper ou le supprimer. Le trait rouge suit la musique.'},
- {t:'#exportBtn',h:'Exporter',b:'Ta vidéo sort en MP4 prêt pour TikTok, Reels et Shorts. À toi de jouer.'},
+ {t:'#mobBar [data-ms=more]',h:'Plus',b:'Annuler, versions du morceau, langue, revoir ce tuto : tout est là.'},
+ {t:'#exportBtn',h:'Exporter',b:'Ta vidéo sort en MP4 vertical, prête pour TikTok, Reels et Shorts. À toi de jouer.'},
 ];
 const DESKTUTO_STEPS=[
  {t:null,h:'Bienvenue dans le studio ',b:'Clips à gauche, aperçu au centre, paroles & style à droite, timeline en bas. Petit tour en 20 secondes.'},

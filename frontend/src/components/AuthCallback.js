@@ -31,7 +31,7 @@ export default function AuthCallback() {
         const { data } = await api.post("/auth/google/session", payload);
         setUser(data);
         window.history.replaceState(null, "", window.location.pathname);
-        navigate("/dashboard", { replace: true, state: { user: data } });
+        navigate("/studio", { replace: true, state: { user: data } });
       } catch (e) {
         console.error("Échange session Google échoué", e);
         navigate("/login", { replace: true });

@@ -806,3 +806,11 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 
 ## Fix scroll mobile Chrome (21 août 2026)
 - ✅ /studio (wrapper React) : h-screen (100vh) → position:fixed + height:100dvh + overflow hidden sur html/body pendant le montage. Vérifié scrollH==innerH (844/844). L'interface d'édition tient entièrement à l'écran sur Chrome et Safari mobile.
+
+## Login bloqué + redirection morceaux + plein écran mobile + tuto (21 août 2026)
+- ✅ « Connexion en cours » en boucle : timeout 15s sur POST /auth/login + en cas d'échec/réponse perdue, refreshUser() vérifie si le cookie est posé et redirige quand même. checkAuth retourne désormais les données.
+- ✅ Après connexion (email, Google, callback) → /studio (Mes morceaux) au lieu de /dashboard (AuthPage, AuthContext.loginWithGoogle, AuthCallback).
+- ✅ Plein écran mobile : body.is-fs (posé par setFsLabel) masque #mobBar et supprime le padding bas. Vérifié display:none en fullscreen.
+- ✅ Tuto mobile réécrit, précis, différent du desktop : 8 étapes ciblant chaque onglet de la barre basse (Son/Clips/Paroles/Style/Plus), timeline, Exporter + clés EN.
+- ✅ Bouton « Revoir le tutoriel » dans le panneau Plus (restartMobTuto()).
+- Cache CSS → ?v=13.19.
