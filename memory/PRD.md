@@ -761,3 +761,4 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ input[type=range] : margin-right 16px — le rail/pouce s'arrête 14px avant le bord de la case (mesuré : dropRight 199 / rangeRight 184).
 - ✅ Interface à 90 % : html{zoom:.9} dans v3-skin.css (studio) et index.css (app React), avec html:has(body.no-cur){zoom:1} pour éviter le double zoom sur les routes iframe (/ landing reste 100 %, /studio parent 1 × studio .9). Vérifié : login/dashboard 0.9, parents iframe 1.
 - Cache-buster → ?v=13.11.
+- 21 août (fix) : html{zoom:.9} RETIRÉ du studio (décalait le curseur custom et cassait canvas/timeline — incompatible coordonnées souris). App React : 90 % obtenu via html{font-size:14.4px} (rem Tailwind, aucun impact coordonnées), pages iframe exclues (:has(body.no-cur)). Alignement curseur vérifié au pixel (600,400=600,400). Cache → ?v=13.12. NE PLUS JAMAIS utiliser zoom CSS dans le studio.

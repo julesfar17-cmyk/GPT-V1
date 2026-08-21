@@ -23,8 +23,6 @@
 }
 /* Interdits V3 : aucune ombre, aucun rayon hors pilules */
 *{box-shadow:none!important;text-shadow:none!important}
-/* Interface studio à 90 % (demande fondateur) */
-html{zoom:.9}
 body{font-variant-numeric:tabular-nums}
 ::selection{background:var(--crimson);color:#fff}
 h1,h2,h3{color:var(--frost);text-transform:uppercase;letter-spacing:-.024em}
