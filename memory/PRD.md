@@ -833,3 +833,9 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ RCA : /auth/google/session ne faisait pas register_sid() (contrairement au login/register email) → avec la protection anti-partage (_check_sid, limite 1 appareil), tout compte ayant déjà des sids était rejeté au premier /auth/me → déconnexion immédiate après login Google.
 - ✅ Fix : register_sid(user, session_token) ajouté dans google_session. Testé par simulation (ancien sid présent → nouveau token accepté, éviction de l'ancien conforme à la limite).
 - ⚠️ PROD : correctif présent en preview seulement — nécessite un redéploiement pour beat-cut.com.
+
+## Fix n°2 déconnexion Google : vieux cookie masquant (21 août 2026)
+- ✅ RCA finale : get_current_user lisait access_token (JWT email périmé) EN PREMIER et levait 401 « autre appareil » sans essayer session_token (Google, valide). Tout utilisateur ayant un ancien login email sur le même navigateur était déconnecté ~2s après le login Google.
+- ✅ Fix : get_current_user essaie toutes les branches (jwt cookie → session cookie → bearer) avant de lever le 401 conflit ; google_session supprime le cookie access_token obsolète.
+- ✅ Testé curl : vieux jwt + session google valide = 200 (avant 401) ; session écrasée seule = 401 (anti-partage intact) ; login normal = 200.
+- ⚠️ REDÉPLOIEMENT REQUIS pour beat-cut.com.

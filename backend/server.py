@@ -487,29 +487,46 @@ async def _user_from_session(token: str):
 
 
 async def get_current_user(request: Request) -> dict:
+    # Un vieux cookie (ex. access_token d'un ancien login email) ne doit pas masquer
+    # une session valide posée ensuite (ex. session_token Google) : on essaie toutes les branches.
+    device_conflict = False
     jwt_token = request.cookies.get("access_token")
     if jwt_token:
         user, sid = await _user_from_jwt(jwt_token)
         if user:
-            _check_sid(user, sid)
-            return user
+            try:
+                _check_sid(user, sid)
+                return user
+            except HTTPException:
+                device_conflict = True
     session_token = request.cookies.get("session_token")
     if session_token:
         user = await _user_from_session(session_token)
         if user:
-            _check_sid(user, session_token)
-            return user
+            try:
+                _check_sid(user, session_token)
+                return user
+            except HTTPException:
+                device_conflict = True
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         bearer = auth_header[7:]
         user, sid = await _user_from_jwt(bearer)
         if user:
-            _check_sid(user, sid)
-            return user
+            try:
+                _check_sid(user, sid)
+                return user
+            except HTTPException:
+                device_conflict = True
         user = await _user_from_session(bearer)
         if user:
-            _check_sid(user, bearer)
-            return user
+            try:
+                _check_sid(user, bearer)
+                return user
+            except HTTPException:
+                device_conflict = True
+    if device_conflict:
+        raise HTTPException(status_code=401, detail="Ton compte a été connecté sur un autre appareil.")
     raise HTTPException(status_code=401, detail="Non authentifié")
 
 
@@ -685,6 +702,7 @@ async def google_session(data: GoogleSessionIn, response: Response):
         "created_at": iso(now_utc()),
     })
     await register_sid(user, session_token)
+    response.delete_cookie("access_token", path="/")
     set_session_cookie(response, session_token)
     return public_user(user)
 
