@@ -858,3 +858,10 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - Diagnostic complet : la prod tourne le dernier build (vérifié fichier par fichier : cookie_domain_for, api.js same-origin, device_conflict, register_sid). Flux front relu ligne à ligne (loginWithGoogle conforme playbook, AuthCallback POST via api relatif, App.js intercepte #session_id avant le routing).
 - Logs prod : dernières tentatives Google à 17:05-17:07, AVANT le redeploy correctif de 18:54. Aucune tentative Google depuis → le bug rapporté concernait l'ancien build ; la version corrigée n'a jamais été testée avec Google.
 - EN ATTENTE : re-test utilisateur de la connexion Google sur beat-cut.com. Si échec : demander statut du POST /api/auth/google/session + corps du 401 de /auth/me (« Non authentifié » = transport ; « autre appareil » = anti-partage).
+
+## Fix final boucle login Google — conformité playbook (21 août 2026, nuit)
+- RCA consolidée (deployer + playbook Emergent Auth) : les google/session prod renvoyaient 401 upstream = ticket à usage unique REJOUÉ (rechargement/double navigation) → catch → bounce /login en boucle.
+- ✅ App.js : détection du callback via useLocation().hash (réactif) au lieu de window.location.hash (déviation playbook corrigée).
+- ✅ AuthCallback : filet anti-rejeu — si l'échange échoue, GET /auth/me ; si session valide → setUser + /studio (testé : ticket bidon → reste connecté sur Mes morceaux, hash purgé). decodeURIComponent(ticket) + purge du hash en cas d'échec.
+- ✅ Cookie session_token → SameSite=Lax (Safari mobile) ; logging détaillé du 401 upstream (UA, corps) dans google_session ; liens landing /login,/cgv,... target=_top (sortie d'iframe).
+- ⚠️ REDÉPLOIEMENT REQUIS pour beat-cut.com.

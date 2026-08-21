@@ -692,9 +692,15 @@ async def login(data: LoginIn, request: Request, response: Response):
 @api_router.post("/auth/google/session")
 async def google_session(data: GoogleSessionIn, request: Request, response: Response):
     # Échange le session_id (fragment d'URL) contre les données utilisateur — appel serveur uniquement
+    sid_raw = (data.session_id or "").strip()
     async with httpx.AsyncClient(timeout=15) as http:
-        r = await http.get(EMERGENT_SESSION_DATA_URL, headers={"X-Session-ID": data.session_id})
+        r = await http.get(EMERGENT_SESSION_DATA_URL, headers={"X-Session-ID": sid_raw})
     if r.status_code != 200:
+        ua = request.headers.get("user-agent", "?")[:160]
+        logger.warning(
+            f"google_session ÉCHEC: upstream={r.status_code} body={r.text[:200]!r} "
+            f"sid_len={len(sid_raw)} ua={ua}"
+        )
         raise HTTPException(status_code=401, detail="Session Google invalide ou expirée")
     info = r.json()
     email = info["email"].strip().lower()

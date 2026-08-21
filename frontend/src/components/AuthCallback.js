@@ -20,7 +20,7 @@ export default function AuthCallback() {
         return;
       }
       try {
-        const payload = { session_id: match[1] };
+        const payload = { session_id: decodeURIComponent(match[1]) };
         try {
           const ref = sessionStorage.getItem("beatcut_ref");
           if (ref) {
@@ -34,6 +34,18 @@ export default function AuthCallback() {
         navigate("/studio", { replace: true, state: { user: data } });
       } catch (e) {
         console.error("Échange session Google échoué", e);
+        // Filet anti-rejeu : le ticket est à usage unique — s'il a déjà été échangé
+        // (rechargement, double navigation), une session valide existe peut-être déjà.
+        try {
+          const { data } = await api.get("/auth/me");
+          if (data) {
+            setUser(data);
+            window.history.replaceState(null, "", window.location.pathname);
+            navigate("/studio", { replace: true, state: { user: data } });
+            return;
+          }
+        } catch {}
+        window.history.replaceState(null, "", window.location.pathname);
         navigate("/login", { replace: true });
       }
     };

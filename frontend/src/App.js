@@ -1,5 +1,5 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { I18nProvider } from "@/i18n";
@@ -19,6 +19,7 @@ import MentionsLegales from "@/pages/legal/MentionsLegales";
 import Contact from "@/pages/legal/Contact";
 
 function AppRouter() {
+  const location = useLocation(); // hash lu ici (réactif) et non via window.location.hash
   // Lien affilié : beat-cut.com/?promo=CODE → valable pour la session en cours uniquement
   const promo = new URLSearchParams(window.location.search).get("promo");
   if (promo) {
@@ -28,7 +29,7 @@ function AppRouter() {
   // purge de l'ancien stockage permanent (codes collés à vie sans saisie manuelle)
   localStorage.removeItem("bc_affiliate");
   // Le session_id du callback Google arrive en fragment d'URL : traité AVANT le routing normal
-  if (window.location.hash?.includes("session_id=")) {
+  if (location.hash?.includes("session_id=")) {
     return <AuthCallback />;
   }
   return (
