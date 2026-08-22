@@ -1165,24 +1165,33 @@ const API = {
   plan:'free',
   quota:{ left:0, max:1 },
   async init(){
-    try{
-      const r=await fetch('/api/auth/me',{credentials:'include'});
-      if(r.ok){
-        const u=await r.json();
-        API.user=u;
-        const _t=(u.subscription&&u.subscription.tier)||'free';
-        API.tier=_t;
-        API.trial=!!(u.subscription&&u.subscription.trial);
-        API.trialEnd=(u.subscription&&u.subscription.trial_end)||null;
-        // API.plan==='pro' = illimité (pro/studio hors essai) ; l'essai garde un plafond de 15
-        API.plan=((_t==='pro'||_t==='studio')&&!API.trial)?'pro':(API.trial?'trial':_t);
-        API.onboardingDone=(u.onboarding_done!==false);
-        API.onbGenre=(u.onboarding&&u.onboarding.genre)||'';
-        API.isStudio=(_t==='studio');
-        if(API.isStudio&&u.has_watermark&&!studioWM){ const im=new Image(); im.onload=()=>{studioWM=im;}; im.src='/api/studio/watermark'; }
-        const av=$('#avatar'); if(av) av.textContent=(u.email||'?')[0].toUpperCase();
-      }
-    }catch(e){}
+    // Résilient : une erreur réseau/CDN passagère ne doit PAS déconnecter.
+    // On ne renvoie au login qu'après 2 vrais 401 (session réellement morte).
+    let auth401=0;
+    for(let a=0;a<3;a++){
+      try{
+        const r=await fetch('/api/auth/me',{credentials:'include'});
+        if(r.ok){
+          const u=await r.json();
+          API.user=u;
+          const _t=(u.subscription&&u.subscription.tier)||'free';
+          API.tier=_t;
+          API.trial=!!(u.subscription&&u.subscription.trial);
+          API.trialEnd=(u.subscription&&u.subscription.trial_end)||null;
+          // API.plan==='pro' = illimité (pro/studio hors essai) ; l'essai garde un plafond de 15
+          API.plan=((_t==='pro'||_t==='studio')&&!API.trial)?'pro':(API.trial?'trial':_t);
+          API.onboardingDone=(u.onboarding_done!==false);
+          API.onbGenre=(u.onboarding&&u.onboarding.genre)||'';
+          API.isStudio=(_t==='studio');
+          if(API.isStudio&&u.has_watermark&&!studioWM){ const im=new Image(); im.onload=()=>{studioWM=im;}; im.src='/api/studio/watermark'; }
+          const av=$('#avatar'); if(av) av.textContent=(u.email||'?')[0].toUpperCase();
+          break;
+        }
+        if(r.status===401){ auth401++; if(auth401>=2) break; }
+      }catch(e){}
+      await new Promise(s=>setTimeout(s,600*(a+1)));
+    }
+    API.authDenied=!API.user&&auth401>=2;
     await API.refreshQuota();
   },
   async refreshQuota(){

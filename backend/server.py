@@ -248,8 +248,11 @@ def _session_limit(user: dict) -> int:
 
 
 async def register_sid(user: dict, sid: str):
-    sids = list(user.get("sids") or []) + [sid]
-    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"sids": sids[-_session_limit(user):]}})
+    # $push atomique : deux logins simultanés ne peuvent plus s'écraser mutuellement
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$push": {"sids": {"$each": [sid], "$slice": -_session_limit(user)}}},
+    )
 
 
 def _check_sid(user: dict, sid: str):

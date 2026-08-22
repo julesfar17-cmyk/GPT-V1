@@ -923,3 +923,8 @@ NB : le navigateur headless de test n'a pas les codecs H.264 → vérification v
 - ✅ Fix : limite 3 appareils (5 Studio, 99 admin/VIP) ; logs WARNING sur chaque rejet anti-partage (_check_sid + get_current_user) ; migration unique meta:sid_limit_migration_v2 (vide les sids existants) ; purge des user_sessions expirées au startup (2676 docs en prod).
 - ✅ Testé e2e : 3 logins simultanés → 3× /me 200 ; 4e login → appareil 1 éjecté (401). REDÉPLOIEMENT REQUIS.
 - L'ancien bug /studio statique reste corrigé (redirect /dashboard) — ne pas y retoucher.
+
+## Durcissements post-boucle Google (22 août 2026, nuit)
+- ✅ studio.html API.init() résilient : 3 tentatives /auth/me (backoff 600ms), redirection login SEULEMENT après 2 vrais 401 — une erreur réseau/CDN passagère ne déconnecte plus.
+- ✅ register_sid atomique ($push + $slice) : deux logins simultanés ne s'écrasent plus (testé : 3 logins parallèles → 3 /me 200).
+- IMPORTANT : l'utilisateur a retesté AVANT la fin du déploiement asynchrone du fix limite-3. Lui demander de tester après la fin du déploiement suivant (qui inclut aussi ces durcissements).
