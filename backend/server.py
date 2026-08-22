@@ -281,18 +281,24 @@ def cookie_domain_for(request: Request | None) -> str | None:
 
 
 def set_jwt_cookie(response: Response, token: str, request: Request | None = None):
+    dom = cookie_domain_for(request)
+    if dom:
+        response.delete_cookie("access_token", path="/", domain=None)  # purge le doublon host-only
     response.set_cookie(
         key="access_token", value=token, httponly=True, secure=True,
-        samesite="lax", max_age=ACCESS_TOKEN_DAYS * 86400, path="/", domain=cookie_domain_for(request),
+        samesite="lax", max_age=ACCESS_TOKEN_DAYS * 86400, path="/", domain=dom,
     )
 
 
 def set_session_cookie(response: Response, token: str, request: Request | None = None):
     # SameSite=Lax (comme le cookie email) : tout est same-origin désormais,
     # et Safari iOS rejette parfois les cookies SameSite=None → login Google KO sur mobile.
+    dom = cookie_domain_for(request)
+    if dom:
+        response.delete_cookie("session_token", path="/", domain=None)  # purge le doublon host-only
     response.set_cookie(
         key="session_token", value=token, httponly=True, secure=True,
-        samesite="lax", max_age=7 * 86400, path="/", domain=cookie_domain_for(request),
+        samesite="lax", max_age=7 * 86400, path="/", domain=dom,
     )
 
 
@@ -518,12 +524,25 @@ async def _user_from_session(token: str):
     return await db.users.find_one({"user_id": sess["user_id"]}, {"_id": 0})
 
 
+def _cookie_values(request: Request, name: str) -> list:
+    """Toutes les valeurs d'un cookie, pas seulement la première : un navigateur peut envoyer
+    deux cookies du même nom (ancien host-only + nouveau Domain=.beat-cut.com) et le périmé
+    masquerait le valide (cause du 'ça marche en navigation privée mais pas en normal')."""
+    raw = request.headers.get("cookie") or ""
+    vals = []
+    for part in raw.split(";"):
+        k, _, v = part.strip().partition("=")
+        if k == name and v and v not in vals:
+            vals.append(v)
+    return vals
+
+
 async def get_current_user(request: Request) -> dict:
     # Un vieux cookie (ex. access_token d'un ancien login email) ne doit pas masquer
-    # une session valide posée ensuite (ex. session_token Google) : on essaie toutes les branches.
+    # une session valide posée ensuite (ex. session_token Google) : on essaie toutes les branches
+    # et TOUTES les valeurs de chaque cookie (doublons host-only/domaine).
     device_conflict = False
-    jwt_token = request.cookies.get("access_token")
-    if jwt_token:
+    for jwt_token in _cookie_values(request, "access_token"):
         user, sid = await _user_from_jwt(jwt_token)
         if user:
             try:
@@ -531,8 +550,7 @@ async def get_current_user(request: Request) -> dict:
                 return user
             except HTTPException:
                 device_conflict = True
-    session_token = request.cookies.get("session_token")
-    if session_token:
+    for session_token in _cookie_values(request, "session_token"):
         user = await _user_from_session(session_token)
         if user:
             try:

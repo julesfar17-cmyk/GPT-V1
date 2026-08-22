@@ -940,3 +940,9 @@ Tous les maillons audités + testés en préview :
 7. api.js : retry transport 520/502 sur /auth/* OK ; studio API.init 3 tentatives OK
 8. Session simulée (cookie session_token) : /dashboard et /studio restent connectés 8 s+, API.user OK
 Reste à faire par l'utilisateur : REDÉPLOYER (les fixes limite-3 + atomique + init résilient ne sont pas encore en prod), attendre la FIN du déploiement, tester Google tel+PC.
+
+## Fix cookies en doublon (indice "marche en navigation privée") — 22 août 2026, nuit
+- Cause probable de la boucle Google en navigation normale : DEUX cookies du même nom (ancien host-only + nouveau Domain=.beat-cut.com) — le serveur ne lisait que le premier (request.cookies) → si périmé → 401 → boucle. Navigation privée = pas de vieux cookie = OK.
+- ✅ _cookie_values() : get_current_user essaie TOUTES les valeurs de access_token et session_token.
+- ✅ set_jwt_cookie / set_session_cookie purgent le doublon host-only avant de poser le cookie de domaine.
+- Testé : périmé+valide (2 ordres) → 200 ; vieux JWT + session valide → 200 ; périmé seul → 401. REDÉPLOIEMENT REQUIS.
