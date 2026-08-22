@@ -51,22 +51,26 @@ export default function Admin() {
   const [webhook, setWebhook] = useState(null);
   const [cancellations, setCancellations] = useState(null);
   const [onbStats, setOnbStats] = useState(null);
+  const [relances, setRelances] = useState(null);
+  const [relanceBusy, setRelanceBusy] = useState(false);
   const [tab, setTab] = useState("dashboard");
 
   const load = useCallback(async () => {
     try {
-      const [{ data }, { data: usersData }, { data: wh }, { data: cancels }, { data: onb }] = await Promise.all([
+      const [{ data }, { data: usersData }, { data: wh }, { data: cancels }, { data: onb }, { data: rel }] = await Promise.all([
         api.get("/admin/stats"),
         api.get("/admin/users"),
         api.get("/admin/payments/webhook"),
         api.get("/admin/cancellations"),
         api.get("/admin/onboarding-stats"),
+        api.get("/admin/relances/stats"),
       ]);
       setStats(data);
       setAllUsers(usersData);
       setWebhook(wh);
       setCancellations(cancels);
       setOnbStats(onb);
+      setRelances(rel);
     } catch (e) {
       toast.error(formatApiErrorDetail(e.response?.data?.detail));
     } finally {
@@ -300,6 +304,72 @@ export default function Admin() {
                       .join("")}
                   </p>
                 </div>
+              )}
+            </section>
+
+            <section className="bg-card border border-border p-6 sm:p-8 mb-8" data-testid="admin-relances-section">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                <h2 className="font-display text-lg font-bold">Relances automatiques</h2>
+                <button
+                  onClick={async () => {
+                    setRelanceBusy(true);
+                    try {
+                      const { data } = await api.post("/admin/relances/run");
+                      toast.success(`Relances lancées : ${data.paywall_sent} paywall + ${data.noexport_sent} sans-export envoyées`);
+                      const { data: rel } = await api.get("/admin/relances/stats");
+                      setRelances(rel);
+                    } catch (e) {
+                      toast.error(formatApiErrorDetail(e.response?.data?.detail));
+                    } finally { setRelanceBusy(false); }
+                  }}
+                  disabled={relanceBusy}
+                  data-testid="admin-relances-run-button"
+                  className="border border-border px-4 py-2.5 text-xs font-osd tracking-wider hover:border-foreground transition-colors disabled:opacity-50"
+                >
+                  {relanceBusy ? "Envoi en cours…" : "LANCER LES RELANCES MAINTENANT"}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4 max-w-2xl">
+                Emails envoyés automatiquement (toutes les heures) : paywall vu sans abonnement (2 h après),
+                aucun clic sur Exporter 24 h après l'inscription, et relances J+3 / J+7 des comptes gratuits.
+                « Convertis » = abonnés (essai ou payant) aujourd'hui parmi les relancés.
+              </p>
+              {relances && (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm" data-testid="admin-relances-table">
+                      <thead>
+                        <tr className="text-left font-osd text-[11px] text-muted-foreground border-b border-border">
+                          <th className="py-2 pr-4">RELANCE</th>
+                          <th className="py-2 pr-4">ENVOYÉES</th>
+                          <th className="py-2 pr-4">CONVERTIES EN ABO</th>
+                          <th className="py-2">TAUX</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          ["paywall", "Paywall vu sans abonnement"],
+                          ["noexport", "24 h sans clic sur Exporter"],
+                          ["reengage_d3", "Compte gratuit J+3"],
+                          ["reengage_d7", "Compte gratuit J+7"],
+                        ].map(([key, label]) => {
+                          const r = relances.relances?.[key] || {};
+                          return (
+                            <tr key={key} className="border-b border-border/50" data-testid={`admin-relance-row-${key}`}>
+                              <td className="py-2 pr-4">{label}</td>
+                              <td className="py-2 pr-4">{r.sent ?? 0}</td>
+                              <td className="py-2 pr-4 text-primary font-bold">{r.converted ?? 0}</td>
+                              <td className="py-2 font-osd">{r.rate != null ? `${r.rate} %` : "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="mt-3 text-xs text-muted-foreground" data-testid="admin-paywall-seen">
+                    Paywall vu (depuis la mise en place du suivi) : <b className="text-foreground">{relances.paywall_seen}</b> compte(s)
+                  </p>
+                </>
               )}
             </section>
 

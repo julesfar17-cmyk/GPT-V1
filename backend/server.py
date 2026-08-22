@@ -4055,6 +4055,27 @@ async def admin_run_relances(user: dict = Depends(get_current_user)):
     return await _run_lifecycle_relances()
 
 
+@api_router.get("/admin/relances/stats")
+async def admin_relances_stats(user: dict = Depends(get_current_user)):
+    """Compteurs des relances envoyées + conversions en abonnement (tier != free aujourd'hui)."""
+    await require_admin(user)
+    types = {
+        "paywall": "paywall_relance_sent",
+        "noexport": "noexport_relance_sent",
+        "reengage_d3": "reengage_d3_sent",
+        "reengage_d7": "reengage_d7_sent",
+    }
+    out = {}
+    for name, flag in types.items():
+        docs = await db.users.find({flag: True}, {"_id": 0, "email": 1, "subscription": 1, "role": 1}).to_list(10000)
+        sent = len(docs)
+        converted = sum(1 for d in docs if sub_info(d)["tier"] != "free")
+        out[name] = {"sent": sent, "converted": converted,
+                     "rate": round(converted / sent * 100, 1) if sent else None}
+    paywall_seen = await db.users.count_documents({"paywall_seen_at": {"$exists": True}})
+    return {"relances": out, "paywall_seen": paywall_seen}
+
+
 @api_router.get("/")
 async def root():
     return {"message": "BEATCUT API", "status": "ok"}

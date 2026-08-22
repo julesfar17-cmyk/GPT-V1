@@ -899,3 +899,9 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Boucle horaire _lifecycle_relance_loop (startup) + déclencheur manuel POST /api/admin/relances/run (renvoie les compteurs).
 - Testé e2e : 2 users fictifs (julesfar17+paywall / +noexport@gmail.com) → 1 email chacun réellement envoyé via Resend, flags posés, ciblage correct, telemetry paywall OK. Nettoyé après test.
 - Fenêtre 24-72 h volontaire : pas de blast rétroactif sur l'ancienne base.
+
+## Stats relances admin + aide EN (22 août 2026)
+- ✅ GET /api/admin/relances/stats : par type (paywall, noexport, reengage_d3, reengage_d7) → envoyées / converties (tier != free aujourd'hui) / taux + compteur paywall_seen.
+- ✅ Admin.js : section "Relances automatiques" (tableau + bouton LANCER LES RELANCES MAINTENANT via POST /admin/relances/run).
+- ✅ Aide.js réécrite bilingue : CONTENT {fr, en} sélectionné via useI18n().lang (détection navigateur + bouton FR/EN existant). Testé screenshot : h1 EN "Understand everything about BeatCut."
+- ✅ Google login prod : CONFIRMÉ RÉSOLU par l'utilisateur (redirect /dashboard + anti-rejeu).
