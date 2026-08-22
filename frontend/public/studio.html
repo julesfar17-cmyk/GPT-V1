@@ -2219,7 +2219,7 @@ function toggleExtract(){
   $('#extToggle').textContent=z.classList.contains('mini')?'▼ Modifier l\u2019extrait':'▲ Réduire';
   fitSoon();
 }
-function toggleLoop(){ looping?stopAll():startLoop(); }
+function toggleLoop(){ if(audioCtx&&audioCtx.state!=='running'){ try{audioCtx.resume();}catch(e){} } looping?stopAll():startLoop(); }
 async function startLoop(){
   if(!buffer||exporting)return;
   if(clipsBlocking()){
@@ -2229,6 +2229,7 @@ async function startLoop(){
   stopAll(); looping=true;
   await warmUpPlans(ext.start);
   if(exporting||!looping) return;
+  if(audioCtx.state!=='running'){ try{ await audioCtx.resume(); }catch(e){} }
   srcNode=audioCtx.createBufferSource(); srcNode.buffer=buffer; srcNode.loop=true;
   srcNode.loopStart=ext.start; srcNode.loopEnd=ext.start+ext.dur;
   srcNode.connect(audioCtx.destination); srcNode.start(0,ext.start);
@@ -3568,6 +3569,7 @@ function warmUpPlans(fromT){
 }
 function togglePlay(){
   if(exporting){toast('Export en cours — attends la fin');return;}
+  if(audioCtx&&audioCtx.state!=='running'){ try{audioCtx.resume();}catch(e){} }   // iOS : resume SYNCHRONE dans le geste utilisateur
   if(playing&&!looping){ startOff=curTime(); stopAll(); drawPlayhead(startOff); return; }
   let from=startOff;
   if(!(from>=ext.start&&from<ext.start+ext.dur-0.05)) from=ext.start;
@@ -3582,6 +3584,10 @@ async function play(from){
   stopAll();
   await warmUpPlans(from);   // la 1re frame est décodée AVANT le départ du son
   if(exporting) return;
+  if(audioCtx.state!=='running'){                     // iOS : contexte suspendu → le son ne part pas et currentTime reste figé
+    try{ await audioCtx.resume(); }catch(e){}
+    if(audioCtx.state!=='running'){ TEL.push('audioctx_suspended',{state:audioCtx.state}); toast('Touche encore une fois le bouton lecture'); return; }
+  }
   srcNode=audioCtx.createBufferSource(); srcNode.buffer=buffer;
   srcNode.connect(audioCtx.destination);
   srcNode.start(0, from, ext.start+ext.dur-from);

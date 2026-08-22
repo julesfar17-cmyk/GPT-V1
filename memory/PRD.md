@@ -912,3 +912,8 @@ Symptôme user : "gros bugs sur l'aperçu, lent, pas de fps". Télémétrie : 11
 2. Télémétrie preview_stall référençait `wp` inexistant → ReferenceError dans drawPreview → mort de la boucle rAF (image figée, son continue). Fix : wp défini + try/catch autour de drawPreview dans raf() (TEL raf_error).
 3. Verrous metadata.proxy_processing/processing orphelins après restart/deploy → génération de proxy bloquée À JAMAIS (users iPhone HEVC = 48 "codec non supporté" sans proxy → rien ne joue). Fix : cleanup au startup backend. Vérifié : proxy clipA généré en 15 s après déblocage.
 NB : le navigateur headless de test n'a pas les codecs H.264 → vérification visuelle de la lecture impossible en local, validation par télémétrie/logs. REDÉPLOIEMENT REQUIS.
+
+## Fix lecture mobile qui ne démarre pas (22 août 2026, soir)
+- Cause : play() et startLoop() ne faisaient JAMAIS audioCtx.resume(). Sur iOS l'AudioContext est 'suspended' (surtout à la réouverture d'un projet sauvegardé : contexte créé hors geste utilisateur) → aucun son, currentTime figé → l'aperçu semble ne pas se lancer.
+- ✅ Fix : resume() SYNCHRONE dans togglePlay()/toggleLoop() (dans le geste), re-résume await après warmUpPlans, toast "Touche encore une fois" + télémétrie audioctx_suspended si toujours bloqué.
+- Vérifié : lecture démarre (playing:true, timecode avance) sur viewport mobile, 0 erreur JS. iOS réel à valider par l'utilisateur après redéploiement.
