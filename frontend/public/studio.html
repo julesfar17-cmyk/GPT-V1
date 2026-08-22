@@ -1371,7 +1371,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.09-ux-v3';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.10-perf';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -3603,7 +3603,8 @@ function stopAll(){
 function raf(){
   const t=curTime();
   if(playing) syncLivePlan(t);
-  drawPreview(t); drawPlayhead(t);
+  try{ drawPreview(t); }catch(e){ if(!window._rafErrSent){ window._rafErrSent=true; TEL.push('raf_error',{msg:String((e&&e.message)||e).slice(0,200)}); } }
+  drawPlayhead(t);
   // télémétrie FPS : fenêtre de 5 s, envoyée une fois par lecture si <20 img/s
   if(playing){
     _fpsN++;
@@ -3795,12 +3796,13 @@ function drawPreview(t, cvOverride){
   if(fx.sat&&canFilter&&!satCss) c.filter='saturate(1.42) contrast(1.06) brightness(1.02)';
   if(plan&&plan.clip!==null&&clips[plan.clip]){
     const cl=clips[plan.clip];
+    const wp=wcPrev(cl);   // source réellement jouée : proxy léger si présent, sinon l'original
     const target=(plan.seek||0)+(t-plan.start);
     // moteur WebCodecs : frame décodée à la demande, jamais de <video>
     let f=null;
     if(offlineRender) f=wcExpFrame;
-    else if(playing&&pi===wcPtr&&wcA&&cl.wc&&wcA.clip===cl.wc){
-      const d=cl.wc.durationS||0; let tt=target; if(d) tt%=Math.max(0.05,d);
+    else if(playing&&pi===wcPtr&&wcA&&wcA.clip&&(wcA.clip===cl.wcProxy||wcA.clip===cl.wc)){
+      const d=wcA.clip.durationS||0; let tt=target; if(d) tt%=Math.max(0.05,d);
       f=wcA.frameAt(tt);
     }
     else if(!playing&&cl.wc) f=wcScrubFrame(cl,target);

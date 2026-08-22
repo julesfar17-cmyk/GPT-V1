@@ -905,3 +905,10 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - ✅ Admin.js : section "Relances automatiques" (tableau + bouton LANCER LES RELANCES MAINTENANT via POST /admin/relances/run).
 - ✅ Aide.js réécrite bilingue : CONTENT {fr, en} sélectionné via useI18n().lang (détection navigateur + bouton FR/EN existant). Testé screenshot : h1 EN "Understand everything about BeatCut."
 - ✅ Google login prod : CONFIRMÉ RÉSOLU par l'utilisateur (redirect /dashboard + anti-rejeu).
+
+## Perf aperçu : 3 bugs critiques corrigés (22 août 2026) — build v13.10-perf
+Symptôme user : "gros bugs sur l'aperçu, lent, pas de fps". Télémétrie : 1107 frame_miss, 48 decoder_error "codec non supporté", 35 preview_stall.
+1. drawPreview comparait wcA.clip===cl.wc alors que le lecteur joue le PROXY (cl.wcProxy, introduit en v13.08) → dès qu'un proxy existait, AUCUNE frame décodée n'était affichée (vignettes figées). Fix : accepte wcA.clip===cl.wcProxy||cl.wc.
+2. Télémétrie preview_stall référençait `wp` inexistant → ReferenceError dans drawPreview → mort de la boucle rAF (image figée, son continue). Fix : wp défini + try/catch autour de drawPreview dans raf() (TEL raf_error).
+3. Verrous metadata.proxy_processing/processing orphelins après restart/deploy → génération de proxy bloquée À JAMAIS (users iPhone HEVC = 48 "codec non supporté" sans proxy → rien ne joue). Fix : cleanup au startup backend. Vérifié : proxy clipA généré en 15 s après déblocage.
+NB : le navigateur headless de test n'a pas les codecs H.264 → vérification visuelle de la lecture impossible en local, validation par télémétrie/logs. REDÉPLOIEMENT REQUIS.

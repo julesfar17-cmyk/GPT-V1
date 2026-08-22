@@ -4112,6 +4112,9 @@ async def seed_user(email: str, password: str, name: str, role: str):
 
 @app.on_event("startup")
 async def startup():
+    # verrous de transcodage orphelins (process tué en plein travail : redémarrage/déploiement) → libérés
+    await db["media.files"].update_many({"metadata.proxy_processing": True}, {"$unset": {"metadata.proxy_processing": ""}})
+    await db["media.files"].update_many({"metadata.processing": True}, {"$unset": {"metadata.processing": ""}})
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id")
     await db.users.create_index("ref_code")
