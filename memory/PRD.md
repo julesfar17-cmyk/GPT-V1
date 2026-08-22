@@ -917,3 +917,9 @@ NB : le navigateur headless de test n'a pas les codecs H.264 → vérification v
 - Cause : play() et startLoop() ne faisaient JAMAIS audioCtx.resume(). Sur iOS l'AudioContext est 'suspended' (surtout à la réouverture d'un projet sauvegardé : contexte créé hors geste utilisateur) → aucun son, currentTime figé → l'aperçu semble ne pas se lancer.
 - ✅ Fix : resume() SYNCHRONE dans togglePlay()/toggleLoop() (dans le geste), re-résume await après warmUpPlans, toast "Touche encore une fois" + télémétrie audioctx_suspended si toujours bloqué.
 - Vérifié : lecture démarre (playing:true, timecode avance) sur viewport mobile, 0 erreur JS. iOS réel à valider par l'utilisateur après redéploiement.
+
+## Boucle login Google (retour) — VRAIE cause : anti-partage limite 1 (22 août 2026, soir)
+- RCA deployer prod : google/session 200 OK, cookie posé, MAIS /auth/me 401 intermittents. Cause : _session_limit()=1 pour tous (3 seulement pour Studio) → chaque login (tel/PC/2e onglet) évince l'autre appareil → ping-pong de déconnexions. Indépendant des déploiements (d'où la "réapparition").
+- ✅ Fix : limite 3 appareils (5 Studio, 99 admin/VIP) ; logs WARNING sur chaque rejet anti-partage (_check_sid + get_current_user) ; migration unique meta:sid_limit_migration_v2 (vide les sids existants) ; purge des user_sessions expirées au startup (2676 docs en prod).
+- ✅ Testé e2e : 3 logins simultanés → 3× /me 200 ; 4e login → appareil 1 éjecté (401). REDÉPLOIEMENT REQUIS.
+- L'ancien bug /studio statique reste corrigé (redirect /dashboard) — ne pas y retoucher.

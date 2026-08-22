@@ -240,10 +240,11 @@ def create_access_token(user_id: str, email: str, sid: str = "") -> str:
 
 
 def _session_limit(user: dict) -> int:
-    """Anti-partage : 1 session active (3 pour Studio). Admin/VIP : illimité."""
+    """Anti-partage : 3 appareils (téléphone + PC + tablette, usage légitime), 5 pour Studio.
+    Une limite de 1 provoquait un ping-pong d'éjections entre appareils (boucle de login)."""
     if user.get("role") == "admin" or (user.get("email") or "").lower() in PRO_WHITELIST:
         return 99
-    return 3 if ((user.get("subscription") or {}).get("plan") == "studio") else 1
+    return 5 if ((user.get("subscription") or {}).get("plan") == "studio") else 3
 
 
 async def register_sid(user: dict, sid: str):
@@ -256,6 +257,7 @@ def _check_sid(user: dict, sid: str):
     if not sids:
         return  # sessions créées avant le mécanisme : tolérées jusqu'au prochain login
     if sid not in sids:
+        logger.warning(f"anti-partage: sid évincé pour {user.get('email')} (sids actifs: {len(sids)})")
         raise HTTPException(status_code=401, detail="Ton compte a été connecté sur un autre appareil.")
 
 
@@ -553,6 +555,7 @@ async def get_current_user(request: Request) -> dict:
             except HTTPException:
                 device_conflict = True
     if device_conflict:
+        logger.warning("auth 401: conflit d'appareil (sid hors liste)")
         raise HTTPException(status_code=401, detail="Ton compte a été connecté sur un autre appareil.")
     raise HTTPException(status_code=401, detail="Non authentifié")
 
@@ -4115,6 +4118,12 @@ async def startup():
     # verrous de transcodage orphelins (process tué en plein travail : redémarrage/déploiement) → libérés
     await db["media.files"].update_many({"metadata.proxy_processing": True}, {"$unset": {"metadata.proxy_processing": ""}})
     await db["media.files"].update_many({"metadata.processing": True}, {"$unset": {"metadata.processing": ""}})
+    # sessions expirées (croissance illimitée sinon) — comparaison ISO lexicographique valide
+    await db.user_sessions.delete_many({"expires_at": {"$lt": iso(now_utc())}})
+    # migration unique : limite anti-partage 1 → 3, on vide les listes pour repartir proprement
+    if not await db.meta.find_one({"_id": "sid_limit_migration_v2"}):
+        await db.users.update_many({"sids.0": {"$exists": True}}, {"$unset": {"sids": ""}})
+        await db.meta.insert_one({"_id": "sid_limit_migration_v2"})
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id")
     await db.users.create_index("ref_code")
