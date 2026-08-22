@@ -886,3 +886,8 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - RCA deployer : RESEND_API_KEY VIDE dans les secrets de prod → TOUS les emails (fin d'essai, bienvenue, reset, newsletter) étaient en "[EMAIL simulé]" en prod. ACTION USER : remplir RESEND_API_KEY (et vérifier SENDER_EMAIL="BeatCut <no-reply@beat-cut.com>") dans Deploy → Secrets puis redéployer. STRIPE_WEBHOOK_SECRET aussi vide (webhook à réactiver via bouton admin après redeploy).
 - ✅ Fix code : trial_reminder_sent n'est plus marqué True si send_email échoue (webhook _wh_trial_will_end + _trial_reminder_loop) → les rappels seront retentés au passage suivant une fois la clé posée.
 - Limite : les users dont le flag a déjà été posé à tort en prod ne seront pas rattrapés (essais probablement déjà terminés).
+
+## Fix popup BPM mobile (22 août 2026)
+- Bug : sur mobile, clic sur la puce BPM → rien ne s'affichait. Cause : .transport{overflow:hidden} (mobile) clippait .bpm-pop (position:absolute au-dessus de la puce).
+- ✅ Fix CSS (media query mobile, studio.html ~l.469) : .bpm-pop en position:fixed centré (top:36%, translate(-50%,-50%), width:min(280px,88vw), z-index:500).
+- Vérifié par screenshot mobile 390px : popup visible avec -1/+1, saisie, ÷2/×2, TAP. Redéploiement requis pour prod.
