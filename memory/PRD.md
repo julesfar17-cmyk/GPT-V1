@@ -928,3 +928,15 @@ NB : le navigateur headless de test n'a pas les codecs H.264 → vérification v
 - ✅ studio.html API.init() résilient : 3 tentatives /auth/me (backoff 600ms), redirection login SEULEMENT après 2 vrais 401 — une erreur réseau/CDN passagère ne déconnecte plus.
 - ✅ register_sid atomique ($push + $slice) : deux logins simultanés ne s'écrasent plus (testé : 3 logins parallèles → 3 /me 200).
 - IMPORTANT : l'utilisateur a retesté AVANT la fin du déploiement asynchrone du fix limite-3. Lui demander de tester après la fin du déploiement suivant (qui inclut aussi ces durcissements).
+
+## Re-vérification complète chaîne Google (22 août 2026, nuit)
+Tous les maillons audités + testés en préview :
+1. loginWithGoogle → redirect /dashboard (pas /studio statique) OK
+2. App.js intercepte #session_id avant routing OK ; AuthContext saute checkAuth si hash présent OK
+3. AuthCallback : échange + filet anti-rejeu /me OK (testé : ticket consommé + session valide → /studio connecté)
+4. google/session : faux ticket → 401 propre ; cookie session_token SameSite=Lax Domain=.beat-cut.com OK
+5. get_current_user : JWT→session→Bearer, conflit loggé OK ; _user_from_session expiry OK
+6. Limite 3 appareils + $push atomique + migration sids OK (3 logins parallèles cohabitent, 4e éjecte le plus ancien)
+7. api.js : retry transport 520/502 sur /auth/* OK ; studio API.init 3 tentatives OK
+8. Session simulée (cookie session_token) : /dashboard et /studio restent connectés 8 s+, API.user OK
+Reste à faire par l'utilisateur : REDÉPLOYER (les fixes limite-3 + atomique + init résilient ne sont pas encore en prod), attendre la FIN du déploiement, tester Google tel+PC.
