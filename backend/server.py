@@ -3944,6 +3944,117 @@ async def _reengage_loop():
         await asyncio.sleep(6 * 3600)
 
 
+# ---------------------------------------------------------------------------
+# Relances lifecycle : paywall vu sans abonnement + 24 h sans clic sur Exporter
+# ---------------------------------------------------------------------------
+def _unsub_footer(user_id: str) -> str:
+    if not user_id:
+        return ""
+    return (
+        f'<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" '
+        f'style="font-family:Arial,sans-serif;font-size:11px;color:#4c4c4c;padding:16px 0 6px">'
+        f'<a href="{APP_URL}/api/newsletter/unsubscribe?u={user_id}" style="color:#4c4c4c">Ne plus recevoir ces emails</a>'
+        f'</td></tr></table>'
+    )
+
+
+def paywall_relance_email_html(user_id: str = "") -> str:
+    return _email_html(
+        "Ta vidéo est prête",
+        "Tu étais à un clic d'exporter ta vidéo — elle t'attend toujours dans le studio, "
+        "avec ton montage, tes paroles et ton style enregistrés. "
+        "Débloque-la avec 7 jours d'essai Pro offerts : exports sans filigrane, tous les styles et effets. "
+        "Tu peux annuler en 2 clics pendant l'essai — rien ne sera débité.",
+        "Récupérer ma vidéo", f"{APP_URL}/studio",
+    ) + _unsub_footer(user_id)
+
+
+def noexport_relance_email_html(user_id: str = "") -> str:
+    return _email_html(
+        "Ta première vidéo t'attend",
+        "Tu as créé ton compte hier mais tu n'as pas encore exporté ta première vidéo. "
+        "En trois gestes c'est réglé : dépose ton morceau, tes clips se calent tout seuls sur le beat, tu exportes. "
+        "Cinq minutes suffisent — ton studio est prêt, tout est sauvegardé.",
+        "Créer ma première vidéo", f"{APP_URL}/studio",
+    ) + _unsub_footer(user_id)
+
+
+@api_router.post("/telemetry/paywall")
+async def telemetry_paywall_seen(user: dict = Depends(get_current_user)):
+    """Appelé par le studio quand le paywall s'affiche (clic Exporter d'un compte gratuit)."""
+    await db.users.update_one({"user_id": user["user_id"]}, {"$inc": {"paywall_seen_count": 1}})
+    await db.users.update_one(
+        {"user_id": user["user_id"], "paywall_seen_at": {"$exists": False}},
+        {"$set": {"paywall_seen_at": iso(now_utc())}},
+    )
+    return {"ok": True}
+
+
+async def _run_lifecycle_relances() -> dict:
+    now = now_utc()
+    paywall_sent = noexport_sent = 0
+    # 1) Paywall vu il y a plus de 2 h (et moins de 7 j), toujours en gratuit
+    async for u in db.users.find({
+        "paywall_seen_at": {"$lt": iso(now - timedelta(hours=2)), "$gt": iso(now - timedelta(days=7))},
+        "paywall_relance_sent": {"$ne": True},
+        "newsletter": {"$ne": False},
+    }, {"_id": 0}):
+        if not u.get("email") or (u.get("email") or "").lower() in PRO_WHITELIST:
+            continue
+        if sub_info(u)["tier"] != "free":
+            await db.users.update_one({"user_id": u["user_id"]}, {"$set": {"paywall_relance_sent": True}})
+            continue
+        ok = await send_email(u["email"], "Ta vidéo est prête — BEATCUT", paywall_relance_email_html(u.get("user_id", "")))
+        if ok:
+            paywall_sent += 1
+            await db.users.update_one(
+                {"user_id": u["user_id"]},
+                {"$set": {"paywall_relance_sent": True, "paywall_relance_sent_at": iso(now)}},
+            )
+            logger.info("Relance paywall envoyée à %s", u["email"])
+        await asyncio.sleep(0.6)
+    # 2) Inscrit il y a 24-72 h, jamais cliqué sur Exporter (aucun export, aucun paywall vu)
+    async for u in db.users.find({
+        "created_at": {"$lt": iso(now - timedelta(hours=24)), "$gt": iso(now - timedelta(hours=72))},
+        "noexport_relance_sent": {"$ne": True},
+        "paywall_seen_at": {"$exists": False},
+        "newsletter": {"$ne": False},
+    }, {"_id": 0}):
+        if not u.get("email") or (u.get("email") or "").lower() in PRO_WHITELIST:
+            continue
+        if await db.export_logs.count_documents({"user_id": u["user_id"]}, limit=1):
+            await db.users.update_one({"user_id": u["user_id"]}, {"$set": {"noexport_relance_sent": True}})
+            continue
+        ok = await send_email(u["email"], "Ta première vidéo t'attend — BEATCUT", noexport_relance_email_html(u.get("user_id", "")))
+        if ok:
+            noexport_sent += 1
+            await db.users.update_one(
+                {"user_id": u["user_id"]},
+                {"$set": {"noexport_relance_sent": True, "noexport_relance_sent_at": iso(now)}},
+            )
+            logger.info("Relance sans-export envoyée à %s", u["email"])
+        await asyncio.sleep(0.6)
+    return {"paywall_sent": paywall_sent, "noexport_sent": noexport_sent}
+
+
+async def _lifecycle_relance_loop():
+    """Toutes les heures : relance paywall + relance 24 h sans export."""
+    await asyncio.sleep(240)
+    while True:
+        try:
+            await _run_lifecycle_relances()
+        except Exception:
+            logger.exception("Boucle relances lifecycle en erreur")
+        await asyncio.sleep(3600)
+
+
+@api_router.post("/admin/relances/run")
+async def admin_run_relances(user: dict = Depends(get_current_user)):
+    """Déclenche manuellement les relances lifecycle (elles tournent aussi toutes les heures)."""
+    await require_admin(user)
+    return await _run_lifecycle_relances()
+
+
 @api_router.get("/")
 async def root():
     return {"message": "BEATCUT API", "status": "ok"}
@@ -4023,6 +4134,7 @@ async def startup():
     asyncio.create_task(_payments_watchdog())
     asyncio.create_task(_media_cleanup_loop())
     asyncio.create_task(_trial_reminder_loop())
+    asyncio.create_task(_lifecycle_relance_loop())
 
 
 app.include_router(api_router)

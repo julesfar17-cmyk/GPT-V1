@@ -4798,6 +4798,7 @@ function armWatermark(){
 }
 function showPaywall(){
   armWatermark();
+  fetch('/api/telemetry/paywall',{method:'POST',credentials:'include'}).catch(()=>{});
   const d=_bcModal('paywall-modal',
     '<div class="pw-box">'+
     '<div class="pw-eyebrow">Export</div>'+

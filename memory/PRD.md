@@ -891,3 +891,11 @@ Voir `/app/memory/test_credentials.md` (admin@beatcut.fr, demo@beatcut.fr)
 - Bug : sur mobile, clic sur la puce BPM → rien ne s'affichait. Cause : .transport{overflow:hidden} (mobile) clippait .bpm-pop (position:absolute au-dessus de la puce).
 - ✅ Fix CSS (media query mobile, studio.html ~l.469) : .bpm-pop en position:fixed centré (top:36%, translate(-50%,-50%), width:min(280px,88vw), z-index:500).
 - Vérifié par screenshot mobile 390px : popup visible avec -1/+1, saisie, ÷2/×2, TAP. Redéploiement requis pour prod.
+
+## Relances lifecycle (22 août 2026)
+- ✅ POST /api/telemetry/paywall : le studio l'appelle dans showPaywall() → users.paywall_seen_at (1re fois) + paywall_seen_count.
+- ✅ Relance paywall : email "Ta vidéo est prête" (CTA /studio) aux comptes gratuits ayant vu le paywall il y a 2 h à 7 j, sans abonnement — envoi unique (paywall_relance_sent), respecte newsletter=False + lien de désinscription.
+- ✅ Relance sans export : email "Ta première vidéo t'attend" aux inscrits 24-72 h sans aucun clic Exporter (ni export_logs ni paywall_seen_at) — envoi unique (noexport_relance_sent).
+- ✅ Boucle horaire _lifecycle_relance_loop (startup) + déclencheur manuel POST /api/admin/relances/run (renvoie les compteurs).
+- Testé e2e : 2 users fictifs (julesfar17+paywall / +noexport@gmail.com) → 1 email chacun réellement envoyé via Resend, flags posés, ciblage correct, telemetry paywall OK. Nettoyé après test.
+- Fenêtre 24-72 h volontaire : pas de blast rétroactif sur l'ancienne base.
