@@ -960,3 +960,8 @@ REDÉPLOIEMENT REQUIS.
 - Mode recadrage : overlay #cropOv sur #stageWrap (pointer events souris+tactile, setPointerCapture), on glisse l'image → plan.crop {x,y} clampé, mapping 1:1 pixel (excès de cover-fit), boutons Centrer / Terminé (dirty() à la sortie), exitCropMode() appelé par play().
 - Priorité de recadrage : plan.crop || clip.crop, appliquée frame décodée + vignette + export (même code). rebuildPlans préserve crop. Persisté via M.plans.
 - Testé e2e mobile : drag → {x:0.413}, Centrer → null, Terminé → fermé+Saved, Voir le plan → lecture + arrêt auto. REDÉPLOIEMENT REQUIS.
+
+## Zoom dans recadrage + docteur vignettes (23 août 2026, soir) — build v13.13-zoomcrop
+- "Ça fonctionne pas" (recadrage) : cause identifiée = clip déjà 9:16 → aucun excès à glisser. Fix : ZOOM (plan.crop.z 1→2.5) via curseur (100-250%), molette et pincement 2 doigts. Draw : s=cover*z (aperçu + vignette + export). Centrer remet tout à zéro.
+- Vignettes : thumbDoctor() — passe toutes les 3 s (12 max) tant qu'il manque des vignettes, relance wcMakeThumbs(missing) par clip (_thumbBusy anti-concurrence), déclenché après chaque makeThumbs.
+- Vérifié e2e : slider z=2, drag zoomé {x:.11,y:.25,z:2}, molette z=2.45, Centrer→null. Prod servait bien v13.12 (pas de cache CDN, header no-store). REDÉPLOIEMENT REQUIS pour v13.13.
