@@ -1,0 +1,52 @@
+{
+  "summary": "Tested BeatCut server-side sprite thumbnails (veed.io model) end-to-end. Backend 4/4 pytest passing: fresh upload sprite (16 frames @180x240, X-Thumb-Count=16, X-Thumb-Duration~8s), audio→404, unauth→401, auto-generation on legacy videos. Frontend studio.html loads correctly (v13.14-srvthumbs), successfully downloads sprites (200 image/jpeg) for uploaded testvid.mp4 (mediaId set, _sprite populated with count=16, dur=8, fw=180, fh=240) — BUT thumbnails NEVER render because clip.seeks stays empty and applySpriteThumbs bails on `if(!sp||!clip.seeks||!clip.seeks.length) return;`. Root cause: when WebCodecs fails to decode (avc1.64001e) AND the <video> fallback also fails to load metadata (loadedmetadata never fires), onMeta() is never called so clip.seeks and DOM .subclip elements are never created. The whole purpose of server-side thumbs (to work regardless of browser decode capability) is defeated.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "studio.html serverThumbs/applySpriteThumbs",
+        "issue": "Sprite downloaded correctly (clip._sprite set, _srvDone=true) but clip.thumbs stays [] and no .subclip element renders because clip.seeks is empty. applySpriteThumbs returns early on empty seeks. clip.seeks is only populated inside onMeta() which is called by WC parse success OR <video>.loadedmetadata — both can fail for codecs the browser doesn't decode. This exactly defeats the veed.io model (server-side thumbs must work even when browser can't decode).",
+        "selector": ".subclip / clip._sprite / clip.seeks",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Upload video → thumbnails visible in clip bank",
+        "issue": "GET /api/media/{id}/thumbs 200 image/jpeg works, sprite is bitmapped and _sprite set, but no visible thumbnail rendered on browsers where video decode fails. Reproduced deterministically in Chromium headless with /tmp/testvid.mp4 (H.264 High profile 64001e).",
+        "affected_selectors": [".subclip", "#clipInput"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_srv_thumbs.py",
+    "/app/test_reports/pytest/iter30_srv_thumbs.xml"
+  ],
+  "action_items": [
+    "In /app/frontend/public/studio.html serverThumbs(): after `clip._sprite = ...`, if `!clip.seeks || !clip.seeks.length`, synthesize seeks from sprite dur/count (e.g. `const D=clip._sprite.dur||6; const n=Math.min(8,Math.max(2,Math.floor(D/2))); clip.seeks=Array.from({length:n},(_,i)=>(i+0.15)*(D/n));`) then call renderClips() and applySpriteThumbs(clip). This makes server thumbs truly independent of browser decode capability (the veed.io promise).",
+    "Also consider persisting seeks/duration server-side (media doc already has duration; expose via /api/media/{id} or via X-Thumb-Duration already available) so re-opened projects don't need re-decoding to render thumbs.",
+    "Optional: guard against double dispatch of #clipInput (observed 2 testvid.mp4 clips created for a single set_input_files call in our test; may just be Playwright behavior but worth confirming manually)."
+  ],
+  "critical_code_review_comments": [
+    "serverThumbs sets _srvDone=true even when applySpriteThumbs did nothing (seeks empty) — misleading telemetry: TEL.push('srv_thumbs_ok') is emitted even though no thumb is actually visible.",
+    "studio.html is 5387 lines — >>700 line guideline; should be split into modules.",
+    "applySpriteThumbs silently returns on empty seeks with no console warning, making this class of bug very hard to diagnose."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_srv_thumbs.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "50%"
+  },
+  "test_credentials": "demo@beatcut.fr / Demo1234! (used); project id 032e4762018d45 (Recette 150BPM)",
+  "seed_data_creation": "None (used existing testvid.mp4 and existing project)",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend sprite endpoint is rock-solid: POST /api/media/upload → GET /api/media/{id}/thumbs returns 200 image/jpeg with X-Thumb-Count=16 X-Thumb-Duration=~8. The remaining frontend fix is a small patch in serverThumbs() to synthesize clip.seeks when empty, so that applySpriteThumbs actually paints even when browser codec decode fails. To retest after fix: log in as demo, go to /studio.html?project=032e4762018d45, skip tour, set_input_files('#clipInput','/tmp/testvid.mp4'), then within ~10s verify page.evaluate returns clips[i].thumbs with dataURL length > 5000 for i where name contains 'testvid'. See /app/backend/tests/test_srv_thumbs.py for backend regression.",
+  "rca of the issue": "1) User uploads video via #clipInput. 2) addClip() creates clip with empty seeks/thumbs; kicks off parseClipWC (WebCodecs) — fails on codecs the browser cannot decode (e.g. avc1.64001e in headless Chromium; would also fail on iPhone HEVC etc.). 3) On WC fail, tagMeta() creates a <video> element to get duration via loadedmetadata — also can fail if the browser can't parse the container/codec. 4) Meanwhile serverThumbs() fetches sprite successfully, sets clip._sprite and calls applySpriteThumbs. 5) applySpriteThumbs() sees clip.seeks empty → early return. 6) Because loadedmetadata never fires, onMeta() is never called, seeks stays empty forever, .subclip elements are never rendered. Mitigation: in serverThumbs, when sprite is downloaded, synthesize clip.seeks from sprite.dur/count if empty. This makes the veed.io model truly codec-agnostic."
+}

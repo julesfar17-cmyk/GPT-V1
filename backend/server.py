@@ -2165,7 +2165,7 @@ async def delete_template(template_id: str, user: dict = Depends(get_current_use
 # ---------------------------------------------------------------------------
 import hashlib
 from bson import ObjectId
-from fastapi.responses import StreamingResponse as _SR  # alias local
+from fastapi.responses import StreamingResponse as _SR, JSONResponse  # alias local
 
 PROJECT_QUOTAS = {"free": 1, "basic": 10, "essentiel": 20, "pro": None, "studio": None}   # None = illimité
 STORAGE_QUOTAS = {"free": 200_000_000, "basic": 2_000_000_000, "essentiel": 5_000_000_000,
@@ -2395,6 +2395,8 @@ async def _transcode_media(oid):
                     ok = await _ffmpeg_transcode(src, dst)
                 if ok:
                     fname = os.path.splitext(doc.get("filename") or "media")[0] + ".mp4"
+                    fresh = await db["media.files"].find_one({"_id": oid}, {"metadata": 1})
+                    meta = (fresh or {}).get("metadata") or meta
                     new_meta = {**meta, "content_type": "video/mp4", "transcoded": True, "processing": False}
                     await media_fs.delete(oid)
                     with open(dst, "rb") as f:
@@ -2487,6 +2489,95 @@ async def _auto_proxy(oid):
     if claimed:
         await _make_proxy(oid)
 
+# --- Vignettes serveur (FFmpeg) : bande filmstrip JPEG générée à l'upload ---
+THUMBS_SEM = asyncio.Semaphore(2)
+
+
+async def _ffmpeg_thumbs(src: str, dst: str, count: int, dur: float) -> bool:
+    vf = (f"fps={count}/{max(0.2, dur):.3f},"
+          "scale=180:240:force_original_aspect_ratio=increase,crop=180:240,"
+          f"tile={count}x1")
+    cmd = [FFMPEG_EXE, "-y", "-i", src, "-threads", "2",
+           "-vf", vf, "-frames:v", "1", "-q:v", "6", dst]
+    proc = await asyncio.create_subprocess_exec(
+        *cmd, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
+    try:
+        _, err = await asyncio.wait_for(proc.communicate(), timeout=180)
+    except asyncio.TimeoutError:
+        proc.kill()
+        return False
+    if proc.returncode != 0 or not os.path.exists(dst) or os.path.getsize(dst) == 0:
+        logger.warning("FFmpeg thumbs échec: %s", (err or b"")[-300:])
+        return False
+    return True
+
+
+async def _make_thumbs(oid, src_path: str = None):
+    """Génère la bande de vignettes d'un média et la range dans GridFS (metadata.thumbs_id)."""
+    async with THUMBS_SEM:
+        doc = await db["media.files"].find_one({"_id": oid})
+        if not doc or (doc.get("metadata") or {}).get("thumbs_id"):
+            return
+        meta = doc.get("metadata") or {}
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                if src_path:
+                    src = src_path
+                else:
+                    suffix = os.path.splitext(doc.get("filename") or "")[1]
+                    src = os.path.join(td, "in" + (suffix or ".mp4"))
+                    await _grid_to_file(oid, src)
+                dst = os.path.join(td, "thumbs.jpg")
+                probe = await _probe_video(src)
+                dur = (probe or {}).get("duration") or 0
+                if not probe or dur <= 0:
+                    raise RuntimeError("probe impossible")
+                count = 16 if dur <= 40 else 24
+                if await _ffmpeg_thumbs(src, dst, count, dur):
+                    with open(dst, "rb") as f:
+                        tid = await media_fs.upload_from_stream(
+                            "thumbs.jpg", f,
+                            metadata={"user_id": meta.get("user_id"), "is_proxy": True, "is_thumbs": True,
+                                      "thumbs_of": str(oid), "count": count, "duration": dur,
+                                      "content_type": "image/jpeg", "created_at": iso(now_utc())})
+                    await db["media.files"].update_one(
+                        {"_id": oid},
+                        {"$set": {"metadata.thumbs_id": str(tid), "metadata.thumbs_count": count,
+                                  "metadata.thumbs_duration": dur},
+                         "$unset": {"metadata.thumbs_processing": ""}})
+                    logger.info("Vignettes serveur OK %s → %s (%d frames)", oid, tid, count)
+                    return
+                raise RuntimeError("ffmpeg thumbs échec")
+        except Exception:
+            logger.exception("Vignettes serveur échouées %s", oid)
+        await db["media.files"].update_one(
+            {"_id": oid},
+            {"$set": {"metadata.thumbs_failed": True}, "$unset": {"metadata.thumbs_processing": ""}})
+
+
+async def _thumbs_from_upload(oid, tmp_path: str):
+    """Vignettes depuis le fichier disque de l'upload (zéro re-lecture GridFS, zéro course avec le transcodage)."""
+    try:
+        await _make_thumbs(oid, src_path=tmp_path)
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
+async def _auto_thumbs(oid):
+    claimed = await db["media.files"].find_one_and_update(
+        {"_id": oid, "metadata.is_proxy": {"$ne": True},
+         "metadata.processing": {"$ne": True},
+         "metadata.thumbs_processing": {"$ne": True},
+         "metadata.thumbs_failed": {"$ne": True},
+         "metadata.thumbs_id": {"$exists": False}},
+        {"$set": {"metadata.thumbs_processing": True}})
+    if claimed:
+        await _make_thumbs(oid)
+
+
 async def _storage_used(user_id: str) -> int:
     pipeline = [
         {"$match": {"metadata.user_id": user_id, "metadata.is_proxy": {"$ne": True}}},
@@ -2550,6 +2641,10 @@ async def _store_media_file(user: dict, path: str, filename: str, content_type: 
             },
         )
     if is_video:
+        fd, tcopy = tempfile.mkstemp(prefix="th_", suffix=os.path.splitext(filename or "")[1] or ".mp4")
+        os.close(fd)
+        shutil.copyfile(path, tcopy)
+        asyncio.create_task(_thumbs_from_upload(media_id, tcopy))
         asyncio.create_task(_transcode_media(media_id))
     return {"media_id": str(media_id), "size": size, "deduped": False, "processing": is_video}
 
@@ -2763,6 +2858,33 @@ async def media_proxy(media_id: str, user: dict = Depends(get_current_user)):
         return {"status": "failed"}
     asyncio.create_task(_auto_proxy(oid))
     return {"status": "processing"}
+
+
+@api_router.get("/media/{media_id}/thumbs")
+async def media_thumbs(media_id: str, user: dict = Depends(get_current_user)):
+    """Bande de vignettes serveur (JPEG filmstrip). 202 tant qu'elle n'est pas prête, 404 si impossible."""
+    try:
+        oid = ObjectId(media_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID média invalide")
+    doc = await db["media.files"].find_one({"_id": oid, "metadata.user_id": user["user_id"]})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Média introuvable")
+    meta = doc.get("metadata") or {}
+    tid = meta.get("thumbs_id")
+    if tid:
+        grid_out = await media_fs.open_download_stream(ObjectId(tid))
+        data = await grid_out.read()
+        return Response(content=data, media_type="image/jpeg",
+                        headers={"X-Thumb-Count": str(meta.get("thumbs_count") or 16),
+                                 "X-Thumb-Duration": str(meta.get("thumbs_duration") or 0),
+                                 "Cache-Control": "private, max-age=86400"})
+    if meta.get("thumbs_failed"):
+        raise HTTPException(status_code=404, detail="Vignettes indisponibles")
+    if not _is_video(meta.get("content_type") or "", doc.get("filename") or ""):
+        raise HTTPException(status_code=404, detail="Pas une vidéo")
+    asyncio.create_task(_auto_thumbs(oid))
+    return JSONResponse({"status": "processing"}, status_code=202)
 
 
 @api_router.get("/media/{media_id}/status")

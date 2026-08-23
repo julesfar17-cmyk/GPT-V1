@@ -1384,7 +1384,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.13-zoomcrop';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.14-srvthumbs';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -2432,7 +2432,7 @@ function addClip(file, meta={}){
   // Stockage serveur + optimisation EN ARRIÈRE-PLAN (Pexels : import serveur direct, zéro re-upload)
   if(clip.pexelsUrl && !clip.mediaId) startPexelsImport(clip);
   else if(!meta.skipUpload && !clip.pexelsUrl) startClipUpload(clip, file);
-  if(clip.mediaId) ensureClipProxy(clip);
+  if(clip.mediaId){ ensureClipProxy(clip); serverThumbs(clip); }
   if(!meta.skipUpload) dirty();
 }
 const MAX_UPLOAD_MO=300;
@@ -2446,6 +2446,7 @@ function startClipUpload(clip, file){
   clip._saveFailed=null; clip._optimizing=true; clip._upPct=0; renderClips();
   API.uploadMedia(file, pct=>{ clip._upPct=pct; updateClipChip(clip); }).then(async id=>{
     clip.mediaId=id;
+    serverThumbs(clip);   // la bande de vignettes FFmpeg arrive dès que le serveur a fini (~2-5 s)
     let ok=false;
     try{
       const s=await API.mediaStatus(id);
@@ -2488,7 +2489,7 @@ async function retryClipUpload(ci){
 function startPexelsImport(clip){
   clip._optimizing=true; renderClips();
   API.importMedia(clip.pexelsUrl, clip.name||'pexels.mp4').then(id=>{
-    clip.mediaId=id; clip._optimizing=false; renderClips(); dirty(); ensureClipProxy(clip);
+    clip.mediaId=id; clip._optimizing=false; renderClips(); dirty(); ensureClipProxy(clip); serverThumbs(clip);
   }).catch(e=>{
     clip._optimizing=false; clip._saveFailed=(e&&e.message)||'import impossible'; renderClips();
   });
@@ -2694,7 +2695,9 @@ function addPickedSubclip(){
 document.addEventListener('click',()=>{ $('#pickPop').classList.remove('show');
   if(pendingPick){ pendingPick=null; $$('.subclip').forEach(x=>x.classList.remove('sel')); } });
 function makeThumbAt(clip, time, index, done){
+  if(clip._sprite){ applySpriteThumbs(clip, index); }   // vignette serveur instantanée (affinée ensuite)
   if(clip.wc&&!clip._wcFail){ wcMakeThumbs(clip,[index]).then(()=>{ done&&done(); }); return; }
+  if(clip._sprite&&clip.thumbs[index]){ done&&done(); return; }
   return makeThumbAtTag(clip, time, index, done);
 }
 function makeThumbAtTag(clip, time, index, done){
@@ -2745,6 +2748,9 @@ function thumbDoctor(){
       const miss=cl.seeks.map((s,k)=>(s!=null&&(!cl.thumbs[k]||seeded[k]))?k:-1).filter(k=>k>=0);
       const hardMiss=cl.seeks.map((s,k)=>(s!=null&&!cl.thumbs[k])?k:-1).filter(k=>k>=0);
       if(!miss.length) continue;
+      // Vignettes serveur : bande FFmpeg déjà là → découpe instantanée, sinon on la demande
+      if(cl._sprite) applySpriteThumbs(cl);
+      else if(cl.mediaId) serverThumbs(cl);
       // Slots totalement vides → priorité MAX : re-seed instantané pour ne jamais rester noir
       if(hardMiss.length) seedThumbs(cl);
       missing=hardMiss.length>0;
@@ -2818,7 +2824,67 @@ function seedThumbs(clip){
   },{once:true});
   v.load();
 }
+/* Vignettes SERVEUR (FFmpeg, modèle veed.io) : bande filmstrip générée à l'upload,
+   téléchargée une fois (~150 Ko) puis découpée par sous-plan — fiable à 100% sur
+   tous les appareils, indépendante de WebCodecs. */
+async function serverThumbs(clip){
+  if(!clip||!clip.mediaId||clip._srvBusy||clip._srvDone) return;
+  clip._srvBusy=true;
+  try{
+    for(let n=0;n<40;n++){
+      let r=null;
+      try{ r=await fetch('/api/media/'+clip.mediaId+'/thumbs',{credentials:'include'}); }catch(e){}
+      if(r&&r.status===404) break;                      // impossible côté serveur → repli client
+      if(r&&r.ok&&(r.headers.get('Content-Type')||'').includes('image')){
+        const count=+r.headers.get('X-Thumb-Count')||16;
+        const dur=+r.headers.get('X-Thumb-Duration')||0;
+        const bmp=await createImageBitmap(await r.blob());
+        clip._sprite={bmp,count,dur,fw:Math.floor(bmp.width/count),fh:bmp.height};
+        clip._srvDone=true;
+        // navigateur incapable de décoder (WC + <video> KO) → les seeks n'existent pas :
+        // on les synthétise depuis la durée SERVEUR pour que les vignettes s'affichent quand même
+        if((!clip.seeks||!clip.seeks.length)&&dur>0){
+          const auto=Math.min(8, Math.max(2, Math.floor(dur/2)));
+          const want=(clipPlanCount!=='auto')? Math.min(24,+clipPlanCount) : auto;
+          const n=Math.max(1, Math.min(want, Math.max(1, Math.floor(dur/0.6))));
+          clip.seeks=Array.from({length:n},(_,i)=>(i+0.15)*(dur/n));
+          autoAssign(); renderClips();
+        }
+        applySpriteThumbs(clip);
+        TEL.push('srv_thumbs_ok',{n:clip.name});
+        break;
+      }
+      await new Promise(rs=>setTimeout(rs,2500));       // 202 : la bande est en cours de génération
+    }
+  }catch(e){}
+  clip._srvBusy=false;
+}
+/* Découpe la bande serveur pour remplir les slots vides ou "poster" (jamais une vraie vignette). */
+function applySpriteThumbs(clip, only){
+  const sp=clip._sprite; if(!sp||!clip.seeks||!clip.seeks.length) return;
+  const dur=sp.dur||((clip.wc&&clip.wc.durationS)||(clip.el&&clip.el.duration)||6);
+  const cvs=document.createElement('canvas'); cvs.width=360; cvs.height=480;
+  const ctx=cvs.getContext('2d');
+  let changed=false;
+  clip.seeks.forEach((s,k)=>{
+    if(s==null) return;
+    if(only!=null&&k!==only) return;
+    if(clip.thumbs[k]&&!(clip._thumbSeed&&clip._thumbSeed[k])) return;
+    const fi=Math.max(0,Math.min(sp.count-1,Math.floor(s/Math.max(0.01,dur)*sp.count)));
+    const sc=Math.max(cvs.width/sp.fw, cvs.height/sp.fh);
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    ctx.drawImage(sp.bmp, fi*sp.fw,0,sp.fw,sp.fh, (cvs.width-sp.fw*sc)/2,(cvs.height-sp.fh*sc)/2, sp.fw*sc, sp.fh*sc);
+    clip.thumbs[k]=cvs.toDataURL('image/jpeg',0.75);
+    if(clip._thumbSeed) delete clip._thumbSeed[k];
+    if(clip._timgs) delete clip._timgs[k];
+    changed=true;
+  });
+  if(changed){ renderClips(); drawTimeline(); }
+}
 function makeThumbs(clip, done){
+  // 0) vignettes SERVEUR : source la plus fiable (générées par FFmpeg à l'upload)
+  if(clip._sprite) applySpriteThumbs(clip);
+  else if(clip.mediaId) serverThumbs(clip);
   // 1) vignettes-poster immédiates via <video> tag — utilisateur voit toujours quelque chose
   seedThumbs(clip);
   // 2) vignettes fines par-seek dès que le parse WC est prêt (écrasent le poster)

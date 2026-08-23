@@ -1,5 +1,14 @@
 # PRD — BEATCUT
 
+## Implémenté (23 août 2026) — Vignettes SERVEUR FFmpeg (modèle veed.io, choix utilisateur "option a")
+- ✅ **Backend** : à chaque upload vidéo (upload direct, import Pexels, import lien), FFmpeg génère une **bande filmstrip JPEG** (16 frames si ≤40s, sinon 24, 180×240 chacune) depuis le fichier disque (zéro course avec le transcodage) → GridFS (`metadata.thumbs_id`, marquée `is_proxy` pour être exclue des quotas/listes)
+- ✅ Endpoint `GET /api/media/{id}/thumbs` : 200 image/jpeg + headers `X-Thumb-Count`/`X-Thumb-Duration` ; 202 pendant génération ; 404 si non-vidéo/échec ; génération à la demande (`_auto_thumbs`) pour les vieux médias
+- ✅ Fix course transcodage : `_transcode_media` relit les métadonnées fraîches avant re-upload (ne perd plus `thumbs_id`)
+- ✅ **Studio** (`v13.14-srvthumbs`) : `serverThumbs()` télécharge la bande (~150 Ko) et `applySpriteThumbs()` la découpe par sous-plan — remplace posters/slots vides, jamais une vraie vignette WC. Hooks : addClip, startClipUpload, startPexelsImport, makeThumbs, makeThumbAt, thumbDoctor
+- ✅ **Codec-agnostique** : si WebCodecs ET `<video>` échouent (HEVC iPhone, headless…), les `seeks` sont synthétisés depuis `X-Thumb-Duration` → vignettes garanties même si le navigateur ne sait pas décoder la vidéo
+- ✅ Tests : backend 4/4 pytest (`/app/backend/tests/test_srv_thumbs.py`), E2E studio validé (upload → 4 vignettes réelles en ~2,5 s, iteration_30 + retest playwright)
+- ⚠️ Nécessite un REDÉPLOIEMENT pour beat-cut.com
+
 ## Problème original
 "Voici mon site en version html copie le et fais en un vrai site fonctionnel qui a une belle page d'accueil un système pour se désabonner une DA plus pro et propre et faire en sorte qu'il soit fonctionnel sur mobile et sur pc."
 Fichier fourni : `beatcut.html` — studio de montage beat-sync 100% client-side (BPM auto, cuts sur le beat, paroles IA Whisper, 8 styles de sous-titres, effets VHS/glitch, export mp4 9:16).
