@@ -953,3 +953,10 @@ Reste à faire par l'utilisateur : REDÉPLOYER (les fixes limite-3 + atomique + 
 3. FEATURE recadrage : clip.crop {x,y} (-1..1) appliqué au cover-fit (frame décodée + vignette fallback + export via même code). UI desktop : bouton "Recadrer" par clip (sliders H/V + Centrer). UI mobile : bouton Recadrer dans la feuille "Ce plan". Persisté dans clipRefs.crop, restauré au chargement. Testé : crop {x:0.6} appliqué + sauvegardé.
 4. FEATURE popup mobile "BeatCut marche mieux sur PC" : maybePcHint() après son+clips importés (pas au restore), 1 fois par appareil (localStorage bc_pc_hint), DA v3, bouton "Continuer quand même", FR/EN (attention : les clés du dict EN doivent utiliser l'apostrophe DROITE, T() normalise ’→'). Testé FR + EN.
 REDÉPLOIEMENT REQUIS.
+
+## Recadrage tactile par plan (23 août 2026) — build v13.12-cropdrag
+- Clic sur un plan → 2 nouvelles options partout : "Voir le plan" (lecture du plan seul avec arrêt auto) et "Recadrer le plan" (drag).
+- Desktop : boutons dans #planPop (testids plan-view-btn-pop / plan-crop-drag-btn-pop). Mobile : dans la feuille "Ce plan" (plan-view-btn / plan-crop-btn). Les sliders par clip restent dans le panneau Clips (desktop).
+- Mode recadrage : overlay #cropOv sur #stageWrap (pointer events souris+tactile, setPointerCapture), on glisse l'image → plan.crop {x,y} clampé, mapping 1:1 pixel (excès de cover-fit), boutons Centrer / Terminé (dirty() à la sortie), exitCropMode() appelé par play().
+- Priorité de recadrage : plan.crop || clip.crop, appliquée frame décodée + vignette + export (même code). rebuildPlans préserve crop. Persisté via M.plans.
+- Testé e2e mobile : drag → {x:0.413}, Centrer → null, Terminé → fermé+Saved, Voir le plan → lecture + arrêt auto. REDÉPLOIEMENT REQUIS.
