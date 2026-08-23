@@ -1079,6 +1079,15 @@ document.addEventListener('DOMContentLoaded',function(){
     <button onclick="psSplit()" data-testid="plan-split-btn">Découper en 2</button>
     <button onclick="psDelete()" data-testid="plan-delete-btn">Supprimer</button>
   </div>
+  <button class="small" onclick="psCropToggle()" data-testid="plan-crop-btn" style="width:100%;margin-top:12px">Recadrer</button>
+  <div id="psCropBox" style="display:none;margin-top:10px">
+    <p class="hint" style="margin:0 0 8px">Recadre l&rsquo;image dans le cadre quand le format du clip ne correspond pas.</p>
+    <label class="hint" style="display:block">Horizontal</label>
+    <input type="range" id="psCropX" min="-100" max="100" value="0" style="width:100%" data-testid="plan-crop-x">
+    <label class="hint" style="display:block;margin-top:6px">Vertical</label>
+    <input type="range" id="psCropY" min="-100" max="100" value="0" style="width:100%" data-testid="plan-crop-y">
+    <button class="small" onclick="psCropReset()" data-testid="plan-crop-reset" style="width:100%;margin-top:8px">Centrer</button>
+  </div>
   <div id="psClips" style="display:none;margin-top:12px"></div>
   <button class="small" id="psLock" onclick="psLockToggle()" data-testid="plan-lock-btn" style="width:100%;margin-top:12px">Verrouiller ce plan</button>
 </div>
@@ -1380,7 +1389,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.10-perf';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.11-crop';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -1416,12 +1425,32 @@ async function ensureClipProxy(clip){
           toast('Clip optimisé pour la lecture ✓');
         }
         TEL.push('proxy_ok',{n:clip.name});
+        // toutes les vignettes manquantes sont régénérées depuis le proxy (fiable et léger)
+        const missT=(clip.seeks||[]).map((s,k)=>(s!=null&&!clip.thumbs[k])?k:-1).filter(k=>k>=0);
+        if(missT.length) wcMakeThumbs(clip, missT).then(()=>{renderClips();drawTimeline();});
         renderClips(); drawTimeline();
       }catch(e){ TEL.push('proxy_parse_fail',{n:clip.name,msg:String((e&&e.message)||e).slice(0,120)}); }
       return;
     }
     await new Promise(r=>setTimeout(r,3000));
   }
+}
+/* Disclaimer mobile : après son + vidéo chargés, une fois par appareil */
+function maybePcHint(){
+  if(!window.matchMedia('(max-width:900px)').matches) return;
+  if(!buffer||!clips.length) return;
+  try{ if(localStorage.getItem('bc_pc_hint')) return; }catch(e){}
+  if(document.getElementById('pcHint')) return;
+  try{ localStorage.setItem('bc_pc_hint','1'); }catch(e){}
+  const d=document.createElement('div'); d.id='pcHint'; d.setAttribute('data-testid','pc-hint-overlay');
+  d.style.cssText='position:fixed;inset:0;z-index:420;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:24px';
+  d.innerHTML='<div style="background:var(--void,#000);border:1px solid var(--line,#1c232e);padding:28px 22px;max-width:340px;width:100%;text-align:center">'
+    +'<div style="font-weight:800;letter-spacing:-.05em;font-size:17px;margin-bottom:14px">BEATCUT<span style="color:var(--crimson,#fc1c46)">&#9632;</span></div>'
+    +'<h3 style="margin:0 0 10px;font-size:17px;letter-spacing:-.02em">'+T('BeatCut marche mieux sur PC.')+'</h3>'
+    +'<p class="hint" style="margin:0 0 20px;line-height:1.6">'+T('Si tu le peux, passe sur ordinateur pour profiter d\u2019une expérience optimale : plus fluide, plus précise.')+'</p>'
+    +'<button class="primary" style="width:100%" data-testid="pc-hint-continue">'+T('Continuer quand même')+'</button></div>';
+  d.querySelector('button').onclick=()=>d.remove();
+  document.body.appendChild(d);
 }
 function clipsBlocking(){ return clips.some(c=>(c._optimizing && !c._playable) || (!c._wcReady && !c._wcFail)); }
 /* L'export ne dépend QUE des clips UTILISÉS et décodables localement (WebCodecs) —
@@ -1542,7 +1571,7 @@ const EN={
 "Styles":"Styles","Texte":"Text","Effets":"Effects","Animation":"Animation","Police":"Font","Bricolage — moderne":"Bricolage — modern","Anton — impact condensé":"Anton — condensed impact","Archivo Black — massif":"Archivo Black — massive","Impact — classique":"Impact — classic","Inter — sobre":"Inter — clean","Special Elite — machine à écrire":"Special Elite — typewriter","Marker — feutre":"Marker — felt pen","Caveat — manuscrit":"Caveat — handwritten","VT323 — écran rétro":"VT323 — retro screen","Monoton — néon":"Monoton — neon","Fraktur — gothique":"Fraktur — gothic","Rubik Glitch — glitché":"Rubik Glitch — glitched",
 "Affichage":"Display","Mot seul":"Single word","Phrase":"Sentence","Étalé":"Spread","Taille":"Size","Épaisseur":"Weight","Fin":"Thin","Normal":"Normal","Gras":"Bold","Casse":"Case","MAJ":"UPPER","min":"lower","Couleur du texte":"Text color","Position":"Position","Haut":"Top","Centre":"Center","Bas":"Bottom","Mot en cours coloré (karaoké)":"Current word colored (karaoke)","Contour":"Outline","Lueur (néon)":"Glow (neon)","Ombre portée":"Drop shadow","Espacement des lettres":"Letter spacing","Inclinaison":"Slant","Lignes d'écran rétro (CRT)":"Retro screen lines (CRT)","Fond derrière le texte":"Background behind text",
 "Effets vidéo — au rythme des coupures":"Video effects — on every cut","Flash blanc sur les coupures":"White flash on cuts","Zoom punch":"Punch zoom","Secousse légère":"Light shake","VHS (lignes d'écran)":"VHS (screen lines)","Grain de pellicule":"Film grain","Apparition des mots":"Word entrance","Aucune":"None","Pop":"Pop","Fondu":"Fade","Glissé":"Slide","Zoom":"Zoom","Secousse":"Shake","Le mot reste affiché jusqu'au suivant":"Each word stays until the next one","Enregistrer comme mon style":"Save as my style","Mots mis en avant":"Highlighted words","clique les mots à mettre en avant":"click the words you want to highlight","Tes mots — clique pour mettre en avant":"Your words — click to highlight","Fond derrière le mot":"Background behind word","Avec":"On","Sans":"Off","Douce":"Soft","Forte":"Strong","Néon":"Neon","Comme le texte":"Same as text","Ajoute d'abord tes paroles (onglet Paroles)":"Add your lyrics first (Lyrics tab)","Fréquence":"Frequency","1 mesure":"1 bar","2 mesures":"2 bars","4 mesures":"4 bars","Taille du mot":"Word size","Même police":"Same font",
-"Timeline":"Timeline","Un morceau se règle une fois. Ensuite tu en tires autant de vidéos que tu veux pendant le mois.":"Set a track up once. Then pull as many videos as you want from it all month.","Un morceau se règle une fois (extrait, tempo, paroles). Ensuite tu en tires autant de vidéos que tu veux.":"Set a track up once (excerpt, tempo, lyrics). Then pull as many videos as you want.","Nouveau morceau":"New track","Dépose un MP3, WAV ou M4A. Le tempo se détecte tout seul.":"Drop an MP3, WAV or M4A. The tempo detects itself.","Verrouiller":"Lock","Couper ici":"Cut here","Beat : ON":"Beat: ON","Beat : OFF":"Beat: OFF","Mélanger":"Shuffle","⧉ Copier":"⧉ Copy","Supprimer":"Delete","Coller au curseur":"Paste at cursor","Adapter":"Fit","Clic sur un plan = coupes & verrou · glisser un clip dessus = le changer":"Click a shot = cuts & lock · drag a clip onto it = swap it","Plans":"Shots","Accueil":"Home","Morceaux":"Songs","Série":"Series","Compte":"Account","Ce plan":"This shot","Remplacer le clip":"Swap clip","Autre plan":"Another shot","Découper en 2":"Split in 2","Supprimer":"Delete","Verrouiller ce plan":"Lock this shot",
+"Timeline":"Timeline","Un morceau se règle une fois. Ensuite tu en tires autant de vidéos que tu veux pendant le mois.":"Set a track up once. Then pull as many videos as you want from it all month.","Un morceau se règle une fois (extrait, tempo, paroles). Ensuite tu en tires autant de vidéos que tu veux.":"Set a track up once (excerpt, tempo, lyrics). Then pull as many videos as you want.","Nouveau morceau":"New track","Dépose un MP3, WAV ou M4A. Le tempo se détecte tout seul.":"Drop an MP3, WAV or M4A. The tempo detects itself.","Verrouiller":"Lock","Couper ici":"Cut here","Beat : ON":"Beat: ON","Beat : OFF":"Beat: OFF","Mélanger":"Shuffle","⧉ Copier":"⧉ Copy","Supprimer":"Delete","Coller au curseur":"Paste at cursor","Adapter":"Fit","Clic sur un plan = coupes & verrou · glisser un clip dessus = le changer":"Click a shot = cuts & lock · drag a clip onto it = swap it","Plans":"Shots","Accueil":"Home","Morceaux":"Songs","Série":"Series","Compte":"Account","Ce plan":"This shot","Remplacer le clip":"Swap clip","Autre plan":"Another shot","Découper en 2":"Split in 2","Supprimer":"Delete","Verrouiller ce plan":"Lock this shot","Recadrer":"Reframe","Centrer":"Center","Recadre l'image dans le cadre quand le format du clip ne correspond pas.":"Repositions the image in the frame when the clip format doesn't match.","BeatCut marche mieux sur PC.":"BeatCut works better on desktop.","Si tu le peux, passe sur ordinateur pour profiter d'une expérience optimale : plus fluide, plus précise.":"If you can, switch to a computer for the best experience: smoother and more precise.","Continuer quand même":"Continue anyway",
 "Choisis un morceau, tes styles de sous-titres préférés et un nombre de vidéos : BeatCut prépare plusieurs versions réelles. Tu gardes les meilleures, tu exportes, c'est posté.":"Pick a track, your favorite subtitle styles and a number of videos: BeatCut builds several real versions. Keep the best, export, post.",
 "Préparer":"Set up","Choisir les meilleures":"Pick the best","Nombre de vidéos":"Number of videos","Styles de sous-titres — choisis-en un ou plusieurs (tes styles ★ inclus)":"Subtitle styles — pick one or more (your ★ styles included)","Préparer les vidéos →":"Prepare videos →",
 "Chaque vidéo garde tes paroles calées : seuls les plans et le style changent. Seules celles que tu gardes comptent dans tes exports.":"Every video keeps your synced lyrics: only the shots and style change. Only the ones you keep count toward your exports.",
@@ -1697,7 +1726,7 @@ async function persistRemote(){
     ext:{...ext}, fx:M.fx||null, style:M.style||style,
     words:M.words||[], cuts:M.cuts||[], plans:M.plans||[],
     audioMediaId:M.audioMediaId||null, audioName:M.audioName||null,
-    clipRefs:clips.map(c=>({mediaId:c.mediaId||null, pexelsUrl:c.pexelsUrl||null, name:c.name||''})),
+    clipRefs:clips.map(c=>({mediaId:c.mediaId||null, pexelsUrl:c.pexelsUrl||null, name:c.name||'', crop:c.crop||null})),
   };
   const payload={title:M.title||'Sans titre', state:stateDoc};
   if(M._remote) payload.project_id=M.id;
@@ -1811,6 +1840,7 @@ function renderCards(root,list){
 }
 function renderMorceaux(){ renderCards($('#listMorceaux'), DB.morceaux); }
 function newMorceau(){
+  restoreIncomplete=false;   // nouveau morceau vierge : la sauvegarde est toujours sûre
   const m={id:Math.random().toString(36).slice(2,9),title:'Sans titre',videos:0,words:[],cuts:[],plans:[]};
   DB.morceaux.unshift(m); persist(); go('edit/'+m.id);
   if(window.matchMedia('(max-width:900px)').matches && !window._onbFreshFlow) setTimeout(mobImportFlow,250);
@@ -1952,8 +1982,10 @@ async function fetchRemoteMorceau(m){
   });
   if(st.ext) ext={...st.ext};
   if(st.beatAnchor!=null) beatAnchor=st.beatAnchor;
-  // Verrou de chargement : audio + clips ENTIÈREMENT téléchargés avant lecture
-  restoreIncomplete=false;
+  // Verrou de chargement : audio + clips ENTIÈREMENT téléchargés avant lecture.
+  // ACTIF pendant toute la restauration : sinon chaque addClip déclenche une sauvegarde
+  // PARTIELLE qui écrase le bon état (le vrai part dans l'historique Versions → bug signalé).
+  restoreIncomplete=true;
   let restoreFails=0;
   const total=(m.audioMediaId?1:0)+((m.clipRefs||[]).length);
   let step=0;
@@ -1964,20 +1996,26 @@ async function fetchRemoteMorceau(m){
       prog(0);
       const f=await API.fetchMedia(m.audioMediaId, m.audioName||'audio.mp3', prog);
       await loadAudio(f,{restore:true});
-    }catch(e){ toast('Audio introuvable — re-dépose ton morceau'); }
+    }catch(e){ restoreFails++; toast('Audio introuvable — re-dépose ton morceau'); }
     step++;
   }
   // Clips (perso GridFS + Pexels par URL)
   for(const c of m.clipRefs||[]){
     try{
       prog(0);
-      if(c.mediaId){ addClip(await API.fetchMedia(c.mediaId,c.name,prog),{mediaId:c.mediaId,skipUpload:true}); }
+      if(c.mediaId){ addClip(await API.fetchMedia(c.mediaId,c.name,prog),{mediaId:c.mediaId,skipUpload:true,crop:c.crop||null}); }
       else if(c.pexelsUrl){
         const rr=await fetch(c.pexelsUrl);
-        if(rr.ok) addClip(new File([await rr.blob()],c.name||'clip.mp4',{type:'video/mp4'}),{pexelsUrl:c.pexelsUrl,skipUpload:true});
+        if(rr.ok) addClip(new File([await rr.blob()],c.name||'clip.mp4',{type:'video/mp4'}),{pexelsUrl:c.pexelsUrl,skipUpload:true,crop:c.crop||null});
+        else restoreFails++;
       }
-    }catch(e){}
+    }catch(e){ restoreFails++; }
     step++;
+  }
+  if(restoreFails===0){ restoreIncomplete=false; }
+  else{
+    TEL.push('restore_incomplete',{fails:restoreFails,total});
+    toast('Certains fichiers n\u2019ont pas pu être rechargés — la sauvegarde est suspendue pour protéger ton morceau. Recharge la page pour réessayer.');
   }
 }
 async function loadRemoteMorceau(m){
@@ -2014,6 +2052,7 @@ async function loadAudio(file, opts={}){
   }else{
     if(M.title==='Sans titre'){ M.title=file.name.replace(/\.[^.]+$/,''); $('#editTitle').value=M.title; }
     detectBpmAndDrop();
+    setTimeout(maybePcHint,800);
     ext.dur=Math.min(30,buffer.duration);
     findDrop();
     // Stockage serveur (cross-device) : upload en tâche de fond
@@ -2362,7 +2401,7 @@ cDrop.addEventListener('drop',e=>{ [...e.dataTransfer.files].filter(f=>f.type.st
 }));
 function addClip(file, meta={}){
   const url=URL.createObjectURL(file);
-  const clip={url,el:null,els:[],thumbs:[],seeks:[],name:file.name,mediaId:meta.mediaId||null,pexelsUrl:meta.pexelsUrl||null};
+  const clip={url,el:null,els:[],thumbs:[],seeks:[],name:file.name,mediaId:meta.mediaId||null,pexelsUrl:meta.pexelsUrl||null,crop:meta.crop||null};
   clips.push(clip);
   const onMeta=D=>{
     const auto=Math.min(8, Math.max(2, Math.floor(D/2)));   // auto : jusqu'à 8 plans (~2 s chacun)
@@ -2370,7 +2409,7 @@ function addClip(file, meta={}){
     const n=Math.max(1, Math.min(want, Math.max(1, Math.floor(D/0.6))));  // jamais plus que la durée ne permet (~0,6 s mini par plan)
     clip.seeks=Array.from({length:n},(_,i)=> (i+0.15)*(D/n));
     makeThumbs(clip, ()=>{ autoAssign(); renderClips(); drawTimeline(); });
-    if(!meta.skipUpload) toast(file.name.slice(0,24)+' → '+n+' plans proposés, placés sur le beat ');
+    if(!meta.skipUpload){ toast(file.name.slice(0,24)+' → '+n+' plans proposés, placés sur le beat '); setTimeout(maybePcHint,800); }
     renderClips();
   };
   const tagMeta=()=>{
@@ -2555,7 +2594,25 @@ function renderClips(){
     add.onclick=e=>{ e.stopPropagation(); openPicker(ci,e); };
     const del=document.createElement('button'); del.textContent='✕'; del.title='Retirer la vidéo';
     del.onclick=()=>removeClip(ci);
-    head.append(nm,add,del); box.append(head);
+    const rcBtn=document.createElement('button'); rcBtn.textContent=T('Recadrer'); rcBtn.title='Position de l\u2019image dans le cadre'; rcBtn.setAttribute('data-testid','clip-crop-btn-'+ci);
+    head.append(nm,rcBtn,add,del); box.append(head);
+    const cpanel=document.createElement('div');
+    cpanel.style.cssText='display:none;padding:8px 10px;border-top:1px solid var(--line,#1c232e)';
+    cpanel.innerHTML='<p class="hint" style="margin:0 0 6px">'+T('Recadre l\u2019image dans le cadre quand le format du clip ne correspond pas.')+'</p>'
+      +'<label class="hint" style="display:block">Horizontal</label><input type="range" class="cropX" min="-100" max="100" value="'+Math.round(((clip.crop&&clip.crop.x)||0)*100)+'" style="width:100%" data-testid="clip-crop-x-'+ci+'">'
+      +'<label class="hint" style="display:block;margin-top:4px">Vertical</label><input type="range" class="cropY" min="-100" max="100" value="'+Math.round(((clip.crop&&clip.crop.y)||0)*100)+'" style="width:100%" data-testid="clip-crop-y-'+ci+'">'
+      +'<button class="small cropC" style="width:100%;margin-top:6px">'+T('Centrer')+'</button>';
+    const applyCrop=()=>{
+      clip.crop={x:(+cpanel.querySelector('.cropX').value)/100, y:(+cpanel.querySelector('.cropY').value)/100};
+      if(!clip.crop.x&&!clip.crop.y) clip.crop=null;
+      drawPreview(curTime()); dirty();
+    };
+    cpanel.querySelector('.cropX').oninput=applyCrop;
+    cpanel.querySelector('.cropY').oninput=applyCrop;
+    cpanel.querySelector('.cropC').onclick=e=>{ e.stopPropagation(); cpanel.querySelector('.cropX').value=0; cpanel.querySelector('.cropY').value=0; applyCrop(); };
+    cpanel.onclick=e=>e.stopPropagation();
+    rcBtn.onclick=e=>{ e.stopPropagation(); cpanel.style.display=cpanel.style.display==='none'?'block':'none'; };
+    box.append(cpanel);
     if(clip._optimizing){
       const ov=document.createElement('div');
       ov.setAttribute('data-testid','clip-optimizing-badge');
@@ -2709,20 +2766,21 @@ function wcMakeThumbs(clip, indices){
   return run;
 }
 async function _wcMakeThumbsNow(clip, indices, gen){
-  if(!clip.wc||!clip.wc.config||clip._thumbGen!==gen) return;
+  const src=(clip.wcProxy&&clip.wcProxy.config)?clip.wcProxy:clip.wc;   // proxy léger prioritaire : plus fiable et moins lourd
+  if(!src||!src.config||clip._thumbGen!==gen) return;
   const cvs=document.createElement('canvas'); cvs.width=360; cvs.height=480;
   const ctx=cvs.getContext('2d');
-  let p=new SegPlayer(); p.setClip(clip.wc);
+  let p=new SegPlayer(); p.setClip(src);
   let retried=false;
   const list=indices||clip.seeks.map((_,k)=>k);
   for(const i of list){
     if(clip._thumbGen!==gen) break;   // vignettes reset entre-temps (swap Mux) → on abandonne cette passe
     if(clip.seeks[i]==null) continue;
-    const t=Math.min(clip.seeks[i], Math.max(0,(clip.wc.durationS||1)-0.1));
+    const t=Math.min(clip.seeks[i], Math.max(0,(src.durationS||1)-0.1));
     p.seek(t);
     let f=await wcAwaitFrame(p, t, 0.3);
     if(p.err&&!retried){   // décodeur saturé/planté → seconde chance avec un décodeur neuf
-      retried=true; p.destroy(); p=new SegPlayer(); p.setClip(clip.wc); p.seek(t);
+      retried=true; p.destroy(); p=new SegPlayer(); p.setClip(src); p.seek(t);
       f=await wcAwaitFrame(p, t, 0.3);
     }
     if(f&&clip._thumbGen===gen){
@@ -3840,7 +3898,8 @@ function drawPreview(t, cvOverride){
     if(f){
       const fw=f.displayWidth||f.codedWidth, fh=f.displayHeight||f.codedHeight;
       const s=Math.max(W/fw,H/fh);
-      c.drawImage(f,(W-fw*s)/2,(H-fh*s)/2,fw*s,fh*s);
+      const kx=cl.crop?(cl.crop.x||0):0, ky=cl.crop?(cl.crop.y||0):0;
+      c.drawImage(f,(W-fw*s)/2-kx*((fw*s-W)/2),(H-fh*s)/2-ky*((fh*s-H)/2),fw*s,fh*s);
       c.fillStyle='rgba(0,0,0,.10)'; c.fillRect(0,0,W,H);
       drewMedia=true;
     } else {
@@ -3854,7 +3913,8 @@ function drawPreview(t, cvOverride){
       const img=planThumbImg(cl, target);
       if(img&&img.complete&&img.naturalWidth){
         const s=Math.max(W/img.naturalWidth,H/img.naturalHeight);
-        c.drawImage(img,(W-img.naturalWidth*s)/2,(H-img.naturalHeight*s)/2,img.naturalWidth*s,img.naturalHeight*s);
+        const kx=cl.crop?(cl.crop.x||0):0, ky=cl.crop?(cl.crop.y||0):0;
+        c.drawImage(img,(W-img.naturalWidth*s)/2-kx*((img.naturalWidth*s-W)/2),(H-img.naturalHeight*s)/2-ky*((img.naturalHeight*s-H)/2),img.naturalWidth*s,img.naturalHeight*s);
         c.fillStyle='rgba(0,0,0,.10)'; c.fillRect(0,0,W,H);
         drewMedia=true;
       }
@@ -4549,7 +4609,26 @@ function openPlanSheet(p){
   $('#psClips').style.display='none';
   $('#planSheet').classList.add('open');
 }
-function closePlanSheet(){ $('#planSheet').classList.remove('open'); sheetPlan=null; }
+function closePlanSheet(){ $('#planSheet').classList.remove('open'); $('#psCropBox').style.display='none'; sheetPlan=null; }
+/* ---- Recadrage du clip du plan (mobile) ---- */
+function psCropToggle(){
+  const box=$('#psCropBox');
+  if(box.style.display==='none'){
+    const cl=sheetPlan&&sheetPlan.clip!=null?clips[sheetPlan.clip]:null;
+    if(!cl){ toast('Ce plan n\u2019a pas encore de clip'); return; }
+    $('#psCropX').value=Math.round(((cl.crop&&cl.crop.x)||0)*100);
+    $('#psCropY').value=Math.round(((cl.crop&&cl.crop.y)||0)*100);
+    box.style.display='block';
+  } else box.style.display='none';
+}
+function psCropApply(){
+  const cl=sheetPlan&&sheetPlan.clip!=null?clips[sheetPlan.clip]:null; if(!cl) return;
+  cl.crop={x:(+$('#psCropX').value)/100, y:(+$('#psCropY').value)/100};
+  if(!cl.crop.x&&!cl.crop.y) cl.crop=null;
+  drawPreview(curTime()); dirty();
+}
+function psCropReset(){ $('#psCropX').value=0; $('#psCropY').value=0; psCropApply(); }
+$('#psCropX').oninput=psCropApply; $('#psCropY').oninput=psCropApply;
 function psOther(){
   if(!sheetPlan) return;
   if(!clips.length){ toast('Ajoute d\u2019abord des vidéos (onglet Clips)'); return; }

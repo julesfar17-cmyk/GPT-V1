@@ -946,3 +946,10 @@ Reste à faire par l'utilisateur : REDÉPLOYER (les fixes limite-3 + atomique + 
 - ✅ _cookie_values() : get_current_user essaie TOUTES les valeurs de access_token et session_token.
 - ✅ set_jwt_cookie / set_session_cookie purgent le doublon host-only avant de poser le cookie de domaine.
 - Testé : périmé+valide (2 ordres) → 200 ; vieux JWT + session valide → 200 ; périmé seul → 401. REDÉPLOIEMENT REQUIS.
+
+## Lot 4 chantiers studio (23 août 2026) — build v13.11-crop
+1. BUG "nouvelle version au clic sur un morceau" : restoreIncomplete jamais activé → chaque addClip pendant la restauration sauvait un état PARTIEL qui écrasait le bon (relégué dans Versions). Fix : verrou actif pendant toute la restauration, restoreFails compte les fichiers manquants (sauvegarde suspendue + toast si échec), reset dans newMorceau. Testé : restore complet → verrou levé, "Saved".
+2. BUG vignettes : _wcMakeThumbsNow utilise le PROXY en priorité (plus fiable/léger) ; à l'arrivée du proxy, TOUTES les vignettes manquantes sont régénérées (plus seulement si liste vide). Non vérifiable visuellement en headless (pas de codecs H.264) — chemin de code validé.
+3. FEATURE recadrage : clip.crop {x,y} (-1..1) appliqué au cover-fit (frame décodée + vignette fallback + export via même code). UI desktop : bouton "Recadrer" par clip (sliders H/V + Centrer). UI mobile : bouton Recadrer dans la feuille "Ce plan". Persisté dans clipRefs.crop, restauré au chargement. Testé : crop {x:0.6} appliqué + sauvegardé.
+4. FEATURE popup mobile "BeatCut marche mieux sur PC" : maybePcHint() après son+clips importés (pas au restore), 1 fois par appareil (localStorage bc_pc_hint), DA v3, bouton "Continuer quand même", FR/EN (attention : les clés du dict EN doivent utiliser l'apostrophe DROITE, T() normalise ’→'). Testé FR + EN.
+REDÉPLOIEMENT REQUIS.
