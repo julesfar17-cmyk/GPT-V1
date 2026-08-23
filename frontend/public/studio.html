@@ -2730,7 +2730,8 @@ function makeThumbAtTag(clip, time, index, done){
   },{once:true});
   v.load();
 }
-/* Docteur à vignettes : repasse toutes les 3 s tant qu'il manque des vignettes (12 passes max) */
+/* Docteur à vignettes : repasse toutes les 3 s tant qu'il manque des vignettes (12 passes max).
+   Améliore aussi les vignettes-poster (seeded) en vraies vignettes par-seek quand possible. */
 let _thumbDoctorT=null,_thumbDoctorN=0;
 function thumbDoctor(){
   if(_thumbDoctorT) return;
@@ -2739,18 +2740,88 @@ function thumbDoctor(){
     let missing=false;
     for(const cl of clips){
       if(!cl.seeks||!cl.seeks.length) continue;
-      const miss=cl.seeks.map((s,k)=>(s!=null&&!cl.thumbs[k])?k:-1).filter(k=>k>=0);
+      // "missing" = vignette absente OU vignette-poster (à améliorer si possible)
+      const seeded=cl._thumbSeed||{};
+      const miss=cl.seeks.map((s,k)=>(s!=null&&(!cl.thumbs[k]||seeded[k]))?k:-1).filter(k=>k>=0);
+      const hardMiss=cl.seeks.map((s,k)=>(s!=null&&!cl.thumbs[k])?k:-1).filter(k=>k>=0);
       if(!miss.length) continue;
-      missing=true;
-      if(!cl._thumbBusy&&!cl._optimizing){
+      // Slots totalement vides → priorité MAX : re-seed instantané pour ne jamais rester noir
+      if(hardMiss.length) seedThumbs(cl);
+      missing=hardMiss.length>0;
+      if(!cl._thumbBusy&&!cl._optimizing&&cl.wc&&!cl._wcFail){
         cl._thumbBusy=true;
-        wcMakeThumbs(cl,miss).then(()=>{ cl._thumbBusy=false; renderClips(); drawTimeline(); }).catch(()=>{ cl._thumbBusy=false; });
+        wcMakeThumbs(cl,miss).then(()=>{
+          // slots qui restent "seeded" après WC → conservés tels quels (déjà visibles)
+          miss.forEach(i=>{ if(cl._thumbSeed&&cl._thumbSeed[i]&&cl.thumbs[i]) delete cl._thumbSeed[i]; });
+          cl._thumbBusy=false; renderClips(); drawTimeline();
+        }).catch(()=>{ cl._thumbBusy=false; });
+      } else if(!cl._thumbBusy && (!cl.wc||cl._wcFail)){
+        // pas de WebCodecs → repli tag pour améliorer les posters
+        cl._thumbBusy=true;
+        makeThumbsTag(cl, ()=>{ cl._thumbBusy=false; renderClips(); drawTimeline(); });
       }
     }
     if(!missing||++_thumbDoctorN>12){ clearInterval(_thumbDoctorT); _thumbDoctorT=null; }
   },3000);
 }
+/* Capture INSTANTANÉE d'une première frame via <video> tag et l'utilise comme
+   poster pour TOUS les sous-plans vides. Objectif : que l'utilisateur voie
+   toujours quelque chose immédiatement, même si WebCodecs cale. Les vignettes
+   fines par-seek arrivent ensuite via wcMakeThumbs/makeThumbsTag et écrasent
+   ce poster. Robuste Safari (rVFC + play/pause + timeout court). */
+function seedThumbs(clip){
+  if(!clip||clip._seedBusy) return;
+  if(!clip.seeks||!clip.seeks.length) return;
+  const anyMissing=clip.seeks.some((s,k)=>s!=null&&!clip.thumbs[k]);
+  if(!anyMissing) return;
+  clip._seedBusy=true;
+  const v=document.createElement('video');
+  v.src=clip.url; v.muted=true; v.playsInline=true; v.setAttribute('playsinline','');
+  v.preload='auto'; v.crossOrigin='anonymous';
+  const cvs=document.createElement('canvas'); cvs.width=360; cvs.height=480;
+  const ctx=cvs.getContext('2d');
+  let fin=false;
+  const finish=(dataUrl)=>{
+    if(fin) return; fin=true;
+    if(dataUrl){
+      // remplit UNIQUEMENT les slots vides — on n'écrase pas une vraie vignette
+      clip.seeks.forEach((s,k)=>{ if(s!=null&&!clip.thumbs[k]){ clip.thumbs[k]=dataUrl; clip._thumbSeed=clip._thumbSeed||{}; clip._thumbSeed[k]=true; } });
+      renderClips(); drawTimeline();
+    }
+    clip._seedBusy=false;
+    try{ v.src=''; }catch(e){}
+  };
+  const draw=()=>{
+    try{
+      if(v.videoWidth>0){
+        const s=Math.max(cvs.width/v.videoWidth, cvs.height/v.videoHeight);
+        ctx.drawImage(v,(cvs.width-v.videoWidth*s)/2,(cvs.height-v.videoHeight*s)/2,v.videoWidth*s,v.videoHeight*s);
+        finish(cvs.toDataURL('image/jpeg',0.6));
+        return;
+      }
+    }catch(e){}
+    finish(null);
+  };
+  setTimeout(()=>finish(null), 4000); // garde-fou : jamais > 4 s
+  v.addEventListener('error',()=>finish(null),{once:true});
+  v.addEventListener('loadedmetadata',()=>{
+    const seek=Math.min(clip.seeks[0]||0.15, Math.max(0.05,(v.duration||1)-0.1));
+    const capture=()=>{
+      if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(()=>draw());
+      else requestAnimationFrame(()=>setTimeout(draw,40));
+    };
+    v.addEventListener('seeked',capture,{once:true});
+    const p=v.play();
+    const go=()=>{ try{ v.currentTime=seek; }catch(e){ draw(); } };
+    if(p&&p.then) p.then(()=>{ v.pause(); go(); }).catch(go);
+    else go();
+  },{once:true});
+  v.load();
+}
 function makeThumbs(clip, done){
+  // 1) vignettes-poster immédiates via <video> tag — utilisateur voit toujours quelque chose
+  seedThumbs(clip);
+  // 2) vignettes fines par-seek dès que le parse WC est prêt (écrasent le poster)
   (clip._wcParse||Promise.resolve()).then(()=>{
     if(clip.wc&&!clip._wcFail){ wcMakeThumbs(clip).then(()=>{ done&&done(); thumbDoctor(); }); return; }
     makeThumbsTag(clip, ()=>{ done&&done(); thumbDoctor(); });
@@ -2766,8 +2837,8 @@ async function wcAwaitFrame(p, t, slackS){
     if(f&&f.timestamp>=(t-slackS)*1e6) return f;
     if(p.err) return f;
     if(p.si!==lastSi||p.buffered()){ lastSi=p.si; lastProg=performance.now(); }
-    if(performance.now()-lastProg>2500) return f;   // plus aucune progression → on rend ce qu'on a
-    if(performance.now()-t0>12000) return f;        // garde-fou absolu
+    if(performance.now()-lastProg>1500) return f;   // plus aucune progression → on rend ce qu'on a
+    if(performance.now()-t0>4000) return f;         // garde-fou : jamais > 4 s par frame (montage impossible sinon)
     await new Promise(r=>setTimeout(r,16));
   }
 }
@@ -2804,6 +2875,7 @@ async function _wcMakeThumbsNow(clip, indices, gen){
       ctx.drawImage(f,(cvs.width-fw*s)/2,(cvs.height-fh*s)/2,fw*s,fh*s);
       clip.thumbs[i]=cvs.toDataURL('image/jpeg',0.7);
       if(clip._timgs) delete clip._timgs[i];
+      if(clip._thumbSeed) delete clip._thumbSeed[i];   // vignette réelle → n'est plus un poster
       renderClips();   // feedback immédiat : chaque vignette apparaît dès qu'elle est prête
     }
   }
@@ -2834,6 +2906,7 @@ function makeThumbsTag(clip, done){
         const s=Math.max(cvs.width/v.videoWidth, cvs.height/v.videoHeight);
         ctx.drawImage(v,(cvs.width-v.videoWidth*s)/2,(cvs.height-v.videoHeight*s)/2,v.videoWidth*s,v.videoHeight*s);
         clip.thumbs[i]=cvs.toDataURL('image/jpeg',0.7);
+        if(clip._thumbSeed) delete clip._thumbSeed[i];   // vignette réelle → n'est plus un poster
         renderClips();   // feedback immédiat, comme le chemin WebCodecs
       }
     }catch(e){}
