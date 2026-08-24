@@ -4793,15 +4793,14 @@ function enterCropMode(p){
   const cl=clips[p.clip], wrap=$('#stageWrap'), cv=$('#preview');
   if(getComputedStyle(wrap).position==='static') wrap.style.position='relative';
   const ov=document.createElement('div'); _cropOv=ov; ov.id='cropOv';
-  ov.style.cssText='position:absolute;inset:0;z-index:80;touch-action:none;cursor:grab;display:flex;flex-direction:column;justify-content:flex-end;align-items:center';
-  ov.innerHTML='<div style="pointer-events:none;background:rgba(0,0,0,.6);border:1px solid var(--line,#1c232e);padding:6px 12px;font-size:12px;margin-bottom:10px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">'+T('Glisse l\u2019image pour recadrer ce plan')+'</div>'
-    +'<div style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.6);border:1px solid var(--line,#1c232e);padding:8px 14px;margin-bottom:10px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">'
-    +'<span style="font-size:11px;opacity:.8">'+T('Zoom')+'</span>'
-    +'<input type="range" id="cropZoom" min="100" max="250" value="'+Math.round((((p.crop&&p.crop.z)||1)*100))+'" style="width:130px" data-testid="crop-zoom-slider">'
-    +'<span style="font-size:11px;width:36px" id="cropZoomVal">'+Math.round((((p.crop&&p.crop.z)||1)*100))+'%</span></div>'
-    +'<div style="display:flex;gap:8px;margin-bottom:16px">'
+  ov.style.cssText='position:absolute;inset:0;z-index:80;touch-action:none;cursor:grab;display:flex;flex-direction:column;justify-content:flex-start;align-items:center';
+  ov.innerHTML='<div style="pointer-events:none;background:rgba(0,0,0,.6);border:1px solid var(--line,#1c232e);padding:6px 12px;font-size:12px;margin-top:10px;border-radius:999px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">'+T('Glisse l\u2019image pour recadrer ce plan')+'</div>'
+    +'<div id="cropBar" style="position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:95;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 20px);background:rgba(0,0,0,.8);border:1px solid var(--line,#1c232e);padding:10px 14px;border-radius:999px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.45)">'
+    +'<span style="font-size:11px;opacity:.8;white-space:nowrap">'+T('Zoom')+'</span>'
+    +'<input type="range" id="cropZoom" min="100" max="250" value="'+Math.round((((p.crop&&p.crop.z)||1)*100))+'" style="width:110px" data-testid="crop-zoom-slider">'
+    +'<span style="font-size:11px;width:36px" id="cropZoomVal">'+Math.round((((p.crop&&p.crop.z)||1)*100))+'%</span>'
     +'<button class="small" data-testid="crop-center-btn">'+T('Centrer')+'</button>'
-    +'<button class="primary" style="padding:8px 20px" data-testid="crop-done-btn">'+T('Terminé')+'</button></div>';
+    +'<button class="primary" style="padding:8px 18px" data-testid="crop-done-btn">'+T('Terminé')+'</button></div>';
   wrap.appendChild(ov);
   const dims=()=>{
     const cfg=(cl.wcProxy&&cl.wcProxy.config)||(cl.wc&&cl.wc.config)||null;
@@ -4826,7 +4825,7 @@ function enterCropMode(p){
   const pts=new Map(); let pinch0=null;
   let drag=null;
   ov.addEventListener('pointerdown',e=>{
-    if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return;
+    if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT'||(e.target.closest&&e.target.closest('#cropBar'))) return;
     try{ ov.setPointerCapture(e.pointerId); }catch(err){}
     pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(pts.size===2){ const a=[...pts.values()]; pinch0={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),z:getZ()}; drag=null; return; }

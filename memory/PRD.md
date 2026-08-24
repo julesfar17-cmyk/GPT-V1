@@ -1,5 +1,8 @@
 # PRD — BEATCUT
 
+## Fix (24 août 2026) — UI recadrage
+- ✅ Les contrôles de recadrage (Zoom/Centrer/Terminé) ne couvrent plus la vidéo : astuce en haut de l'aperçu + barre compacte fixée en bas de l'écran (`#cropBar`, position:fixed). Validé par screenshot.
+
 ## Implémenté (23 août 2026) — Vignettes SERVEUR FFmpeg (modèle veed.io, choix utilisateur "option a")
 - ✅ **Backend** : à chaque upload vidéo (upload direct, import Pexels, import lien), FFmpeg génère une **bande filmstrip JPEG** (16 frames si ≤40s, sinon 24, 180×240 chacune) depuis le fichier disque (zéro course avec le transcodage) → GridFS (`metadata.thumbs_id`, marquée `is_proxy` pour être exclue des quotas/listes)
 - ✅ Endpoint `GET /api/media/{id}/thumbs` : 200 image/jpeg + headers `X-Thumb-Count`/`X-Thumb-Duration` ; 202 pendant génération ; 404 si non-vidéo/échec ; génération à la demande (`_auto_thumbs`) pour les vieux médias
