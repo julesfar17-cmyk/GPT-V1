@@ -768,6 +768,19 @@ document.addEventListener('DOMContentLoaded',function(){
       </div>
 
       <div id="panelParoles">
+        <div id="lyrLangRow" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span class="hint" style="margin:0;white-space:nowrap">Langue des paroles</span>
+          <select id="lyrLang" data-testid="lyrics-lang-select" style="flex:1" onchange="try{localStorage.setItem('bc_lyr_lang',this.value)}catch(e){}">
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="de">Deutsch</option>
+            <option value="it">Italiano</option>
+            <option value="pt">Português</option>
+            <option value="ar">العربية</option>
+            <option value="auto">Auto (détecter)</option>
+          </select>
+        </div>
         <div class="choice2" id="lyricsChoice">
           <button onclick="detectLyrics()"><b>Détecter les paroles</b><span>La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.</span></button>
           <button onclick="showPaste()"><b>J'ai mes paroles</b><span>Colle ton texte : il sera calé sur ta voix, orthographe intacte.</span></button>
@@ -1210,12 +1223,24 @@ const API = {
     updateQuotaUI();
   },
   /* Transcription : proxy Groq serveur — blob wav → [{text,start,end}] relatifs à l'extrait */
-  async transcribe(blob){
+  /* fetch avec timeout dur : un appel réseau ne peut JAMAIS rester suspendu indéfiniment */
+  _fetchT(url, opts, ms){
+    const ac=new AbortController(); const t=setTimeout(()=>ac.abort(), ms||60000);
+    return fetch(url, {...opts, signal:ac.signal}).finally(()=>clearTimeout(t));
+  },
+  async transcribe(blob, lang){
     const fd=new FormData(); fd.append('file', blob, 'extrait.wav');
-    const r=await fetch('/api/proxy/transcribe',{method:'POST',credentials:'include',body:fd});
-    if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.detail||'Transcription indisponible'); }
-    const j=await r.json();
-    return (j.words||[]).map(w=>({text:(w.word||w.text||'').trim(),start:w.start,end:w.end})).filter(w=>w.text);
+    if(lang&&lang!=='auto') fd.append('language', lang);
+    let lastErr;
+    for(let att=0;att<2;att++){   // 1 réessai automatique : un raté réseau ne bloque plus la détection
+      try{
+        const r=await API._fetchT('/api/proxy/transcribe',{method:'POST',credentials:'include',body:fd},180000);
+        if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.detail||'Transcription indisponible'); }
+        const j=await r.json();
+        return (j.words||[]).map(w=>({text:(w.word||w.text||'').trim(),start:w.start,end:w.end})).filter(w=>w.text);
+      }catch(e){ lastErr=e; if(att===0) await new Promise(rs=>setTimeout(rs,1500)); }
+    }
+    throw new Error((lastErr&&lastErr.name==='AbortError')?'Transcription trop longue — vérifie ta connexion et réessaie':(lastErr&&lastErr.message)||'Transcription indisponible');
   },
   /* Banque de clips : proxy Pexels serveur */
   async searchClips(query, orientation){
@@ -1227,20 +1252,24 @@ const API = {
   /* Acapella : Replicate GPU (plan PRO) — blob wav du mix → blob wav voix isolée */
   async acapella(blob, onProgress){
     const fd=new FormData(); fd.append('file', blob, 'extrait.wav');
-    const r=await fetch('/api/separate',{method:'POST',credentials:'include',body:fd});
+    const r=await API._fetchT('/api/separate',{method:'POST',credentials:'include',body:fd},60000);
     if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.detail||'Séparation indisponible'); }
     const {id}=await r.json();
-    for(let i=0;i<70;i++){
+    const t0=Date.now(); let n=0;
+    while(Date.now()-t0<300000){   // plafond GLOBAL 5 min : on ne peut jamais rester coincé à l'étape 1
       await new Promise(rs=>setTimeout(rs,5000));
-      if(onProgress) onProgress(i+1);
-      const s=await(await fetch('/api/separate/'+id,{credentials:'include'})).json();
-      if(s.status==='done') break;
+      if(onProgress) onProgress(++n);
+      let s=null;
+      try{ s=await(await API._fetchT('/api/separate/'+id,{credentials:'include'},15000)).json(); }
+      catch(e){ continue; }        // un poll raté (réseau) n'est plus fatal : on retente au tour suivant
+      if(s.status==='done'){
+        const res=await API._fetchT('/api/separate/'+id+'/result',{credentials:'include'},120000);
+        if(!res.ok) throw new Error('Résultat indisponible');
+        return await res.blob();
+      }
       if(s.status==='error') throw new Error(s.error||'Séparation échouée');
-      if(i===69) throw new Error('Séparation trop longue — réessaie');
     }
-    const res=await fetch('/api/separate/'+id+'/result',{credentials:'include'});
-    if(!res.ok) throw new Error('Résultat indisponible');
-    return await res.blob();
+    throw new Error('Séparation trop longue — réessaie');
   },
   /* Médias : stockage GridFS serveur — cross-device.
      Les vidéos sont TRANSCODÉES côté serveur (H.264 1080p, keyframes 0.5s) :
@@ -1384,7 +1413,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.14-srvthumbs';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.15-lyrics-fix';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -1560,7 +1589,7 @@ const EN={
 "Tempo du morceau":"Track tempo","Tape TAP en rythme sur le beat, ou entre la valeur si tu la connais.":"Hit TAP on the beat, or type the value if you know it.",
 "Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.":"The vocals get isolated first, then each word lands at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
 "Ton texte se cale mot par mot sur ta voix. Orthographe intacte.":"Your text syncs word by word to your vocals. Spelling untouched.",
-"1. Isolation de la voix…":"1. Isolating vocals…","2. Détection des paroles…":"2. Detecting lyrics…","Recaler les paroles":"Re-sync lyrics","Repartir de zéro":"Start over",
+"1. Isolation de la voix…":"1. Isolating vocals…","2. Détection des paroles…":"2. Detecting lyrics…","Recaler les paroles":"Re-sync lyrics","Repartir de zéro":"Start over","Langue des paroles":"Lyrics language","Auto (détecter)":"Auto (detect)","Transcription trop longue — vérifie ta connexion et réessaie":"Transcription took too long — check your connection and try again",
 "Double-clique un mot pour le corriger · bouton « + » entre les mots pour en insérer un · double-clique la piste paroles de la timeline pour ajouter un mot à cet instant.":"Double-click a word to fix it · \"+\" button between words to insert one · double-click the lyrics track on the timeline to add a word at that moment.",
 "Sur la timeline : Maj-clic / Ctrl-clic pour sélectionner plusieurs mots, puis glisse-les en groupe, ⧉ copie, colle au curseur ou supprime (touche Suppr).":"On the timeline: Shift-click / Ctrl-click to select several words, then drag them as a group, ⧉ copy, paste at cursor or delete (Del key).",
 "Styles":"Styles","Texte":"Text","Effets":"Effects","Animation":"Animation","Police":"Font","Bricolage — moderne":"Bricolage — modern","Anton — impact condensé":"Anton — condensed impact","Archivo Black — massif":"Archivo Black — massive","Impact — classique":"Impact — classic","Inter — sobre":"Inter — clean","Special Elite — machine à écrire":"Special Elite — typewriter","Marker — feutre":"Marker — felt pen","Caveat — manuscrit":"Caveat — handwritten","VT323 — écran rétro":"VT323 — retro screen","Monoton — néon":"Monoton — neon","Fraktur — gothique":"Fraktur — gothic","Rubik Glitch — glitché":"Rubik Glitch — glitched",
@@ -3014,6 +3043,13 @@ function autoAssign(){
 }
 /* ---------- Paroles ---------- */
 function showPaste(){ $('#lyricsChoice').style.display='none'; $('#pasteZone').style.display='block'; }
+/* Langue des paroles pour Whisper : évite les transcriptions dans la mauvaise langue */
+function lyrLang(){ const s=$('#lyrLang'); return (s&&s.value)||'fr'; }
+(()=>{ const s=$('#lyrLang'); if(!s) return;
+  let v=null; try{ v=localStorage.getItem('bc_lyr_lang'); }catch(e){}
+  s.value=v||((typeof LANG!=='undefined'&&LANG==='en')?'en':'fr');
+  if(!s.value) s.value='fr';
+})();
 async function detectLyrics(){
   if(!buffer){toast('Dépose d\u2019abord ton morceau');return;}
   $('#lyricsChoice').style.display='none';
@@ -3042,7 +3078,7 @@ async function detectLyrics(){
     s2.style.opacity='1'; s2.style.color='var(--accent)';
     aiBar.set('Analyse · détection des paroles…',55);
     // Étape 2 — transcription (mots relatifs à l'extrait → temps absolus)
-    const words=await API.transcribe(audioForStt);
+    const words=await API.transcribe(audioForStt, lyrLang());
     if(!words.length){ fail('Aucune parole détectée sur cet extrait — essaie un autre passage ou colle ton texte.'); return; }
     aiBar.set('Analyse · calage précis sur ta voix…',88);
     s2.textContent='2. Paroles détectées ✓'; s2.style.color='var(--ok)';
@@ -3075,7 +3111,7 @@ async function applyPaste(){
     let audioForStt=wav;
     if(API.plan==='pro'){ try{ audioForStt=await API.acapella(wav, n=>aiBar.set(null, 5+Math.min(40,n*4))); }catch(e){} }
     aiBar.set('Analyse · détection de la grille temporelle…',50);
-    const words=await API.transcribe(audioForStt);
+    const words=await API.transcribe(audioForStt, lyrLang());
     if(!words.length) throw new Error('aucune voix détectée sur cet extrait');
     aiBar.set('Analyse · calage de tes paroles sur ta voix…',85);
     pushHistory();

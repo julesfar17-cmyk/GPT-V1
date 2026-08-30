@@ -1704,9 +1704,10 @@ async def proxy_transcribe(
         "model": "whisper-large-v3-turbo",
         "response_format": "verbose_json",
         "timestamp_granularities[]": ["word", "segment"],
+        "temperature": "0",
     }
-    if language:
-        form["language"] = language
+    if language and _re.fullmatch(r"[a-z]{2,3}", language.strip().lower()):
+        form["language"] = language.strip().lower()
     async with httpx.AsyncClient(timeout=120) as http:
         r = await http.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
@@ -1730,12 +1731,12 @@ async def proxy_transcribe(
 # Coût : payé à la seconde GPU (~0,01-0,02 € par séparation) — scale to zero.
 # ---------------------------------------------------------------------------
 import replicate
+import io
 from fastapi.responses import StreamingResponse
 
-SEP_DIR = Path("/tmp/beatcut_sep")
-SEP_DIR.mkdir(parents=True, exist_ok=True)
 # Jobs stockés dans MongoDB (collection separation_jobs) — l'état en mémoire ne
 # fonctionne pas en production où plusieurs workers servent les requêtes.
+# L'audio transite en mémoire (≤30 Mo) directement vers Replicate : rien sur le pod.
 
 # Demucs v4 (htdemucs) sur Replicate — le standard pour séparer voix/instru
 DEMUCS_MODEL = (
@@ -1752,22 +1753,23 @@ def _coerce_url(value) -> str:
     return str(value)
 
 
-def _separate_with_replicate(input_path: str) -> str:
+def _separate_with_replicate(audio_bytes: bytes) -> str:
     if not REPLICATE_API_TOKEN:
         raise RuntimeError("séparation indisponible — clé Replicate manquante")
-    with open(input_path, "rb") as audio:
-        output = replicate.run(
-            DEMUCS_MODEL,
-            input={
-                "audio": audio,
-                "stem": "vocals",
-                # Réglages qualité maximale (style UVR5) :
-                "model_name": "htdemucs_ft",  # fine-tuned, bien supérieur à htdemucs
-                "shifts": 2,                  # réduit les artefacts (2× plus long mais propre)
-                "overlap": 0.5,               # plus de chevauchement = transitions plus douces
-                "output_format": "wav",
-            },
-        )
+    audio = io.BytesIO(audio_bytes)
+    audio.name = "extrait.wav"
+    output = replicate.run(
+        DEMUCS_MODEL,
+        input={
+            "audio": audio,
+            "stem": "vocals",
+            # Réglages qualité maximale (style UVR5) :
+            "model_name": "htdemucs_ft",  # fine-tuned, bien supérieur à htdemucs
+            "shifts": 2,                  # réduit les artefacts (2× plus long mais propre)
+            "overlap": 0.5,               # plus de chevauchement = transitions plus douces
+            "output_format": "wav",
+        },
+    )
     vocals_url = ""
     if isinstance(output, dict):
         for key in ("vocals", "vocals_only", "vocals_audio", "audio", "output"):
@@ -1788,10 +1790,10 @@ def _separate_with_replicate(input_path: str) -> str:
     return vocals_url
 
 
-async def _run_separation(job_id: str, input_path: str):
+async def _run_separation(job_id: str, audio_bytes: bytes):
     try:
         loop = asyncio.get_running_loop()
-        vocals_url = await loop.run_in_executor(None, _separate_with_replicate, input_path)
+        vocals_url = await loop.run_in_executor(None, _separate_with_replicate, audio_bytes)
         await db.separation_jobs.update_one(
             {"job_id": job_id},
             {"$set": {"status": "done", "result_url": vocals_url}},
@@ -1808,10 +1810,6 @@ async def _run_separation(job_id: str, input_path: str):
             {"$set": {"status": "error", "error": user_msg}},
         )
     finally:
-        try:
-            os.remove(input_path)
-        except OSError:
-            pass
         cutoff = now_utc() - timedelta(hours=2)
         await db.separation_jobs.delete_many({"created_at": {"$lt": iso(cutoff)}})
 
@@ -2025,9 +2023,6 @@ async def start_separation(file: UploadFile = File(...), user: dict = Depends(ge
     if len(content) > 30_000_000:
         raise HTTPException(status_code=413, detail="Extrait trop long — raccourcis la sélection")
     job_id = uuid.uuid4().hex[:16]
-    input_path = str(SEP_DIR / f"{job_id}.wav")
-    with open(input_path, "wb") as f:
-        f.write(content)
     await db.separation_jobs.insert_one({
         "job_id": job_id, "user_id": user["user_id"],
         "status": "processing", "error": None, "result_url": None,
@@ -2037,7 +2032,7 @@ async def start_separation(file: UploadFile = File(...), user: dict = Depends(ge
         "user_id": user["user_id"], "job_id": job_id,
         "size": len(content), "created_at": iso(now_utc()),
     })
-    asyncio.create_task(_run_separation(job_id, input_path))
+    asyncio.create_task(_run_separation(job_id, content))
     return {"id": job_id, "status": "processing"}
 
 
@@ -2958,29 +2953,29 @@ async def export_finalize(video: UploadFile = File(...), audio: UploadFile = Fil
     Tout passe par le disque (copie et réponse en flux) — jamais l'export entier en RAM."""
     td = tempfile.mkdtemp(prefix="fin_")
 
-    async def spool(up: UploadFile, path: str, max_bytes: int) -> int:
-        size = 0
-        with open(path, "wb") as f:
-            while True:
-                chunk = await up.read(1 << 20)
-                if not chunk:
-                    break
-                size += len(chunk)
-                if size > max_bytes:
-                    raise HTTPException(status_code=413, detail="Export trop volumineux")
-                f.write(chunk)
-        return size
+    def fd_of(up: UploadFile, max_bytes: int) -> int:
+        # FFmpeg lit DIRECTEMENT le fichier temporaire de Starlette (aucune copie sur le pod)
+        if hasattr(up.file, "rollover"):
+            up.file.rollover()
+        fd = up.file.fileno()
+        size = os.fstat(fd).st_size
+        if size > max_bytes:
+            raise HTTPException(status_code=413, detail="Export trop volumineux")
+        if not size:
+            raise HTTPException(status_code=400, detail="Fichiers manquants")
+        os.lseek(fd, 0, os.SEEK_SET)
+        return fd
 
     try:
-        vp, ap, op = os.path.join(td, "v.mp4"), os.path.join(td, "a.wav"), os.path.join(td, "out.mp4")
-        if not await spool(video, vp, 500_000_000) or not await spool(audio, ap, 100_000_000):
-            raise HTTPException(status_code=400, detail="Fichiers manquants")
-        cmd = [FFMPEG_EXE, "-y", "-i", vp, "-i", ap,
+        op = os.path.join(td, "out.mp4")
+        vfd, afd = fd_of(video, 500_000_000), fd_of(audio, 100_000_000)
+        cmd = [FFMPEG_EXE, "-y", "-i", f"/proc/self/fd/{vfd}", "-i", f"/proc/self/fd/{afd}",
                "-map", "0:v:0", "-map", "1:a:0",
                "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
                "-shortest", "-movflags", "+faststart", op]
         proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
+            *cmd, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
+            pass_fds=(vfd, afd))
         try:
             _, err = await asyncio.wait_for(proc.communicate(), timeout=180)
         except asyncio.TimeoutError:
@@ -2989,25 +2984,11 @@ async def export_finalize(video: UploadFile = File(...), audio: UploadFile = Fil
         if proc.returncode != 0 or not os.path.exists(op):
             logger.warning("export_finalize ffmpeg : %s", (err or b"")[-300:])
             raise HTTPException(status_code=500, detail="Assemblage audio impossible")
-        for p in (vp, ap):
-            try:
-                os.remove(p)
-            except OSError:
-                pass
-
-        def stream():
-            try:
-                with open(op, "rb") as f:
-                    while True:
-                        chunk = f.read(1 << 20)
-                        if not chunk:
-                            break
-                        yield chunk
-            finally:
-                shutil.rmtree(td, ignore_errors=True)
-
-        return _SR(stream(), media_type="video/mp4",
-                   headers={"Content-Length": str(os.path.getsize(op))})
+        # Fichier transitoire : streamé puis supprimé sitôt la réponse envoyée (BackgroundTask)
+        from starlette.background import BackgroundTask
+        from fastapi.responses import FileResponse
+        return FileResponse(op, media_type="video/mp4",
+                            background=BackgroundTask(shutil.rmtree, td, ignore_errors=True))
     except Exception:
         shutil.rmtree(td, ignore_errors=True)
         raise

@@ -1,5 +1,11 @@
 # PRD — BEATCUT
 
+## Fix (30 août 2026) — Détection des paroles fiabilisée (v13.15-lyrics-fix)
+- ✅ **Blocage étape 1→2** : tous les fetch de la détection (acapella POST/polls/résultat, transcription) ont désormais un timeout dur (`API._fetchT`) — un appel réseau ne peut plus rester suspendu indéfiniment. Un poll raté n'est plus fatal (retente au tour suivant). Plafond global acapella 5 min. Transcription : 1 réessai automatique.
+- ✅ **Mauvaise langue** : sélecteur "Langue des paroles" (fr/en/es/de/it/pt/ar/auto, persisté `bc_lyr_lang`, défaut = langue de l'UI) transmis à Whisper. Backend : whitelist regex du code langue + temperature 0.
+- ✅ Testé : curl transcribe avec language=fr → "French" forcé ; langue invalide ignorée (200) ; sélecteur visible et fonctionnel (screenshot).
+- ✅ **Refactor stockage transitoire** (lint deploy) : `/api/separate` envoie l'audio en mémoire (BytesIO) directement à Replicate (plus d'écriture pod, testé E2E : job done en 45 s) ; `/api/export/finalize` : FFmpeg lit directement les fd Starlette via `/proc/self/fd/N` + `pass_fds` (zéro copie disque des uploads, sortie via FileResponse+BackgroundTask ; testé : mp4 h264+aac ✓).
+
 ## Fix (24 août 2026) — UI recadrage
 - ✅ Les contrôles de recadrage (Zoom/Centrer/Terminé) ne couvrent plus la vidéo : astuce en haut de l'aperçu + barre compacte fixée en bas de l'écran (`#cropBar`, position:fixed). Validé par screenshot.
 
