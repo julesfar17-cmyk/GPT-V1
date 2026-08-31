@@ -1413,7 +1413,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.17-brat-fit';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.18-brat-flow';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -3349,7 +3349,7 @@ const PRESETS={
   machine: {name:'Machine',   font:"'Special Elite'",size:0.95,color:'#3FCF8E',pos:0.5,textCase:'up',anim:'none',hold:true, mode:'line', weight:400, glow:0, shadow:6, outline:false, scan:false, box:false, hl:false, spacing:0, rot:0},
   karaoke: {name:'Karaoké',   font:"'Bricolage Grotesque'",size:0.95,color:'#FFFFFF',pos:0.75,textCase:'low',anim:'fade',hold:true, mode:'line', weight:700, glow:0, shadow:8, outline:false, scan:false, box:false, hl:true, spacing:0, rot:0},
   doux:    {name:'Doux',      font:'Inter', size:0.85,color:'#FFE066', pos:0.4, textCase:'low',anim:'fade', hold:true,  mode:'line',  weight:500, glow:0,  shadow:6,  outline:false, scan:false, box:false, hl:false, spacing:0, rot:0},
-  etale:   {name:'brat',      font:'Inter', size:0.9, color:'#FFFFFF', pos:0.4, textCase:'low',anim:'none', hold:true,  mode:'spread',weight:400, glow:0,  shadow:6,  outline:false, scan:false, box:false, hl:false, spacing:0, rot:0},
+  etale:   {name:'brat',      font:'Inter', size:0.9, color:'#FFFFFF', pos:0.4, textCase:'low',anim:'none', hold:true,  mode:'spread',weight:700, glow:0,  shadow:4,  outline:false, scan:false, box:false, hl:false, spacing:0, rot:0},
   brut:    {name:'Brut',      font:'Inter', size:0.7, color:'#FFFFFF', pos:0.85,textCase:'low',anim:'none', hold:true,  mode:'line',  weight:600, glow:0,  shadow:6,  outline:false, scan:false, box:true,  hl:false, spacing:0, rot:0},
   affiche: {name:'Affiche',   font:"'Archivo Black'",size:1.5,color:'#FFFFFF',pos:0.5,textCase:'up',anim:'pop',hold:true, mode:'word', weight:400, glow:0, shadow:10, outline:false, scan:false, box:false, hl:false, spacing:0, rot:0, grad:true, gradA:'#FF5C52', gradB:'#FF2D55'},
   comics:  {name:'Comics',    font:"'Bangers'",size:1.7,color:'#FFE14D', pos:0.48,textCase:'up', anim:'zoom', hold:true,  mode:'word',  weight:400, glow:0,  shadow:0,  outline:true, outlineW:0.14, outlineColor:'#000000', scan:false, box:false, hl:false, spacing:1, rot:2},
@@ -3960,33 +3960,29 @@ function drawLyricBlock(c,t,W,H){
     const fs=base*0.7;
     c.font=weight+' '+fs+'px '+style.font;
     if(mode==='spread'){
-      // brat : les mots gardent leur place mais apparaissent UN PAR UN (cumulatif jusqu'au mot courant)
-      const rows=[]; for(let i=0;i<line.length;i+=3) rows.push(line.slice(i,i+3));
-      const rowH=fs*1.6, y0=cy-(rows.length-1)*rowH/2;
-      rows.forEach((r,ri)=>{
-        const y=y0+ri*rowH;
-        if(r.length===1){ if(li*6+ri*3<=idx) drawWordAt(r[0],cx,y,fs,style.hl&&(li*6+ri*3)===idx,W*0.84,isEmph(li*6+ri*3)); return; }
-        const left=W*0.08,right=W*0.92,gap=fs*0.45;
-        // anti-chevauchement : si les mots sont trop larges pour leurs ancres, on réduit la police de la ligne
-        c.font=weight+' '+fs+'px '+style.font;
-        const ws=r.map(t2=>c.measureText(t2).width);
-        let k=1;
-        if(r.length===2){ k=Math.min(1,((right-left)-gap)/Math.max(1,ws[0]+ws[1])); }
-        else {
-          const mid=(left+right)/2;
-          k=Math.min(1,
-            ((mid-left)-gap)/Math.max(1,ws[0]+ws[1]/2),
-            ((right-mid)-gap)/Math.max(1,ws[1]/2+ws[2]));
-        }
-        const rfs=fs*k;
-        r.forEach((txt,i2)=>{
-          if(li*6+ri*3+i2>idx) return;   // pas encore chanté → pas encore affiché
-          const x=left+(right-left)*(i2/(r.length-1));
-          c.textAlign=i2===0?'left':(i2===r.length-1?'right':'center');
-          drawWordAt(txt,x,y,rfs,style.hl&&(li*6+ri*3+i2)===idx,undefined,isEmph(li*6+ri*3+i2));
-        });
-        c.textAlign='center';
+      // brat generator : bloc compact aligné à gauche, mots révélés UN PAR UN.
+      // Layout en flux mesuré (comme un paragraphe) → aucun chevauchement possible.
+      c.font=weight+' '+fs+'px '+style.font;
+      const sp=c.measureText(' ').width;
+      const maxW=W*0.84; const rows2=[]; let row=[], rw=0;
+      line.forEach((txt,i2)=>{
+        const wd=c.measureText(txt).width;
+        if(row.length&&rw+sp+wd>maxW){ rows2.push(row); row=[]; rw=0; }
+        row.push({txt,i2,x:row.length?rw+sp:0,w:wd});
+        rw=(row.length>1?rw+sp:0)+wd;
       });
+      if(row.length) rows2.push(row);
+      const rowH=fs*1.18, y0=cy-(rows2.length-1)*rowH/2, x0=W*0.08;
+      c.textAlign='left';
+      rows2.forEach((r,ri)=>{
+        const y=y0+ri*rowH;
+        r.forEach(o=>{
+          const g=li*6+o.i2;
+          if(g>idx) return;   // pas encore chanté → pas encore affiché
+          drawWordAt(o.txt,x0+o.x,y,fs,style.hl&&g===idx,W*0.92-(x0+o.x),isEmph(g));
+        });
+      });
+      c.textAlign='center';
     } else { // 'line' : phrase centrée avec retours à la ligne
       const maxW=W*0.86, rows=[]; let rowWords=[], curTxt='';
       line.forEach((txt,i2)=>{

@@ -1,5 +1,11 @@
 # PRD — BEATCUT
 
+## Refonte (31 août 2026) — brat en layout flux (v13.18-brat-flow)
+- ✅ Étude des « brat generators » (bratify, epitrite) : le vrai effet = bloc compact aligné à gauche, minuscules, graisse 700, mots révélés un par un
+- ✅ Le mode spread/brat abandonne les ancres fixes gauche/centre/droite (source des chevauchements) pour un **layout en flux mesuré** : chaque mot placé après le précédent avec espace réel, wrap auto à 84% de largeur → chevauchement impossible par construction
+- ✅ Layout calculé sur le groupe entier → position stable pendant la révélation ; règle d'effacement 0,45 s après fin de phrase conservée
+- ✅ Preset brat passé en weight:700, shadow:4 ; validé visuellement sur canvas isolé (1/3/6 mots, fond vert brat)
+
 ## Fix (31 août 2026) — brat : chevauchements + réapparition (v13.17-brat-fit)
 - ✅ Anti-chevauchement : mesure des mots de chaque ligne et réduction auto de la police (`k=min(1, dispo/besoin)`) pour respecter les ancres gauche/centre/droite quelle que soit la taille de police
 - ✅ La phrase terminée disparaît 0,45 s après son dernier mot si le mot suivant appartient à un nouveau groupe (plus de réapparition entière pendant les silences)
