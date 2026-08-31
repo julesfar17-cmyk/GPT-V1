@@ -1,5 +1,10 @@
 # PRD — BEATCUT
 
+## Feature (31 août 2026) — Mode « brat » (v13.16-brat)
+- ✅ L'option d'affichage « Étalé » renommée **« brat »** (bouton Affichage + nom du preset)
+- ✅ Les mots gardent leur emplacement étalé mais apparaissent désormais **un par un** (cumulatif jusqu'au mot chanté), au lieu de tous d'un coup — filtre `li*6+ri*3+i2>idx` dans le rendu spread de `drawLyricBlock`
+- ✅ Vérifié numériquement : pixels de texte strictement croissants aux 4 timestamps des mots (preview et export partagent le même rendu)
+
 ## Fix (30 août 2026) — Détection des paroles fiabilisée (v13.15-lyrics-fix)
 - ✅ **Blocage étape 1→2** : tous les fetch de la détection (acapella POST/polls/résultat, transcription) ont désormais un timeout dur (`API._fetchT`) — un appel réseau ne peut plus rester suspendu indéfiniment. Un poll raté n'est plus fatal (retente au tour suivant). Plafond global acapella 5 min. Transcription : 1 réessai automatique.
 - ✅ **Mauvaise langue** : sélecteur "Langue des paroles" (fr/en/es/de/it/pt/ar/auto, persisté `bc_lyr_lang`, défaut = langue de l'UI) transmis à Whisper. Backend : whitelist regex du code langue + temperature 0.
