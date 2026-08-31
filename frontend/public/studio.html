@@ -1413,7 +1413,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.16-brat';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.17-brat-fit';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -3896,6 +3896,12 @@ function drawLyricBlock(c,t,W,H){
     if(idx<0)return;
     if(M.words[idx].hardEnd&&t>M.words[idx].end)return;   // tu as fixé sa fin : il disparaît pile là
   }
+  // brat : quand la phrase (groupe de 6) est finie et qu'un silence suit, on efface au lieu
+  // de laisser la phrase entière réapparaître jusqu'au groupe suivant
+  if((style.mode||'word')==='spread' && t>M.words[idx].end+0.45){
+    const nx=M.words[idx+1];
+    if(!nx || Math.floor((idx+1)/6)!==Math.floor(idx/6)) return;
+  }
   const w=M.words[idx];
   const base=(H*0.056)*style.size;
   // Mise en avant : mots choisis manuellement (clic dans Style → Mots mis en avant)
@@ -3959,13 +3965,25 @@ function drawLyricBlock(c,t,W,H){
       const rowH=fs*1.6, y0=cy-(rows.length-1)*rowH/2;
       rows.forEach((r,ri)=>{
         const y=y0+ri*rowH;
-        if(r.length===1){ if(li*6+ri*3<=idx) drawWordAt(r[0],cx,y,fs,style.hl&&(li*6+ri*3)===idx,undefined,isEmph(li*6+ri*3)); return; }
-        const left=W*0.08,right=W*0.92;
+        if(r.length===1){ if(li*6+ri*3<=idx) drawWordAt(r[0],cx,y,fs,style.hl&&(li*6+ri*3)===idx,W*0.84,isEmph(li*6+ri*3)); return; }
+        const left=W*0.08,right=W*0.92,gap=fs*0.45;
+        // anti-chevauchement : si les mots sont trop larges pour leurs ancres, on réduit la police de la ligne
+        c.font=weight+' '+fs+'px '+style.font;
+        const ws=r.map(t2=>c.measureText(t2).width);
+        let k=1;
+        if(r.length===2){ k=Math.min(1,((right-left)-gap)/Math.max(1,ws[0]+ws[1])); }
+        else {
+          const mid=(left+right)/2;
+          k=Math.min(1,
+            ((mid-left)-gap)/Math.max(1,ws[0]+ws[1]/2),
+            ((right-mid)-gap)/Math.max(1,ws[1]/2+ws[2]));
+        }
+        const rfs=fs*k;
         r.forEach((txt,i2)=>{
           if(li*6+ri*3+i2>idx) return;   // pas encore chanté → pas encore affiché
           const x=left+(right-left)*(i2/(r.length-1));
           c.textAlign=i2===0?'left':(i2===r.length-1?'right':'center');
-          drawWordAt(txt,x,y,fs,style.hl&&(li*6+ri*3+i2)===idx,undefined,isEmph(li*6+ri*3+i2));
+          drawWordAt(txt,x,y,rfs,style.hl&&(li*6+ri*3+i2)===idx,undefined,isEmph(li*6+ri*3+i2));
         });
         c.textAlign='center';
       });

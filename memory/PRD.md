@@ -1,5 +1,10 @@
 # PRD — BEATCUT
 
+## Fix (31 août 2026) — brat : chevauchements + réapparition (v13.17-brat-fit)
+- ✅ Anti-chevauchement : mesure des mots de chaque ligne et réduction auto de la police (`k=min(1, dispo/besoin)`) pour respecter les ancres gauche/centre/droite quelle que soit la taille de police
+- ✅ La phrase terminée disparaît 0,45 s après son dernier mot si le mot suivant appartient à un nouveau groupe (plus de réapparition entière pendant les silences)
+- ✅ Validé : canvas isolé avec mots longs à police 1,25× (aucun chevauchement) + 0 pixel de texte après le silence
+
 ## Feature (31 août 2026) — Mode « brat » (v13.16-brat)
 - ✅ L'option d'affichage « Étalé » renommée **« brat »** (bouton Affichage + nom du preset)
 - ✅ Les mots gardent leur emplacement étalé mais apparaissent désormais **un par un** (cumulatif jusqu'au mot chanté), au lieu de tous d'un coup — filtre `li*6+ri*3+i2>idx` dans le rendu spread de `drawLyricBlock`
