@@ -1413,7 +1413,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.18-brat-flow';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.19-fluid';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -1434,6 +1434,7 @@ async function ensureClipProxy(clip){
     if(d&&d.status==='failed') return;
     if(d&&d.proxy_id){
       if(d.proxy_id===clip.mediaId) return;   // média déjà léger : rien à télécharger
+      while(playing) await new Promise(r=>setTimeout(r,800));   // jamais de démuxage pendant la lecture (jank)
       try{
         const b=await (await fetch('/api/media/'+d.proxy_id,{credentials:'include'})).blob();
         const wc=await parseWC(b);
@@ -2769,6 +2770,7 @@ function thumbDoctor(){
   if(_thumbDoctorT) return;
   _thumbDoctorN=0;
   _thumbDoctorT=setInterval(()=>{
+    if(playing) return;   // JAMAIS de travail de vignettes pendant la lecture (source de lags)
     let missing=false;
     for(const cl of clips){
       if(!cl.seeks||!cl.seeks.length) continue;
@@ -2877,7 +2879,7 @@ async function serverThumbs(clip){
           const want=(clipPlanCount!=='auto')? Math.min(24,+clipPlanCount) : auto;
           const n=Math.max(1, Math.min(want, Math.max(1, Math.floor(dur/0.6))));
           clip.seeks=Array.from({length:n},(_,i)=>(i+0.15)*(dur/n));
-          autoAssign(); renderClips();
+          autoAssign(); if(!playing) renderClips();
         }
         applySpriteThumbs(clip);
         TEL.push('srv_thumbs_ok',{n:clip.name});
@@ -2908,7 +2910,7 @@ function applySpriteThumbs(clip, only){
     if(clip._timgs) delete clip._timgs[k];
     changed=true;
   });
-  if(changed){ renderClips(); drawTimeline(); }
+  if(changed){ if(typeof playing!=='undefined'&&playing){ window._uiDirty=true; } else { renderClips(); drawTimeline(); } }
 }
 function makeThumbs(clip, done){
   // 0) vignettes SERVEUR : source la plus fiable (générées par FFmpeg à l'upload)
@@ -2947,6 +2949,7 @@ function wcMakeThumbs(clip, indices){
   return run;
 }
 async function _wcMakeThumbsNow(clip, indices, gen){
+  while(playing) await new Promise(r=>setTimeout(r,700));   // jamais de décodeur de vignettes pendant la lecture
   const src=(clip.wcProxy&&clip.wcProxy.config)?clip.wcProxy:clip.wc;   // proxy léger prioritaire : plus fiable et moins lourd
   if(!src||!src.config||clip._thumbGen!==gen) return;
   const cvs=document.createElement('canvas'); cvs.width=360; cvs.height=480;
@@ -2955,6 +2958,7 @@ async function _wcMakeThumbsNow(clip, indices, gen){
   let retried=false;
   const list=indices||clip.seeks.map((_,k)=>k);
   for(const i of list){
+    while(playing) await new Promise(r=>setTimeout(r,700));   // lecture démarrée en cours de passe → pause
     if(clip._thumbGen!==gen) break;   // vignettes reset entre-temps (swap Mux) → on abandonne cette passe
     if(clip.seeks[i]==null) continue;
     const t=Math.min(clip.seeks[i], Math.max(0,(src.durationS||1)-0.1));
@@ -2971,7 +2975,7 @@ async function _wcMakeThumbsNow(clip, indices, gen){
       clip.thumbs[i]=cvs.toDataURL('image/jpeg',0.7);
       if(clip._timgs) delete clip._timgs[i];
       if(clip._thumbSeed) delete clip._thumbSeed[i];   // vignette réelle → n'est plus un poster
-      renderClips();   // feedback immédiat : chaque vignette apparaît dès qu'elle est prête
+      if(!playing) renderClips();   // feedback immédiat : chaque vignette apparaît dès qu'elle est prête
     }
   }
   p.destroy();
@@ -3002,7 +3006,7 @@ function makeThumbsTag(clip, done){
         ctx.drawImage(v,(cvs.width-v.videoWidth*s)/2,(cvs.height-v.videoHeight*s)/2,v.videoWidth*s,v.videoHeight*s);
         clip.thumbs[i]=cvs.toDataURL('image/jpeg',0.7);
         if(clip._thumbSeed) delete clip._thumbSeed[i];   // vignette réelle → n'est plus un poster
-        renderClips();   // feedback immédiat, comme le chemin WebCodecs
+        if(!playing) renderClips();   // feedback immédiat, comme le chemin WebCodecs
       }
     }catch(e){}
     i++; grab();
@@ -3675,7 +3679,7 @@ class SegPlayer{
   fill(){
     if(!this.dec||this.dec.state!=='configured') return;
     const S=this.clip.samples;
-    while(this.frames.length<10 && this.dec.decodeQueueSize<14 && this.si<S.length){
+    while(this.frames.length<14 && this.dec.decodeQueueSize<18 && this.si<S.length){
       const s=S[this.si++];
       try{ this.dec.decode(new EncodedVideoChunk({type:s.key?'key':'delta', timestamp:s.ts, duration:s.dur, data:s.data})); }
       catch(e){ this._telErr(e); break; }
@@ -3853,7 +3857,7 @@ async function play(from){
   startedAt=audioCtx.currentTime; startOff=from; playing=true; looping=false;
   // pompe de décodage indépendante de la rAF : le décodeur ne meurt plus de faim quand le thread est chargé
   if(wcPump) clearInterval(wcPump);
-  wcPump=setInterval(()=>{ if(!playing){clearInterval(wcPump);wcPump=null;return;} try{ if(wcA)wcA.fill(); if(wcB)wcB.fill(); if(wcC)wcC.fill(); }catch(e){} },20);
+  wcPump=setInterval(()=>{ if(!playing){clearInterval(wcPump);wcPump=null;return;} try{ if(wcA)wcA.fill(); if(wcB)wcB.fill(); if(wcC)wcC.fill(); }catch(e){} },15);
   _fpsN=0; _fpsT0=performance.now(); _fpsSent=false;
   $('#playBtn').textContent='❚❚'; raf();
 }
@@ -3862,6 +3866,8 @@ function stopAll(){
   if(wcPump){ clearInterval(wcPump); wcPump=null; }
   playing=false; looping=false;
   wcReset();
+  setPreviewScale(1);   // retour pleine résolution d'aperçu à l'arrêt
+  if(window._uiDirty){ window._uiDirty=false; try{ renderClips(); drawTimeline(); }catch(e){} }
   $('#playBtn').textContent='▶'; $('#loopBtn').textContent='▶ Écouter l\u2019extrait';
 }
 function raf(){
@@ -3873,11 +3879,15 @@ function raf(){
   if(playing){
     _fpsN++;
     const el=performance.now()-_fpsT0;
-    if(el>=5000){
+    if(el>=2000){
       const fps=Math.round(_fpsN*1000/el);
       if(fps<20&&!_fpsSent){ _fpsSent=true;
         TEL.push('low_fps',{fps, sat:!!((M&&M.fx)||{}).sat, plans:(M&&M.plans||[]).length,
           w:wcA&&wcA.clip?wcA.clip.config&&wcA.clip.config.codedWidth:null, buffered:wcA?wcA.buffered():null}); }
+      // Résolution adaptative (façon CapCut) : si l'appareil ne suit pas, l'aperçu descend
+      // en résolution PENDANT la lecture seulement — l'arrêt et l'export restent en pleine qualité
+      if(fps<15&&_prevScale>0.5) setPreviewScale(0.5);
+      else if(fps<22&&_prevScale>0.75) setPreviewScale(0.75);
       _fpsN=0; _fpsT0=performance.now();
     }
   }
@@ -5022,9 +5032,21 @@ $('#bpmInput').addEventListener('change',()=>setBpm($('#bpmInput').value));
 /* ---------- Formats vidéo ---------- */
 const FORMATS={ '916':[1080,1920], '11':[1080,1080], '45':[1080,1350], '169':[1920,1080] };
 const PREVIEW_SCALE=2;   // aperçu en demi-résolution (proxy fluide, comme les logiciels de montage) — l'export reste en pleine résolution
+let _prevScale=1;
+function setPreviewScale(k){
+  if(k===_prevScale) return;
+  _prevScale=k;
+  const f=FORMATS[(M&&M.format)||'916']||FORMATS['916'];
+  const cv=$('#preview');
+  cv.width=Math.max(2,Math.round(f[0]/PREVIEW_SCALE*k));
+  cv.height=Math.max(2,Math.round(f[1]/PREVIEW_SCALE*k));
+  fitPreview();
+  if(!playing){ try{ drawPreview(curTime()); }catch(e){} }
+}
 $$('#fmtSeg button').forEach(b=>b.onclick=()=>{
   $$('#fmtSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   const f=FORMATS[b.dataset.f], cv=$('#preview');
+  _prevScale=1;
   cv.width=Math.round(f[0]/PREVIEW_SCALE); cv.height=Math.round(f[1]/PREVIEW_SCALE);
   if(M){ M.format=b.dataset.f; dirty(); }
   fitPreview(); drawPreview(curTime());

@@ -1,5 +1,12 @@
 # PRD — BEATCUT
 
+## Perf (3 sept 2026) — Fluidité de l'aperçu (v13.19-fluid)
+Recherche best practices éditeurs en ligne (WebCodecs pipeline, CapCut/Clipchamp) puis application :
+- ✅ **Zéro travail lourd pendant la lecture** : thumbDoctor en pause, `_wcMakeThumbsNow` attend l'arrêt (entrée + à chaque itération), `ensureClipProxy` ne démuxe jamais pendant la lecture, `renderClips()` des vignettes différé (`_uiDirty` vidé au stop)
+- ✅ **Résolution adaptative façon CapCut** : `setPreviewScale()` — fenêtre FPS de 2 s ; <22 fps → 0.75×, <15 fps → 0.5× ; retour à 1× au stop (l'export reste pleine résolution)
+- ✅ **Tampons décodeur élargis** : 10→14 frames, decodeQueue 14→18, pompe 20→15 ms
+- ✅ Testé E2E : lecture réelle 60 fps, aucun stall, scale=1 sur machine rapide, restauration au stop, aucune erreur JS
+
 ## Refonte (31 août 2026) — brat en layout flux (v13.18-brat-flow)
 - ✅ Étude des « brat generators » (bratify, epitrite) : le vrai effet = bloc compact aligné à gauche, minuscules, graisse 700, mots révélés un par un
 - ✅ Le mode spread/brat abandonne les ancres fixes gauche/centre/droite (source des chevauchements) pour un **layout en flux mesuré** : chaque mot placé après le précédent avec espace réel, wrap auto à 84% de largeur → chevauchement impossible par construction
