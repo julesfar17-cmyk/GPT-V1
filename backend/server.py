@@ -2868,12 +2868,20 @@ async def media_thumbs(media_id: str, user: dict = Depends(get_current_user)):
     meta = doc.get("metadata") or {}
     tid = meta.get("thumbs_id")
     if tid:
-        grid_out = await media_fs.open_download_stream(ObjectId(tid))
-        data = await grid_out.read()
-        return Response(content=data, media_type="image/jpeg",
-                        headers={"X-Thumb-Count": str(meta.get("thumbs_count") or 16),
-                                 "X-Thumb-Duration": str(meta.get("thumbs_duration") or 0),
-                                 "Cache-Control": "private, max-age=86400"})
+        try:
+            grid_out = await media_fs.open_download_stream(ObjectId(tid))
+            data = await grid_out.read()
+            return Response(content=data, media_type="image/jpeg",
+                            headers={"X-Thumb-Count": str(meta.get("thumbs_count") or 16),
+                                     "X-Thumb-Duration": str(meta.get("thumbs_duration") or 0),
+                                     "Cache-Control": "private, max-age=86400"})
+        except Exception:
+            # sprite disparu (ancien nettoyage) → on purge la référence et on régénère
+            await db["media.files"].update_one(
+                {"_id": oid},
+                {"$unset": {"metadata.thumbs_id": "", "metadata.thumbs_count": "",
+                            "metadata.thumbs_duration": "", "metadata.thumbs_failed": ""}})
+            meta.pop("thumbs_failed", None)
     if meta.get("thumbs_failed"):
         raise HTTPException(status_code=404, detail="Vignettes indisponibles")
     if not _is_video(meta.get("content_type") or "", doc.get("filename") or ""):
@@ -3032,6 +3040,8 @@ async def _cleanup_orphan_media() -> dict:
             continue
         if (f.get("metadata") or {}).get("proxy_of") in referenced:
             continue  # proxy de preview d'un média encore utilisé
+        if (f.get("metadata") or {}).get("thumbs_of") in referenced:
+            continue  # bande de vignettes d'un média encore utilisé
         up = f.get("uploadDate")
         if up is not None:
             if up.tzinfo is None:

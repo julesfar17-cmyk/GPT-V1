@@ -1,5 +1,14 @@
 # PRD — BEATCUT
 
+## Fix Firefox (3 sept 2026) — v13.20-ff
+Reproduction en vrai Firefox (Playwright) : `wcFail` immédiat + chaîne <video> fragile. Correctifs :
+- ✅ **Timeline aux vignettes identiques** : `makeThumbsTag` ne purgeait pas le cache `_timgs` → corrigé (la timeline se met à jour comme la banque)
+- ✅ **Firefox : play() peut ne jamais se résoudre & rVFC peut ne pas tirer sur vidéo en pause** → courses avec timeout (350 ms / 300 ms) dans seedThumbs + makeThumbsTag ; `v.load()` explicite dans tagMeta
+- ✅ **Lecture de secours `<video>` natif** (`liveTagFrame`) quand WebCodecs KO : seek/play du clip.el et dessin par rAF, activé UNIQUEMENT si `_wcFail` (Chrome inchangé) ; pause auto à l'arrêt/changement de plan. Validé en scrub FF (frames réelles, temps différents = images différentes)
+- ✅ **MIME normalisé** dans addClip (File sans type → déduit de l'extension ; FF exige un type sur les blobs vidéo)
+- ✅ **Backend 500 /thumbs** : le nettoyage GridFS purgait les sprites (`thumbs_of` non épargné) → épargnés désormais + endpoint auto-répare les références cassées (unset + régénération)
+- ✅ Tests : FF vignettes 4/4 distinctes en 2,5 s ; pire cas Chromium sans H.264 → vignettes OK via sprite serveur ; lecture Chrome 60 fps sans régression. Projet démo nettoyé des clips de test.
+
 ## Perf (3 sept 2026) — Fluidité de l'aperçu (v13.19-fluid)
 Recherche best practices éditeurs en ligne (WebCodecs pipeline, CapCut/Clipchamp) puis application :
 - ✅ **Zéro travail lourd pendant la lecture** : thumbDoctor en pause, `_wcMakeThumbsNow` attend l'arrêt (entrée + à chaque itération), `ensureClipProxy` ne démuxe jamais pendant la lecture, `renderClips()` des vignettes différé (`_uiDirty` vidé au stop)
