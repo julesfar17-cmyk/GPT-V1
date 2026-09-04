@@ -96,7 +96,7 @@ nav a.active,nav a:hover{color:var(--text);background:var(--panel-2)}
 
 /* ---------- Éditeur ---------- */
 #pageEdit{max-width:none;padding:0;height:calc(100vh - 56px);display:none}
-#pageEdit.show{display:grid;grid-template-rows:48px 1fr 185px}
+#pageEdit.show{display:grid;grid-template-rows:48px 1fr 211px}
 .edit-top{display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 .edit-top .crumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
 .edit-top input.title{background:transparent;border:none;color:var(--text);font-weight:600;font-size:14px;width:200px;padding:4px 6px;border-radius:6px}
@@ -254,7 +254,14 @@ nav a.active,nav a:hover{color:var(--text);background:var(--panel-2)}
 .plan:hover{border-color:#3A4450}
 #tlWave{position:absolute;inset:0;width:100%;height:100%;opacity:.5;pointer-events:none;z-index:0}
 .track{z-index:1}
+/* bande de scrub dédiée au-dessus des pistes : zone large pour placer la lecture au doigt/à la souris */
+#tlRuler{position:relative;height:26px;border-bottom:1px solid var(--line);cursor:ew-resize;z-index:3;touch-action:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,0));}
+#tlRuler:hover{background:linear-gradient(180deg,rgba(255,69,58,.10),rgba(255,69,58,0))}
+.tl-lab.tl-lab-ruler{height:26px!important}
 .playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);z-index:5;pointer-events:none;box-shadow:0 0 6px rgba(255,69,58,.6)}
+.playhead::before{content:'';position:absolute;top:4px;left:50%;transform:translateX(-50%);width:15px;height:15px;border-radius:50%;
+  background:var(--accent);border:2px solid rgba(255,255,255,.35);box-shadow:0 0 10px rgba(255,69,58,.75)}
 .beatmark{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.05);pointer-events:none}
 .cutmark{position:absolute;top:0;height:8px;width:2px;background:var(--accent);opacity:.7;pointer-events:none}
 
@@ -388,7 +395,7 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
   /* Éditeur : aperçu au centre, clips & style en tiroirs */
   .mob-tgl{display:inline-block;font-size:16px;padding:6px 10px}
-  #pageEdit.show{grid-template-rows:48px 1fr 150px}
+  #pageEdit.show{grid-template-rows:48px 1fr 176px}
   .edit-top{gap:8px;padding:0 10px;overflow-x:auto}
   .edit-top .crumb span{display:none}
   .edit-top input.title{width:110px;font-size:13px}
@@ -449,7 +456,7 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   body.mob-edit{overflow:hidden;position:fixed;inset:0;width:100%}
   body.mob-edit header{display:none}
   body.mob-edit #homeTabs{display:none!important}
-  #pageEdit.show{grid-template-rows:50px minmax(0,1fr) 172px;height:100dvh;padding:0 0 calc(64px + env(safe-area-inset-bottom))}
+  #pageEdit.show{grid-template-rows:50px minmax(0,1fr) 208px;height:100dvh;padding:0 0 calc(64px + env(safe-area-inset-bottom))}
   .edit-top{flex-wrap:nowrap;overflow:visible;height:50px;min-height:50px;padding:0 8px;gap:6px}
   .edit-top .mob-tgl,.edit-top #backupsBtn,.edit-top .savestate{display:none}
   .edit-top #editBack{display:inline-flex;align-items:center;justify-content:center;min-width:42px;min-height:42px;padding:0;font-size:19px;flex-shrink:0;border-radius:12px}
@@ -478,6 +485,9 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   /* --- timeline lisible : pistes plus hautes, plans arrondis, tap franc --- */
   .tl-lab{height:32px!important}
   .tl-lab:last-child{height:104px!important}
+  .tl-lab.tl-lab-ruler{height:36px!important}
+  #tlRuler{height:36px}
+  .playhead::before{width:19px;height:19px;top:7px}
   #trWords{height:32px!important}
   #trPlans{height:104px!important}
   #trWords .wblock{top:4px;height:24px}
@@ -999,11 +1009,13 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
     <div class="tl-body">
       <div class="tl-labels">
+        <div class="tl-lab tl-lab-ruler"></div>
         <div class="tl-lab" style="height:40px">Paroles</div>
         <div class="tl-lab" style="height:92px">Plans</div>
       </div>
       <div class="tl-scroll" id="tlScroll">
         <div class="tl-inner" id="tlInner">
+          <div id="tlRuler" data-testid="timeline-scrub-ruler" title="Glisse ici pour placer la lecture"></div>
           <canvas id="tlWave"></canvas>
           <div class="track" id="trWords"></div>
           <div class="track" id="trPlans"></div>
@@ -1413,7 +1425,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.20-ff';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.21-scrub';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -4394,12 +4406,39 @@ $('#tlScroll').addEventListener('wheel',e=>{
   if(tlZoom>1){ e.preventDefault(); $('#tlScroll').scrollLeft += (e.deltaY+e.deltaX); }
 },{passive:false});
 $('#tlScroll').addEventListener('pointerdown',e=>{
-  if(e.target.closest('.wblock,.plan'))return;
+  if(e.target.closest('.wblock,.plan,#tlRuler'))return;
   if(!buffer)return;
   const r=$('#tlInner').getBoundingClientRect();
   const t=ext.start+Math.max(0,(e.clientX-r.left))/PXS();
   if(playing&&!looping){ play(t); } else { startOff=t; drawPlayhead(t); drawPreview(t); }
 });
+/* Bande de scrub : glisser pour placer précisément la tête de lecture (mobile + desktop).
+   Pendant le drag, l'aperçu suit en direct ; au relâcher, la lecture reprend si elle tournait. */
+(function(){
+  const ru=$('#tlRuler'); if(!ru) return;
+  let drag=false, wasPlaying=false, rafId=0, lastT=0;
+  const timeAt=e=>{
+    const r=$('#tlInner').getBoundingClientRect();
+    return Math.min(ext.start+Math.max(0.05,ext.dur)-0.05,
+           Math.max(ext.start, ext.start+(e.clientX-r.left)/PXS()));
+  };
+  const paint=t=>{ lastT=t;
+    if(rafId) return;
+    rafId=requestAnimationFrame(()=>{ rafId=0; drawPlayhead(lastT); try{ drawPreview(lastT); }catch(x){} });
+  };
+  ru.addEventListener('pointerdown',e=>{
+    if(!buffer) return;
+    e.preventDefault(); e.stopPropagation();
+    drag=true; wasPlaying=playing&&!looping;
+    if(playing){ startOff=curTime(); stopAll(); }
+    try{ ru.setPointerCapture(e.pointerId); }catch(x){}
+    const t=timeAt(e); startOff=t; paint(t);
+  });
+  ru.addEventListener('pointermove',e=>{ if(!drag) return; const t=timeAt(e); startOff=t; paint(t); });
+  const end=()=>{ if(!drag) return; drag=false; if(wasPlaying) play(startOff); };
+  ru.addEventListener('pointerup',end);
+  ru.addEventListener('pointercancel',end);
+})();
 document.addEventListener('keydown',e=>{
   if(e.target.matches('input,textarea,select'))return;
   if(!$('#pageEdit').classList.contains('show'))return;

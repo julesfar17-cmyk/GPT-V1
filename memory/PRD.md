@@ -1,5 +1,11 @@
 # PRD — BEATCUT
 
+## UX (4 sept 2026) — Bande de scrub timeline (v13.21-scrub)
+- ✅ Nouvelle bande de scrub dédiée (`#tlRuler`) au-dessus des pistes : 26 px desktop / 36 px mobile, pleine largeur, curseur ew-resize, hover teinté
+- ✅ Drag continu : pointer capture, aperçu mis à jour en direct (rAF), reprise auto de la lecture au relâcher si elle tournait ; clic simple conservé sur les pistes
+- ✅ Poignée ronde sur la tête de lecture (::before 15 px desktop / 19 px mobile) dans la bande
+- ✅ Hauteurs de grille ajustées (+26/+36 px) aux 3 breakpoints pour ne rien rogner ; testé visuellement desktop + mobile 390 px
+
 ## Fix Firefox (3 sept 2026) — v13.20-ff
 Reproduction en vrai Firefox (Playwright) : `wcFail` immédiat + chaîne <video> fragile. Correctifs :
 - ✅ **Timeline aux vignettes identiques** : `makeThumbsTag` ne purgeait pas le cache `_timgs` → corrigé (la timeline se met à jour comme la banque)
