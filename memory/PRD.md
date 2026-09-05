@@ -1,5 +1,8 @@
 # PRD — BEATCUT
 
+## Feature (5 sept 2026) — Bouton Série dans « Plus » mobile
+- ✅ `#mobMore` : bouton « Série de vidéos » (`mob-serie-btn`) → ferme la feuille + `go('serie')` ; testé mobile 390 px (navigation #/serie OK)
+
 ## Fix (5 sept 2026) — Sélecteur de clips du plan (v13.22-pickclip)
 - ✅ « Remplacer le clip » n'affichait visuellement qu'un seul clip : les clips sans vignette étaient des carrés sombres invisibles + `thumbs[0]` pouvait être vide alors que d'autres slots avaient une vignette
 - ✅ Corrigé : première vignette non vide (`find(Boolean)`), clip actuel bordé accent, clips sans vignette affichent leur nom sur fond clair — testé : 6 clips → 6 tuiles visibles (mobile 390 px)

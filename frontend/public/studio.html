@@ -1127,6 +1127,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <div style="display:flex;flex-direction:column;gap:10px">
     <button class="small" onclick="undo()">↶ Annuler la dernière action</button>
     <button class="small" onclick="mobSheet('more');openBackups()">Versions du morceau</button>
+    <button class="small" onclick="mobSheet('more');go('serie')" data-testid="mob-serie-btn">Série de vidéos</button>
     <button class="small" onclick="mobSheet('more');restartMobTuto()" data-testid="mob-restart-tuto">Revoir le tutoriel</button>
     <button class="small" onclick="try{window.top.location.href='/aide'}catch(e){}" data-testid="mob-aide-btn">Aide &amp; guide complet</button>
     <button class="small" onclick="toggleLang()">Français / English</button>
