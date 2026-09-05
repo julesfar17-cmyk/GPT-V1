@@ -1425,7 +1425,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.21-scrub';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.22-pickclip';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -5061,8 +5061,17 @@ function psReplace(){
   row.style.cssText='display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch';
   clips.forEach((c,ci)=>{
     const b=document.createElement('button');
-    b.style.cssText='flex:0 0 auto;width:76px;height:76px;border-radius:12px;border:2px solid var(--line);background:#1A2028 center/cover no-repeat;padding:0';
-    if(c.thumbs&&c.thumbs.length) b.style.backgroundImage='url('+c.thumbs[0]+')';
+    const cur=sheetPlan&&sheetPlan.clip===ci;
+    b.style.cssText='flex:0 0 auto;width:76px;height:76px;border-radius:12px;border:2px solid '+(cur?'var(--accent)':'var(--line)')+';background:#232B36 center/cover no-repeat;padding:0;position:relative;overflow:hidden';
+    const th=(c.thumbs||[]).find(Boolean);   // 1re vignette NON vide (thumbs peut être creux)
+    if(th) b.style.backgroundImage='url('+th+')';
+    else{
+      // pas encore de vignette → le clip reste visible : son nom sur fond clair
+      const s=document.createElement('span');
+      s.textContent=(c.name||'clip').replace(/\.[a-z0-9]+$/i,'').slice(0,10);
+      s.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);padding:4px;text-align:center;word-break:break-all';
+      b.append(s);
+    }
     b.setAttribute('data-testid','plan-replace-clip-'+ci);
     b.onclick=()=>{
       pushHistory();

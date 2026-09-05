@@ -1,5 +1,9 @@
 # PRD — BEATCUT
 
+## Fix (5 sept 2026) — Sélecteur de clips du plan (v13.22-pickclip)
+- ✅ « Remplacer le clip » n'affichait visuellement qu'un seul clip : les clips sans vignette étaient des carrés sombres invisibles + `thumbs[0]` pouvait être vide alors que d'autres slots avaient une vignette
+- ✅ Corrigé : première vignette non vide (`find(Boolean)`), clip actuel bordé accent, clips sans vignette affichent leur nom sur fond clair — testé : 6 clips → 6 tuiles visibles (mobile 390 px)
+
 ## UX (4 sept 2026) — Bande de scrub timeline (v13.21-scrub)
 - ✅ Nouvelle bande de scrub dédiée (`#tlRuler`) au-dessus des pistes : 26 px desktop / 36 px mobile, pleine largeur, curseur ew-resize, hover teinté
 - ✅ Drag continu : pointer capture, aperçu mis à jour en direct (rAF), reprise auto de la lecture au relâcher si elle tournait ; clic simple conservé sur les pistes
