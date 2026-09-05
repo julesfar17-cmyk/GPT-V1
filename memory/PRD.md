@@ -1,5 +1,10 @@
 # PRD — BEATCUT
 
+## UX (5 sept 2026) — Série optimisée mobile (v13.23-serie-mobile)
+- ✅ Tuiles de styles : carrousel horizontal snap (flex 44%/150 px min, hauteur 132 px, sélection accent + glow), scrollbar masquée
+- ✅ Aperçus de l'étape 2 : carrousel swipable (cartes 80 % de large, snap center, canvas pleine largeur, boutons 44 px), hint « Fais défiler pour comparer » (mobile only, traduit)
+- ✅ Bouton « Exporter la sélection » sticky en bas (safe-area) ; testé visuellement mobile 390 px (config + review simulée)
+
 ## Feature (5 sept 2026) — Bouton Série dans « Plus » mobile
 - ✅ `#mobMore` : bouton « Série de vidéos » (`mob-serie-btn`) → ferme la feuille + `go('serie')` ; testé mobile 390 px (navigation #/serie OK)
 
