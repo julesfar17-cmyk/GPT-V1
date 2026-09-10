@@ -3023,7 +3023,8 @@ def _refs_count(st) -> int:
 
 async def _cleanup_orphan_media() -> dict:
     """Supprime de GridFS les fichiers que plus rien ne référence (projets, sauvegardes,
-    watermarks). Marge de 24 h pour les uploads pas encore rattachés à un projet."""
+    watermarks). Marge de 7 jours : un montage jamais sauvegardé (session expirée, quota…)
+    doit rester récupérable via « Récupérer mes vidéos »."""
     referenced = set()
     async for p in db.projects.find({}, {"_id": 0, "state": 1}):
         referenced |= _project_media_ids(p.get("state") or {})
@@ -3032,7 +3033,7 @@ async def _cleanup_orphan_media() -> dict:
     async for u in db.users.find({"watermark_media_id": {"$exists": True}}, {"_id": 0, "watermark_media_id": 1}):
         if u.get("watermark_media_id"):
             referenced.add(str(u["watermark_media_id"]))
-    cutoff = now_utc() - timedelta(hours=24)
+    cutoff = now_utc() - timedelta(days=7)
     scanned = deleted = freed = 0
     async for f in db["media.files"].find({}, {"_id": 1, "length": 1, "uploadDate": 1, "metadata.proxy_of": 1}):
         scanned += 1
@@ -3129,15 +3130,27 @@ async def save_project(payload: dict, user: dict = Depends(get_current_user)):
     if thumb and len(thumb) > 120_000:
         thumb = None  # vignette trop lourde : on l'ignore
     project_id = payload.get("project_id")
+    client_id = str(payload.get("client_id") or "")[:40] or None
+    seq = payload.get("seq") if isinstance(payload.get("seq"), int) else None
     now = iso(now_utc())
     if project_id:
         existing = await db.projects.find_one({"project_id": project_id, "user_id": user["user_id"]})
         if not existing:
             raise HTTPException(status_code=404, detail="Projet introuvable")
+        # Sauvegardes croisées (réseau mobile) : une requête plus ancienne du même onglet ne doit jamais écraser la plus récente
+        if client_id and seq is not None and existing.get("save_client") == client_id \
+                and isinstance(existing.get("save_seq"), int) and seq < existing["save_seq"]:
+            return {"project_id": project_id, "updated_at": existing.get("updated_at"), "stale": True}
+        # Garde-fou : un état VIDE (0 son, 0 clip, 0 plan) ne peut pas remplacer un montage existant (course à l'ouverture)
+        if _state_is_empty(state) and not _state_is_empty(existing.get("state")) and not payload.get("force"):
+            await _log_save_failure(user, project_id, "empty_overwrite_blocked", client_id)
+            raise HTTPException(status_code=409, detail={"code": "empty_overwrite",
+                                                         "message": "Sauvegarde ignorée : état vide alors que le montage existe"})
         await _maybe_backup_project(existing, state)
         res = await db.projects.update_one(
             {"project_id": project_id, "user_id": user["user_id"]},
             {"$set": {"title": title, "state": state, "updated_at": now,
+                      **({"save_client": client_id, "save_seq": seq} if client_id and seq is not None else {}),
                       **({"thumb": thumb} if thumb else {})}},
         )
         if not res.matched_count:
@@ -3149,6 +3162,7 @@ async def save_project(payload: dict, user: dict = Depends(get_current_user)):
     if quota is not None:
         count = await db.projects.count_documents({"user_id": user["user_id"]})
         if count >= quota:
+            await _log_save_failure(user, None, "project_quota", client_id)
             raise HTTPException(
                 status_code=429,
                 detail=f"Limite de {quota} projet{'s' if quota>1 else ''} atteinte sur ton plan. Supprime un projet ou passe au plan supérieur.",
@@ -3157,9 +3171,61 @@ async def save_project(payload: dict, user: dict = Depends(get_current_user)):
     await db.projects.insert_one({
         "project_id": project_id, "user_id": user["user_id"],
         "title": title, "state": state, "thumb": thumb,
+        "save_client": client_id, "save_seq": seq,
         "created_at": now, "updated_at": now,
     })
     return {"project_id": project_id, "updated_at": now}
+
+
+def _state_is_empty(st) -> bool:
+    st = st or {}
+    return not (st.get("audioMediaId") or (st.get("audio") or {}).get("mediaId")
+                or _refs_count(st) or len(st.get("plans") or []) or len(st.get("words") or []))
+
+
+async def _log_save_failure(user, project_id, reason, client_id=None, detail=None, ua=None):
+    await db.save_failures.insert_one({
+        "user_id": (user or {}).get("user_id"), "email": (user or {}).get("email"),
+        "project_id": project_id, "reason": str(reason)[:40], "detail": (str(detail)[:200] if detail else None),
+        "client_id": client_id, "ua": (str(ua)[:300] if ua else None), "created_at": iso(now_utc()),
+    })
+
+
+@api_router.post("/telemetry/save-failed")
+async def log_save_failed(request: Request):
+    """Échec de sauvegarde vu côté studio (401 session, réseau, 5xx…). Auth facultative : un 401 doit aussi être tracé."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    user = None
+    try:
+        user = await get_current_user(request)
+    except HTTPException:
+        pass
+    email = (user or {}).get("email") or (str(body.get("email") or "")[:120] or None)
+    await _log_save_failure({"user_id": (user or {}).get("user_id"), "email": email},
+                            str(body.get("project_id") or "")[:40] or None, body.get("reason") or "unknown",
+                            str(body.get("client_id") or "")[:40] or None, body.get("detail"),
+                            body.get("ua") or request.headers.get("User-Agent"))
+    return {"ok": True}
+
+
+@api_router.get("/admin/telemetry/save-failures")
+async def admin_save_failures(days: int = 7, user: dict = Depends(get_current_user)):
+    await require_admin(user)
+    cutoff = iso(now_utc() - timedelta(days=max(1, min(days, 90))))
+    q = {"created_at": {"$gt": cutoff}}
+    docs = await db.save_failures.find(q, {"_id": 0}).sort("created_at", -1).limit(300).to_list(300)
+    by_reason, by_user = {}, {}
+    for d in docs:
+        by_reason[d.get("reason") or "?"] = by_reason.get(d.get("reason") or "?", 0) + 1
+        k = d.get("email") or d.get("user_id") or "anonyme"
+        u = by_user.setdefault(k, {"count": 0, "last": d.get("created_at"), "reasons": {}})
+        u["count"] += 1
+        u["reasons"][d.get("reason") or "?"] = u["reasons"].get(d.get("reason") or "?", 0) + 1
+    users = sorted(({"email": k, **v} for k, v in by_user.items()), key=lambda x: -x["count"])[:50]
+    return {"total": len(docs), "days": days, "by_reason": by_reason, "users": users, "samples": docs[:30]}
 
 
 @api_router.get("/projects/{project_id}")
@@ -4266,6 +4332,7 @@ async def startup():
             await db.export_logs.delete_many({"mode": {"$exists": True}})
         await db.meta.insert_one({"_id": "export_telemetry_split_v1"})
     await db.export_logs.create_index([("user_id", 1), ("created_at", -1)])
+    await db.save_failures.create_index("created_at")
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id")
     await db.users.create_index("ref_code")

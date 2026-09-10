@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { AffiliateAdmin } from "@/components/AffiliateAdmin";
 import { PreviewTelemetryAdmin } from "@/components/PreviewTelemetryAdmin";
+import { SaveFailuresAdmin } from "@/components/SaveFailuresAdmin";
 import { NewsletterAdmin } from "@/components/NewsletterAdmin";
 
 const fmt = (n, suffix = "") => `${n}${suffix}`;
@@ -699,6 +700,8 @@ export default function Admin() {
             </section>
 
             <AffiliateAdmin />
+
+            <SaveFailuresAdmin />
 
             <PreviewTelemetryAdmin />
 

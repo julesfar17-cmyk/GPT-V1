@@ -1039,3 +1039,12 @@ REDÉPLOIEMENT REQUIS.
 - Cause : `/api/telemetry/export` (envoyé à chaque fin d'encodage) écrivait dans `export_logs`, la collection du quota → 1 export comptait 2 (intermittent car fetch fire-and-forget).
 - Fix : télémétrie déplacée dans `db.export_telemetry` ; migration au démarrage (`export_telemetry_split_v1`) qui purge les anciens logs télémétrie d'`export_logs` (corrige rétroactivement les quotas clients) ; index `(user_id, created_at)` sur `export_logs`.
 - Testé via curl : télémétrie → quota inchangé ; register → +1.
+
+
+## 2026-06 — Fiabilisation de la sauvegarde automatique des projets (perte de montages)
+Causes racines trouvées : (1) sauvegarde 100 % serveur sans filet local, échecs 401 (session expirée / anti-partage 3 appareils) et 429 (limite projets Free=1) signalés uniquement par un petit label ; (2) requêtes de save croisées (mobile) → ancienne écrase récente ; (3) course à l'ouverture d'un projet (état vide envoyé avant le chargement) ; (4) purge GridFS des médias non référencés après 24 h → vidéos supprimées si le projet n'a jamais été sauvé ; (5) clip sans mediaId ignoré au rechargement → indices de plans décalés.
+Fix :
+- Backend `save_project` : `client_id`+`seq` (une seq plus ancienne du même onglet → `stale:true`, pas d'écrasement) ; `_state_is_empty` → 409 `empty_overwrite` si un état vide veut remplacer un montage ; `_log_save_failure` → collection `save_failures` ; `POST /api/telemetry/save-failed` (auth facultative) ; `GET /api/admin/telemetry/save-failures?days=` ; marge nettoyage GridFS 24 h → 7 jours.
+- Studio (`studio.html` bloc « Sauvegarde fiabilisée ») : saves sérialisées, retry exponentiel (2→30 s), flush `keepalive` sur pagehide/visibilitychange, flush avant changement de morceau, `canPersist()` bloque si projet distant non chargé, `restoreIncomplete=true` posé AVANT le GET, brouillon IndexedDB (`bc_drafts`) restauré silencieusement si plus récent/complet que le serveur, écran bloquant style tuto (`save-block-overlay`) pour 401 (bouton reconnexion + « Je suis reconnecté ») / 429 (liste des projets avec Supprimer + lien tarifs) / offline / serveur ; remap des indices de plans si clip manquant + modal `missing-clips-modal` mettant en avant « Récupérer mes vidéos ».
+- Admin React : section `SaveFailuresAdmin` (par raison + par utilisateur).
+- Testé : iteration_31.json (100 % backend/frontend).

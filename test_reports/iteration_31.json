@@ -1,0 +1,23 @@
+{
+  "summary": "Tested BeatCut studio save-reliability fixes (backend regression + full frontend flows for 401/429 overlays + admin telemetry). All scenarios in the review request PASS. No functional issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_save_reliability_iter31.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "studio.html is ~3000 lines of vanilla JS; consider splitting the save-reliability block (persistRemote/scheduleSaveRetry/showSaveBlock) into a separate module for maintainability.",
+    "The overlay title text ('Ton montage n’est PAS sauvegardé.') is reused for both auth (401) and quota (429) kinds; only the eyebrow differentiates. Consider tailoring title per kind for clarity, though this is minor UX polish."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_save_reliability_iter31.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "demo@beatcut.fr / Demo1234! ; julesfar17@gmail.com / Carnageproduction1704*",
+  "seed_data_creation": "During quota test, 6 TEST_quota_* projects were temporarily created on the demo account; all cleaned up at end (final project count restored to 4: Sans titre, Recette 150BPM, Sans titre, Morceau Série Test). No leftover test data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression covers /api/projects client_id+seq stale, empty state 409, force override, and /api/admin/telemetry/save-failures. Frontend flow validated via Playwright on public URL: (1) New track creation via top-right 'NEW TRACK' button (data-testid not present, uses text) triggers project creation and #saveState -> 'Saved'/'ok'. (2) After context.clear_cookies() + edit, 401 overlay renders with save-block-overlay/eyebrow='Session expirée'/title='Ton montage n’est PAS sauvegardé.'/save-block-login+save-block-retry buttons; re-login + save-block-retry dismisses overlay and edited title is persisted (GET /api/projects/{id}). (3) With 10 projects filled, clicking 'NEW TRACK' shows quota overlay with save-block-eyebrow='Limite de projets' and 10 save-block-delete-project rows; clicking Delete on a TEST_quota row dismisses overlay after retry and new project is created (URL /edit/{id}). (4) Reload existing project 'Recette 150BPM' from /studio.html#/morceaux -> title restored, saveState=Saved, 0 console errors. (5) Admin /admin page as julesfar17 shows save-failures-section with total=6, breakdown (Limite de projets, Session expirée, État vide bloqué course), users table (demo@beatcut.fr, client@test.fr), and days-select works. Note: studio.html #editTitle is hidden until #/edit/{id} route; use page.evaluate to set value+dispatch input to avoid focus flakiness. Onboarding tutorial 'WELCOME TO THE STUDIO' overlays are shown on first opens but do not block programmatic saves.",
+  "rca of the issue": "N/A - all scenarios pass; fix implementation is working as designed (client_id/seq linearization, empty-state 409 guard, quota+auth blocking overlays, admin telemetry endpoint)."
+}

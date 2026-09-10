@@ -1764,11 +1764,32 @@ async function bootRemote(){
   }catch(e){}
 }
 
-let persistTimer=null;
-async function persistRemote(){
-  if(!API.user||!M) return;
-  if(restoreIncomplete){ $('#saveState').textContent='Sauvegarde désactivée (chargement incomplet)'; $('#saveState').classList.remove('ok'); return; }
-  const stateDoc={
+/* ===== Sauvegarde fiabilisée =====
+   - requêtes sérialisées + n° de séquence (jamais d'écrasement hors-ordre)
+   - réessai automatique (réseau / 5xx), flush forcé à la fermeture (keepalive)
+   - brouillon local IndexedDB : filet silencieux, restauré si le serveur a moins que le navigateur
+   - 401 / 429 : écran bloquant impossible à rater (style tuto) */
+const SAVE_CLIENT=(window.crypto&&crypto.randomUUID)?crypto.randomUUID().slice(0,20):('c'+Date.now().toString(36)+Math.random().toString(36).slice(2,8));
+let saveSeq=0, persistTimer=null, saveInflight=false, saveAgain=false, saveFails=0, saveRetryTimer=null, saveNeeded=false;
+const DRAFT={
+  db:null,
+  open(){
+    if(this.db!==null) return Promise.resolve(this.db);
+    return new Promise(res=>{
+      try{
+        const rq=indexedDB.open('bc_drafts',1);
+        rq.onupgradeneeded=()=>{ rq.result.createObjectStore('drafts'); };
+        rq.onsuccess=()=>{ this.db=rq.result; res(this.db); };
+        rq.onerror=()=>{ this.db=false; res(false); };
+      }catch(e){ this.db=false; res(false); }
+    });
+  },
+  async put(id,doc){ const d=await this.open(); if(!d) return; try{ d.transaction('drafts','readwrite').objectStore('drafts').put(doc,id); }catch(e){} },
+  async get(id){ const d=await this.open(); if(!d) return null; return new Promise(res=>{ try{ const rq=d.transaction('drafts').objectStore('drafts').get(id); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }catch(e){ res(null); } }); },
+  async del(id){ const d=await this.open(); if(!d) return; try{ d.transaction('drafts','readwrite').objectStore('drafts').delete(id); }catch(e){} },
+};
+function buildStateDoc(){
+  return {
     v2:true, title:M.title, videos:M.videos||0,
     bpm:M.bpm||bpm||0, beatAnchor, format:M.format||'916',
     ext:{...ext}, fx:M.fx||null, style:M.style||style,
@@ -1776,8 +1797,27 @@ async function persistRemote(){
     audioMediaId:M.audioMediaId||null, audioName:M.audioName||null,
     clipRefs:clips.map(c=>({mediaId:c.mediaId||null, pexelsUrl:c.pexelsUrl||null, name:c.name||'', crop:c.crop||null})),
   };
-  const payload={title:M.title||'Sans titre', state:stateDoc};
+}
+function setSaveState(txt,ok){ const el=$('#saveState'); if(!el) return; el.textContent=txt; el.classList.toggle('ok',!!ok); }
+function saveFailTel(reason,status,detail){
+  try{ fetch('/api/telemetry/save-failed',{method:'POST',credentials:'include',keepalive:true,headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({project_id:M&&M.id, reason, detail:(status?('HTTP '+status+' '):'')+String(detail||'').slice(0,160), client_id:SAVE_CLIENT, email:API.user&&API.user.email, ua:navigator.userAgent})}).catch(()=>{}); }catch(e){}
+}
+function canPersist(){
+  if(!API.user||!M) return false;
+  if(M._remote && !M._loaded) return false;   // projet distant pas encore chargé : un état vide ne doit JAMAIS partir
+  if(restoreIncomplete){ setSaveState('Sauvegarde désactivée (chargement incomplet)',false); return false; }
+  return true;
+}
+async function persistRemote(){
+  if(!canPersist()) return;
+  if(saveInflight){ saveAgain=true; return; }
+  saveInflight=true; saveAgain=false;
+  const stateDoc=buildStateDoc();
+  const seq=++saveSeq;
+  const payload={title:M.title||'Sans titre', state:stateDoc, client_id:SAVE_CLIENT, seq};
   if(M._remote) payload.project_id=M.id;
+  DRAFT.put(M.id,{state:stateDoc,title:payload.title,savedAt:Date.now(),remote:!!M._remote});
   try{
     const thumbCv=$('#preview');
     if(thumbCv && thumbCv.style.display!=='none'){
@@ -1786,27 +1826,122 @@ async function persistRemote(){
       payload.thumb=t.toDataURL('image/jpeg',0.5);
     }
   }catch(e){}
+  const savedFor=M;
   try{
     const r=await fetch('/api/projects',{method:'POST',credentials:'include',
       headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(r.ok){
       const d=await r.json();
-      if(!M._remote){ M.id=d.project_id; M._remote=true; if(location.hash.startsWith('#/edit/')) history.replaceState(null,'','#/edit/'+M.id); }
-      $('#saveState').textContent='Enregistré'; $('#saveState').classList.add('ok');
+      if(!savedFor._remote){ const localId=savedFor.id; savedFor.id=d.project_id; savedFor._remote=true; savedFor._loaded=true; DRAFT.del(localId); if(M===savedFor&&location.hash.startsWith('#/edit/')) history.replaceState(null,'','#/edit/'+savedFor.id); }
+      savedFor.updated_at=d.updated_at||savedFor.updated_at;
+      saveFails=0; saveNeeded=false; hideSaveBlock();
+      DRAFT.put(savedFor.id,{state:stateDoc,title:payload.title,savedAt:Date.now(),remote:true,synced:true});
+      setSaveState(d.stale?'Enregistré':'Enregistré',true);
+    }else if(r.status===401){
+      saveNeeded=true; setSaveState('NON sauvegardé — session expirée',false);
+      saveFailTel('auth_401',401,''); showSaveBlock('auth');
     }else if(r.status===429){
       const j=await r.json().catch(()=>({}));
-      $('#saveState').textContent='Limite de projets';
-      $('#saveState').classList.remove('ok');
-      if(!persistRemote._warned){ persistRemote._warned=true; toast(j.detail||'Limite de projets atteinte — supprime un morceau ou passe au plan supérieur'); }
+      saveNeeded=true; setSaveState('NON sauvegardé — limite de projets',false);
+      saveFailTel('project_quota',429,j.detail); showSaveBlock('quota',j.detail);
+    }else if(r.status===409){
+      // état vide refusé par le serveur (course à l'ouverture) : on ne réessaie pas, le montage serveur est intact
+      saveFailTel('empty_overwrite',409,''); setSaveState('Enregistré',true);
     }else{
-      $('#saveState').textContent='Erreur de sauvegarde'; $('#saveState').classList.remove('ok');
+      const j=await r.json().catch(()=>({}));
+      scheduleSaveRetry('server_'+r.status, r.status, j.detail);
     }
   }catch(e){
-    $('#saveState').textContent='Hors ligne'; $('#saveState').classList.remove('ok');
+    scheduleSaveRetry('network',0,(e&&e.message)||'');
+  }finally{
+    saveInflight=false;
+    if(saveAgain) persistRemote();
   }
 }
-function persist(){ store.saveStyles(DB.styles); clearTimeout(persistTimer); persistTimer=setTimeout(persistRemote, 800); }
-function dirty(){ $('#saveState').textContent='Enregistrement…'; $('#saveState').classList.remove('ok'); persist(); }
+function scheduleSaveRetry(reason,status,detail){
+  saveNeeded=true; saveFails++;
+  const wait=Math.min(30000, 2000*Math.pow(2,saveFails-1));
+  setSaveState((reason==='network'?'Hors ligne':'Erreur serveur')+' — nouvel essai dans '+Math.round(wait/1000)+' s',false);
+  if(saveFails===3) saveFailTel(reason,status,detail);
+  if(saveFails>=3) showSaveBlock(reason==='network'?'offline':'server', detail);
+  clearTimeout(saveRetryTimer); saveRetryTimer=setTimeout(persistRemote, wait);
+}
+function persist(){ store.saveStyles(DB.styles); saveNeeded=true; clearTimeout(persistTimer); persistTimer=setTimeout(persistRemote, 800); }
+function dirty(){ setSaveState('Enregistrement…',false); persist(); }
+/* Fermeture / mise en arrière-plan : on envoie tout de suite ce qui attend (keepalive survit à l'onglet) */
+function flushSaveNow(){
+  if(!saveNeeded && !persistTimer) return;
+  if(!canPersist()) return;
+  clearTimeout(persistTimer); persistTimer=null;
+  if(!M._remote){ persistRemote(); return; }   // création : passe par la voie normale (attribution de l'id, zéro doublon)
+  const stateDoc=buildStateDoc(); const seq=++saveSeq;
+  const payload={title:M.title||'Sans titre', state:stateDoc, client_id:SAVE_CLIENT, seq};
+  if(M._remote) payload.project_id=M.id;
+  DRAFT.put(M.id,{state:stateDoc,title:payload.title,savedAt:Date.now(),remote:!!M._remote});
+  const body=JSON.stringify(payload);
+  if(body.length>60000){ persistRemote(); return; }   // keepalive limité à 64 Ko : on passe par la voie normale
+  try{ fetch('/api/projects',{method:'POST',credentials:'include',keepalive:true,headers:{'Content-Type':'application/json'},body}).then(r=>{ if(r.ok){ saveNeeded=false; setSaveState('Enregistré',true); } }).catch(()=>{}); }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushSaveNow(); });
+window.addEventListener('pagehide',flushSaveNow);
+window.addEventListener('online',()=>{ if(saveNeeded){ saveFails=0; persistRemote(); } });
+/* Écran bloquant (style tuto) : le montage n'est PAS sauvegardé et l'utilisateur doit agir */
+function hideSaveBlock(){ const o=document.getElementById('saveBlock'); if(o) o.remove(); }
+async function showSaveBlock(kind,detail){
+  if(document.getElementById('saveBlock')&&document.getElementById('saveBlock').dataset.kind===kind) return;
+  hideSaveBlock();
+  const d=document.createElement('div'); d.id='saveBlock'; d.dataset.kind=kind; d.setAttribute('data-testid','save-block-overlay');
+  d.style.cssText='position:fixed;inset:0;z-index:9990;background:var(--void,#000);display:flex;flex-direction:column;overflow:auto';
+  const H={
+    auth:['Session expirée','Ton montage n\u2019est PAS sauvegardé.','Ta session a expiré ou ton compte a été ouvert sur un autre appareil. Reconnecte-toi dans le nouvel onglet, puis reviens ici : tout ton travail est encore dans cette page.'],
+    quota:['Limite de projets','Ton montage n\u2019est PAS sauvegardé.',(detail&&typeof detail==='string')?detail:'Tu as atteint le nombre de projets de ton plan. Supprime un ancien projet ci-dessous ou passe au plan supérieur — la sauvegarde reprend toute seule.'],
+    offline:['Hors ligne','Ton montage n\u2019est PAS sauvegardé.','Impossible de joindre le serveur. Vérifie ta connexion (Wi-Fi conseillé) : la sauvegarde réessaie automatiquement. Ne ferme pas cette page.'],
+    server:['Erreur serveur','Ton montage n\u2019est PAS sauvegardé.','Le serveur ne répond pas correctement. La sauvegarde réessaie automatiquement — ne ferme pas cette page. Si ça persiste, écris-nous.'],
+  }[kind]||['Sauvegarde impossible','Ton montage n\u2019est PAS sauvegardé.',String(detail||'')];
+  d.innerHTML='<div class="onb-prog"><i style="width:100%;background:var(--crimson)"></i></div>'+
+    '<div class="onb-wrap" style="text-align:center">'+
+    '<div class="onb-eyebrow onb-fade" data-testid="save-block-eyebrow">'+H[0]+'</div>'+
+    '<h2 class="onb-q onb-fade" style="animation-delay:.06s" data-testid="save-block-title">'+H[1]+'</h2>'+
+    '<p class="onb-sub onb-fade" style="animation-delay:.12s" data-testid="save-block-text">'+H[2]+'</p>'+
+    '<div id="saveBlockList" class="onb-fade" style="animation-delay:.16s;text-align:left"></div>'+
+    '<div class="onb-fade" style="animation-delay:.2s;display:grid;gap:10px">'+
+    (kind==='auth'?'<button class="onb-cta" style="width:100%" data-testid="save-block-login" onclick="window.open(\'/login\',\'_blank\')">Me reconnecter (nouvel onglet)</button>':'')+
+    (kind==='quota'?'<button class="onb-cta" style="width:100%;background:transparent;border:1px solid var(--hair-2,#3a3a3e);color:var(--frost,#fff)" data-testid="save-block-upgrade" onclick="window.open(\'/#tarifs\',\'_blank\')">Passer au plan supérieur</button>':'')+
+    '<button class="onb-cta" style="width:100%'+(kind==='auth'?';background:transparent;border:1px solid var(--hair-2,#3a3a3e);color:var(--frost,#fff)':'')+'" data-testid="save-block-retry" onclick="retrySaveNow()">'+(kind==='auth'?'Je suis reconnecté — sauvegarder':'Réessayer maintenant')+'</button>'+
+    '</div><div id="saveBlockMsg" class="onb-sub" style="margin-top:14px;min-height:20px" data-testid="save-block-msg"></div></div>';
+  document.body.appendChild(d);
+  if(kind==='quota') fillQuotaList();
+}
+async function fillQuotaList(){
+  const box=document.getElementById('saveBlockList'); if(!box) return;
+  try{
+    const r=await fetch('/api/projects',{credentials:'include'}); if(!r.ok) return;
+    const {projects}=await r.json();
+    const others=(projects||[]).filter(p=>!M||p.project_id!==M.id);
+    if(!others.length) return;
+    box.innerHTML='<div class="onb-eyebrow" style="margin:6px 0 10px">Tes projets</div>'+others.map(p=>
+      '<div class="bk-row" style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--hair-2,#2a2a2e)"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.title||'Sans titre').replace(/</g,'&lt;')+'</span>'+
+      '<button class="small" data-testid="save-block-delete-project" onclick="deleteProjectForRoom(\''+p.project_id+'\',this)">Supprimer</button></div>').join('');
+  }catch(e){}
+}
+async function deleteProjectForRoom(pid,btn){
+  if(!confirm('Supprimer définitivement ce projet pour libérer une place ?')) return;
+  btn.disabled=true;
+  const r=await fetch('/api/projects/'+pid,{method:'DELETE',credentials:'include'}).catch(()=>null);
+  if(r&&r.ok){ DB.morceaux=DB.morceaux.filter(m=>m.id!==pid); btn.closest('.bk-row').remove(); retrySaveNow(); }
+  else { btn.disabled=false; toast('Suppression impossible'); }
+}
+async function retrySaveNow(){
+  const msg=document.getElementById('saveBlockMsg'); if(msg) msg.textContent='Sauvegarde en cours…';
+  if(document.getElementById('saveBlock')&&document.getElementById('saveBlock').dataset.kind==='auth'){
+    try{ API.user=null; await API.init(); }catch(e){}
+    if(!API.user){ if(msg) msg.textContent='Toujours pas connecté — termine la connexion dans l\u2019autre onglet, puis réessaie.'; return; }
+  }
+  saveFails=0; clearTimeout(saveRetryTimer);
+  await persistRemote();
+  const o=document.getElementById('saveBlock');
+  if(o){ const m2=document.getElementById('saveBlockMsg'); if(m2) m2.textContent='Toujours impossible — '+($('#saveState')?$('#saveState').textContent:''); }
+}
 
 /* ---------------- Router ---------------- */
 function go(p){ location.hash='#/'+p; }
@@ -1995,6 +2130,7 @@ function resetAudioState(){
 }
 function openEditor(id){
   if(!engineGuard()) return;
+  if(M && M.id!==id && (saveNeeded||persistTimer)) flushSaveNow();   // changement de morceau : on pousse d'abord ce qui attend
   M=DB.morceaux.find(x=>x.id===id); if(!M){go('morceaux');return;}
   if(loadedFor!==M.id){
     resetAudioState(); loadedFor=M.id;
@@ -2016,16 +2152,30 @@ function openEditor(id){
 
 /* Restauration complète d'un morceau depuis le serveur (état + audio + clips) */
 async function fetchRemoteMorceau(m){
+  // Verrou posé AVANT la requête : aucune sauvegarde (même différée) ne peut partir avec un état vide
+  restoreIncomplete=true;
   const r=await fetch('/api/projects/'+m.id,{credentials:'include'});
   if(!r.ok) throw new Error('morceau introuvable');
   const doc=await r.json();
-  const st=doc.state||{};
+  let st=doc.state||{};
+  // Brouillon local (IndexedDB) : si ce navigateur a une version plus récente ET plus complète que le serveur
+  // (sauvegarde serveur échouée à la dernière session), on la reprend et on la renvoie au serveur.
+  try{
+    const dr=await DRAFT.get(m.id);
+    const cnt=x=>((x&&x.plans)||[]).length+((x&&x.clipRefs)||[]).filter(c=>c.mediaId||c.pexelsUrl).length+((x&&x.words)||[]).length;
+    const srvTs=doc.updated_at?Date.parse(doc.updated_at):0;
+    if(dr&&dr.state&&!dr.synced&&dr.savedAt>srvTs+1500&&cnt(dr.state)>=cnt(st)&&JSON.stringify(dr.state)!==JSON.stringify(st)){
+      st=dr.state; m._draftRecovered=true;
+      TEL.push('draft_recovered',{local:cnt(dr.state),server:cnt(doc.state||{})});
+    }
+  }catch(e){}
   Object.assign(m,{
-    title:doc.title, videos:st.videos||0, bpm:st.bpm||0, format:st.format||'916',
+    title:(m._draftRecovered&&st.title)||doc.title, videos:st.videos||0, bpm:st.bpm||0, format:st.format||'916',
     fx:st.fx||null, style:st.style||null,
     words:st.words||[], cuts:st.cuts||[], plans:st.plans||[],
     audioMediaId:st.audioMediaId||null, audioName:st.audioName||null,
     clipRefs:st.clipRefs||[],
+    updated_at:doc.updated_at,
     _loaded:true,
   });
   if(st.ext) ext={...st.ext};
@@ -2033,8 +2183,7 @@ async function fetchRemoteMorceau(m){
   // Verrou de chargement : audio + clips ENTIÈREMENT téléchargés avant lecture.
   // ACTIF pendant toute la restauration : sinon chaque addClip déclenche une sauvegarde
   // PARTIELLE qui écrase le bon état (le vrai part dans l'historique Versions → bug signalé).
-  restoreIncomplete=true;
-  let restoreFails=0;
+  let restoreFails=0, missingRefs=0;
   const total=(m.audioMediaId?1:0)+((m.clipRefs||[]).length);
   let step=0;
   const prog=f=>showLoad('Chargement de ton morceau…',total?(step+f)/total:1,total?Math.min(step+1,total)+' / '+total+' fichiers':'');
@@ -2047,24 +2196,47 @@ async function fetchRemoteMorceau(m){
     }catch(e){ restoreFails++; toast('Audio introuvable — re-dépose ton morceau'); }
     step++;
   }
-  // Clips (perso GridFS + Pexels par URL)
+  // Clips (perso GridFS + Pexels par URL) — les plans référencent les clips par INDEX :
+  // un clip manquant ne doit pas décaler les suivants → table de correspondance ancien→nouvel index
+  const idxMap=[];
   for(const c of m.clipRefs||[]){
+    let newIdx=null;
     try{
       prog(0);
-      if(c.mediaId){ addClip(await API.fetchMedia(c.mediaId,c.name,prog),{mediaId:c.mediaId,skipUpload:true,crop:c.crop||null}); }
+      if(c.mediaId){ addClip(await API.fetchMedia(c.mediaId,c.name,prog),{mediaId:c.mediaId,skipUpload:true,crop:c.crop||null}); newIdx=clips.length-1; }
       else if(c.pexelsUrl){
         const rr=await fetch(c.pexelsUrl);
-        if(rr.ok) addClip(new File([await rr.blob()],c.name||'clip.mp4',{type:'video/mp4'}),{pexelsUrl:c.pexelsUrl,skipUpload:true,crop:c.crop||null});
+        if(rr.ok){ addClip(new File([await rr.blob()],c.name||'clip.mp4',{type:'video/mp4'}),{pexelsUrl:c.pexelsUrl,skipUpload:true,crop:c.crop||null}); newIdx=clips.length-1; }
         else restoreFails++;
       }
+      else missingRefs++;   // upload jamais terminé lors de la session précédente
     }catch(e){ restoreFails++; }
+    idxMap.push(newIdx);
     step++;
+  }
+  if(idxMap.some(x=>x===null)){
+    (m.plans||[]).forEach(p=>{ if(p.clip!=null){ const ni=idxMap[p.clip]; p.clip=(ni==null)?null:ni; } });
   }
   if(restoreFails===0){ restoreIncomplete=false; }
   else{
     TEL.push('restore_incomplete',{fails:restoreFails,total});
     toast('Certains fichiers n\u2019ont pas pu être rechargés — la sauvegarde est suspendue pour protéger ton morceau. Recharge la page pour réessayer.');
   }
+  if(missingRefs>0 || restoreFails>0) showMissingClips(missingRefs+restoreFails);
+  if(m._draftRecovered){ m._draftRecovered=false; toast('✓ Montage récupéré depuis ce navigateur — re-sauvegardé en ligne'); if(!restoreIncomplete) dirty(); }
+}
+/* Vidéos manquantes au rechargement : mise en avant de « Récupérer mes vidéos » */
+function showMissingClips(n){
+  const old=document.getElementById('missPop'); if(old) old.remove();
+  const d=document.createElement('div'); d.id='missPop'; d.setAttribute('data-testid','missing-clips-modal');
+  d.style.cssText='position:fixed;inset:0;z-index:9980;background:rgba(8,8,12,.85);display:grid;place-items:center;padding:20px';
+  d.innerHTML='<div class="bk-box" style="max-width:420px;text-align:center"><div class="onb-eyebrow">'+n+' vidéo'+(n>1?'s':'')+' manquante'+(n>1?'s':'')+'</div>'+
+    '<div class="bk-title">Certaines vidéos n\u2019ont pas pu être rechargées</div>'+
+    '<div class="bk-sub">Elles n\u2019avaient probablement pas fini d\u2019être envoyées. Si elles sont arrivées sur le serveur, tu peux les récupérer en un clic.</div>'+
+    '<button class="onb-cta" style="width:100%;margin-top:14px" data-testid="missing-clips-recover" onclick="document.getElementById(\'missPop\').remove();recoverMedia()">Récupérer mes vidéos déjà envoyées</button>'+
+    '<div><button class="onb-skip" style="margin-top:12px" data-testid="missing-clips-skip" onclick="document.getElementById(\'missPop\').remove()">Continuer sans</button></div></div>';
+  d.onclick=e=>{ if(e.target===d) d.remove(); };
+  document.body.append(d);
 }
 async function loadRemoteMorceau(m){
   if(m._loading) return;   // verrou : hashchange + route() peuvent arriver en double → un seul chargement, jamais de clips dupliqués
