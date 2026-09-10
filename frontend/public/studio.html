@@ -363,6 +363,20 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
 .dl-meta b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dl-meta span{color:var(--muted);font-size:12px}
 .dl-btn{white-space:nowrap;flex-shrink:0}
+.hook-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,340px);gap:28px;align-items:start}
+.hook-stage{position:sticky;top:80px;display:grid;place-items:center}
+.hook-stage canvas{width:100%;max-height:70vh;object-fit:contain;background:#000;border:1px solid var(--line)}
+@media(max-width:900px){.hook-grid{grid-template-columns:1fr}.hook-stage{position:static;order:-1}.hook-stage canvas{max-height:46vh}}
+#tapOv{position:fixed;inset:0;z-index:9985;background:var(--void,#000);display:flex;flex-direction:column;overflow:auto;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+#tapOv .tap-zone{flex:1;display:grid;place-items:center;text-align:center;cursor:pointer;position:relative;min-height:46vh}
+#tapOv .tap-zone .big{font-size:clamp(64px,18vw,160px);font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--frost,#fff)}
+#tapOv .tap-zone.hit .big{transform:scale(1.08);color:var(--crimson,#e0143c)}
+#tapOv .tap-zone .big{transition:transform .08s,color .08s}
+#tapOv .tap-prog{height:4px;background:var(--hair-2,#2a2a2e)}
+#tapOv .tap-prog i{display:block;height:100%;background:var(--crimson,#e0143c);width:0}
+#tapOv .tap-ticks{position:absolute;left:0;right:0;bottom:0;height:56px;pointer-events:none}
+#tapOv .tap-ticks i{position:absolute;bottom:14px;width:2px;height:28px;background:var(--crimson,#e0143c);opacity:.85}
+#tapOv .tap-ticks b{position:absolute;bottom:0;width:1px;height:10px;background:var(--hair-2,#3a3a3e)}
 .dl-acts{display:flex;gap:8px;flex-shrink:0}
 .dl-share{background:transparent;border:1px solid var(--line);color:inherit}
 @media(max-width:600px){.dl-row{flex-wrap:wrap}.dl-meta{flex:1 1 100%}.dl-acts{width:100%}.dl-acts button{flex:1}}
@@ -435,7 +449,7 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   .counter{border-radius:999px;background:var(--panel-2);border:1px solid var(--line);font-size:12.5px;padding:6px 12px}
   #avatar{width:36px;height:36px}
   /* --- barre d'onglets basse (accueil / morceaux / série / compte) --- */
-  body:not(.mob-edit) #homeTabs{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:90;
+  body:not(.mob-edit) #homeTabs{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:90;
     height:calc(62px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);
     background:rgba(14,17,22,.97);border-top:1px solid var(--line);backdrop-filter:blur(12px)}
   #homeTabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
@@ -615,6 +629,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <a href="#/accueil" data-nav="accueil">Accueil</a>
     <a href="#/morceaux" data-nav="morceaux">Mes morceaux</a>
     <a href="#/serie" data-nav="serie">Série de vidéos</a>
+    <a href="#/hook" data-nav="hook" data-testid="nav-hook">Vidéo hook</a>
     <a href="/dashboard" data-testid="studio-nav-account" onclick="try{window.top.location.href='/dashboard'}catch(e){};return false">Mon compte</a>
   </nav>
   <div class="head-right">
@@ -680,6 +695,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <button class="small ghost" id="undoBtn" onclick="undo()" disabled title="Annuler (Ctrl+Z)">↶ Annuler</button>
     <button class="small" id="backupsBtn" onclick="openBackups()" data-testid="backups-button" title="Historique des versions du morceau">Versions</button>
     <button class="small" id="serieBtn" onclick="go('serie')" title="Série de vidéos">Série</button>
+    <button class="small" id="hookBtn" onclick="go('hook')" title="Vidéo hook : un extrait avant ton son" data-testid="edit-hook-btn">Hook</button>
     <button class="small mob-tgl" onclick="mobCol('right')" title="Paroles & style">Style</button>
     <span class="halo"><button class="primary" id="exportBtn" onclick="exportVideo()">Exporter la vidéo</button></span>
     <button class="burger" id="editBurger" onclick="toggleMobMenu()" aria-label="Menu" data-testid="mobile-menu-btn"><i></i><i></i><i></i></button>
@@ -1003,6 +1019,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <div class="tl-bar">
       <span class="lbl">Timeline</span>
       <button class="small" onclick="addCutAtPlayhead()">Couper ici <span class="mono" style="opacity:.6">M</span></button>
+      <button class="small" onclick="openTapCut()" data-testid="tap-cut-btn" title="Tape le rythme de tes coupures pendant que l'extrait joue">Tap for cut</button>
       <button class="small" id="snapBtn" onclick="toggleSnap()">Beat : ON</button>
       <button class="small" onclick="shufflePlans()">Mélanger</button>
       <button class="small" id="noCutsBtn" onclick="toggleNoCuts()">Sans coupes : OFF</button>
@@ -1066,6 +1083,42 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
 </div>
 
+<div class="page" id="pageHook" data-testid="page-hook">
+  <h2 style="font-size:24px;margin-bottom:6px">Vidéo hook</h2>
+  <p class="hint" style="margin-bottom:22px">Mets un extrait (film, interview, vlog…) AVANT ton son. Son dialogue reste audible, ton instru joue derrière, étouffée ; 0,5 s avant la fin le filtre s'ouvre et le drop tombe pile sur ta vidéo.</p>
+  <div class="hook-grid">
+    <div>
+      <div class="field" style="max-width:420px"><label>Morceau</label><select id="hookMorceau" data-testid="hook-morceau-select" onchange="hookPickMorceau(this.value)"></select></div>
+      <div class="field" style="max-width:420px"><label>Vidéo hook (avec son)</label>
+        <div class="drop" id="hookDrop" data-testid="hook-drop" style="padding:26px 16px"><div><b id="hookDropLbl">Choisir ma vidéo hook</b><div class="hint" style="margin-top:6px">MP4 / MOV — 2 à 30 s conseillés. Le son de la vidéo est conservé.</div></div></div>
+        <input type="file" id="hookInput" accept="video/*" style="display:none">
+      </div>
+      <div id="hookInfo" class="hint" style="display:none;margin:-4px 0 12px" data-testid="hook-info"></div>
+      <button class="small ghost" id="hookAdvBtn" onclick="hookToggleAdv()" data-testid="hook-adv-btn" style="margin-bottom:12px">Mode avancé ▾</button>
+      <div id="hookAdv" style="display:none;max-width:420px">
+        <div class="field"><label>Rognage du hook — début <span id="hookTrimLbl" class="mono"></span></label>
+          <input type="range" id="hookTrimStart" min="0" max="1" step="0.05" value="0" oninput="hookSet()" data-testid="hook-trim-start">
+          <label style="margin-top:6px">Fin du hook</label>
+          <input type="range" id="hookTrimEnd" min="0" max="1" step="0.05" value="1" oninput="hookSet()" data-testid="hook-trim-end"></div>
+        <div class="field"><label>Volume du hook <span id="hookVolLbl" class="mono">100 %</span></label><input type="range" id="hookVol" min="20" max="250" value="100" oninput="hookSet()" data-testid="hook-vol"></div>
+        <div class="field"><label>Musique sous le hook <span id="hookMusLbl" class="mono">35 %</span></label><input type="range" id="hookMus" min="0" max="100" value="35" oninput="hookSet()" data-testid="hook-mus"></div>
+        <div class="field"><label>Passe-bas <span id="hookLpLbl" class="mono">300 Hz</span></label><input type="range" id="hookLp" min="120" max="1500" step="10" value="300" oninput="hookSet()" data-testid="hook-lp"></div>
+        <div class="field"><label>Ouverture du filtre avant le drop <span id="hookFadeLbl" class="mono">0,5 s</span></label><input type="range" id="hookFade" min="0.1" max="2" step="0.1" value="0.5" oninput="hookSet()" data-testid="hook-fade"></div>
+        <div class="field"><label>Musique jouée pendant le hook</label>
+          <div class="seg" id="hookMusSrc"><button data-v="before" class="on" onclick="hookSeg(this)">Juste avant l'extrait (le drop tombe à la fin du hook)</button><button data-v="extract" onclick="hookSeg(this)">L'extrait lui-même</button></div></div>
+        <div class="field"><label>Instrumentale</label>
+          <div class="seg" id="hookInstr"><button data-v="lowpass" class="on" onclick="hookSeg(this)">Passe-bas sur le morceau (instantané)</button><button data-v="ai" onclick="hookSeg(this)">Séparation IA — voix retirée (Pro, ~2 min)</button></div></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <button class="small" id="hookPlayBtn" onclick="hookTogglePreview()" data-testid="hook-play-btn">▶ Écouter le hook</button>
+        <button class="primary" id="hookExportBtn" onclick="hookExport()" data-testid="hook-export-btn">Exporter la vidéo hook</button>
+      </div>
+      <p class="hint" style="margin-top:10px">La vidéo finale = ton hook puis ton montage complet. Un export hook compte comme un export.</p>
+    </div>
+    <div class="hook-stage"><canvas id="hookPreview" width="540" height="960" data-testid="hook-preview"></canvas></div>
+  </div>
+</div>
+
 <!-- ================= CONNEXION ================= -->
 <div class="overlay" id="authOverlay">
   <div class="auth-card">
@@ -1103,6 +1156,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <button data-ht="accueil" onclick="go('accueil')" data-testid="home-tab-accueil"><span class="lb">Accueil</span></button>
   <button data-ht="morceaux" onclick="go('morceaux')" data-testid="home-tab-morceaux"><span class="lb">Morceaux</span></button>
   <button data-ht="serie" onclick="go('serie')" data-testid="home-tab-serie"><span class="lb">Série</span></button>
+  <button data-ht="hook" onclick="go('hook')" data-testid="home-tab-hook"><span class="lb">Hook</span></button>
   <button data-ht="compte" onclick="try{window.top.location.href='/dashboard'}catch(e){}" data-testid="home-tab-compte"><span class="lb">Compte</span></button>
 </div>
 
@@ -1140,7 +1194,9 @@ document.addEventListener('DOMContentLoaded',function(){
   <div style="display:flex;flex-direction:column;gap:10px">
     <button class="small" onclick="undo()">↶ Annuler la dernière action</button>
     <button class="small" onclick="mobSheet('more');openBackups()">Versions du morceau</button>
+    <button class="small" onclick="mobSheet('more');openTapCut()" data-testid="mob-tapcut-btn">Tap for cut — taper mes coupures</button>
     <button class="small" onclick="mobSheet('more');go('serie')" data-testid="mob-serie-btn">Série de vidéos</button>
+    <button class="small" onclick="mobSheet('more');go('hook')" data-testid="mob-hook-btn">Vidéo hook</button>
     <button class="small" onclick="mobSheet('more');restartMobTuto()" data-testid="mob-restart-tuto">Revoir le tutoriel</button>
     <button class="small" onclick="try{window.top.location.href='/aide'}catch(e){}" data-testid="mob-aide-btn">Aide &amp; guide complet</button>
     <button class="small" onclick="toggleLang()">Français / English</button>
@@ -1276,8 +1332,8 @@ const API = {
     return (await r.json()).videos||[];
   },
   /* Acapella : Replicate GPU (plan PRO) — blob wav du mix → blob wav voix isolée */
-  async acapella(blob, onProgress){
-    const fd=new FormData(); fd.append('file', blob, 'extrait.wav');
+  async acapella(blob, onProgress, stem){
+    const fd=new FormData(); fd.append('file', blob, 'extrait.wav'); fd.append('stem', stem||'vocals');
     const r=await API._fetchT('/api/separate',{method:'POST',credentials:'include',body:fd},60000);
     if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.detail||'Séparation indisponible'); }
     const {id}=await r.json();
@@ -1396,17 +1452,18 @@ function extractWavBlob(start, dur){
   return new Blob([out],{type:'audio/wav'});
 }
 /* WAV stéréo 16 bits de l'extrait (pour l'assemblage serveur de l'export hybride) */
-function extractWavStereoBlob(start, dur){
-  if(!buffer) throw new Error('Aucun audio chargé');
-  const sr=buffer.sampleRate, nch=Math.min(2,buffer.numberOfChannels||1);
-  const s0=Math.floor(start*sr), n=Math.min(Math.floor(dur*sr), buffer.length-s0);
+function extractWavStereoBlob(start, dur, buf){
+  buf=buf||buffer;
+  if(!buf) throw new Error('Aucun audio chargé');
+  const sr=buf.sampleRate, nch=Math.min(2,buf.numberOfChannels||1);
+  const s0=Math.floor(start*sr), n=Math.min(Math.floor(dur*sr), buf.length-s0);
   const dv=new DataView(new ArrayBuffer(44+n*nch*2));
   const ws=(o,s)=>{for(let i=0;i<s.length;i++)dv.setUint8(o+i,s.charCodeAt(i));};
   ws(0,'RIFF'); dv.setUint32(4,36+n*nch*2,true); ws(8,'WAVE'); ws(12,'fmt ');
   dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,nch,true);
   dv.setUint32(24,sr,true); dv.setUint32(28,sr*nch*2,true); dv.setUint16(32,nch*2,true); dv.setUint16(34,16,true);
   ws(36,'data'); dv.setUint32(40,n*nch*2,true);
-  const chs=[...Array(nch)].map((_,k)=>buffer.getChannelData(k));
+  const chs=[...Array(nch)].map((_,k)=>buf.getChannelData(k));
   let o=44;
   for(let i=0;i<n;i++) for(let k=0;k<nch;k++){ const x=Math.max(-1,Math.min(1,chs[k][s0+i])); dv.setInt16(o, x*0x7FFF, true); o+=2; }
   return new Blob([dv],{type:'audio/wav'});
@@ -1631,7 +1688,7 @@ const EN={
 "Un morceau se règle une fois (extrait, tempo, paroles). Ensuite tu en tires autant de vidéos que tu veux.":"A track is set up once (extract, tempo, lyrics). Then make as many videos from it as you like.",
 "Morceau":"Track","↶ Annuler":"↶ Undo","Enregistré":"Saved","Versions":"History","Exporter la vidéo":"Export video","Clips vidéo":"Video clips","＋ Ajouter des vidéos":"＋ Add videos","Découpées en plans, placées sur le beat":"Cut into shots, placed on the beat","Banque de clips":"Clip library","vidéos":"videos",
 "Entrée pour chercher — clique une vignette pour l'ajouter.":"Press Enter to search — click a thumbnail to add it.",
-"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
+"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Vidéo hook":"Hook video","Hook":"Hook","Tap for cut":"Tap for cut","Tap for cut — taper mes coupures":"Tap for cut — tap my cuts","Mode avancé ▾":"Advanced mode ▾","Mode avancé ▴":"Advanced mode ▴","▶ Écouter le hook":"▶ Play the hook","Exporter la vidéo hook":"Export the hook video","Vidéo hook (avec son)":"Hook video (with sound)","Choisir ma vidéo hook":"Pick my hook video","Volume du hook":"Hook volume","Musique sous le hook":"Music under the hook","Passe-bas":"Low-pass","Ouverture du filtre avant le drop":"Filter opening before the drop","Musique jouée pendant le hook":"Music played during the hook","Instrumentale":"Instrumental","Fin du hook":"Hook end","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
 "Glisse la zone rouge pour déplacer l'extrait · tire ses bords pour l'allonger ou le raccourcir · il joue en boucle pendant que tu ajustes.":"Drag the red zone to move the extract · pull its edges to stretch or shorten it · it loops while you adjust.",
 "Tempo du morceau":"Track tempo","Tape TAP en rythme sur le beat, ou entre la valeur si tu la connais.":"Hit TAP on the beat, or type the value if you know it.",
 "Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.":"The vocals get isolated first, then each word lands at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
@@ -1970,7 +2027,7 @@ async function retrySaveNow(){
 function go(p){ location.hash='#/'+p; }
 function route(){
   const p=(location.hash||'#/accueil').slice(2).split('/');
-  serieStopPreview();
+  serieStopPreview(); if(typeof hookStopPreview==='function') hookStopPreview();
   $$('.page').forEach(el=>el.classList.remove('show'));
   $$('nav a').forEach(a=>a.classList.toggle('active',a.dataset.nav===p[0]));
   document.body.classList.toggle('mob-edit', p[0]==='edit');
@@ -1981,6 +2038,7 @@ function route(){
   if(p[0]==='edit'&&p[1]){ openEditor(p[1]); $('#pageEdit').classList.add('show'); maybeMobTutorial(); }
   else if(p[0]==='morceaux'){ renderMorceaux(); $('#pageMorceaux').classList.add('show'); }
   else if(p[0]==='serie'){ renderSerie(); $('#pageSerie').classList.add('show'); }
+  else if(p[0]==='hook'){ renderHook(); $('#pageHook').classList.add('show'); }
   else { renderHome(); $('#pageAccueil').classList.add('show'); }
 }
 window.addEventListener('hashchange',route);
@@ -2545,9 +2603,44 @@ function rebuildPlans(){
     const end=cs[i+1]!==undefined?cs[i+1]:(ext.start+ext.dur);
     const prev=old.find(p=>Math.abs(p.start-t)<0.03);
     if(prev) return {start:t,end,clip:prev.clip,seek:prev.seek||0,locked:prev.locked,crop:prev.crop||null};
-    const ci=clips.length?Math.floor(Math.random()*clips.length):null;
-    const sk=ci!==null&&clips[ci].seeks? clips[ci].seeks[Math.floor(Math.random()*clips[ci].seeks.length)]:0;
-    return {start:t,end,clip:ci,seek:sk,locked:false};
+    return {start:t,end,clip:null,seek:0,locked:false};
+  });
+  assignPlansSmart(M.plans);
+}
+/* ===== Plans sans doublons : espacement maximal =====
+   Stock = tous les moments (clip, seek). Pour chaque plan à pourvoir, on choisit le moment qui :
+   1) n'est pas déjà utilisé, ou l'est le PLUS LOIN possible dans le montage ;
+   2) éloigne au maximum le même clip ;
+   3) si un voisin direct est le même clip, prend le timecode le plus éloigné (deux images similaires côte à côte = interdit). */
+function planPool(){
+  const pool=[];
+  clips.forEach((c,ci)=>{ ((c.seeks&&c.seeks.length)?c.seeks:[0]).forEach(s=>pool.push({ci,seek:s})); });
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  return pool;
+}
+function assignPlansSmart(plans, onlyNull=true){
+  if(!clips.length||!plans||!plans.length) return;
+  const pool=planPool();
+  const targets=plans.map((p,i)=>i).filter(i=>plans[i].clip===null||(!onlyNull&&!plans[i].locked));
+  if(!targets.length) return;
+  targets.forEach(i=>{ if(!plans[i].locked) plans[i].clip=null; });
+  targets.forEach(idx=>{
+    if(plans[idx].clip!==null) return;
+    let best=null, bestScore=-Infinity;
+    for(const e of pool){
+      let dSub=99, dClip=99;
+      for(let j=0;j<plans.length;j++){
+        const p=plans[j]; if(j===idx||p.clip===null||p.clip!==e.ci) continue;
+        const d=Math.abs(j-idx);
+        if(d<dClip) dClip=d;
+        if(Math.abs((p.seek||0)-e.seek)<0.01&&d<dSub) dSub=d;
+      }
+      let gap=99;
+      [idx-1,idx+1].forEach(j=>{ const p=plans[j]; if(p&&p.clip===e.ci) gap=Math.min(gap,Math.abs((p.seek||0)-e.seek)); });
+      const score=Math.min(dSub,60)*10000 + Math.min(dClip,60)*100 + Math.min(gap,60) - (dClip===1?20000:0);   // voisin direct du même clip : fortement pénalisé
+      if(score>bestScore){ bestScore=score; best=e; }
+    }
+    plans[idx].clip=best.ci; plans[idx].seek=best.seek;
   });
 }
 function curTime(){
@@ -2591,30 +2684,9 @@ function lockAtPlayhead(){
 function shufflePlans(){
   if(!clips.length){toast('Ajoute d\u2019abord des vidéos à gauche');return;}
   pushHistory();
-  // Distribution équitable : chaque clip est servi le même nombre de fois (±1),
-  // jamais deux plans consécutifs sur le même clip quand c'est évitable,
-  // et les moments (seeks) d'un même clip tournent sans se répéter.
-  const free=M.plans.filter(p=>!p.locked);
-  const pool=[];
-  for(let r=0;r<Math.ceil(free.length/clips.length);r++){
-    const round=clips.map((_,i)=>i);
-    for(let i=round.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[round[i],round[j]]=[round[j],round[i]];}
-    pool.push(...round);
-  }
-  const seekPtr=clips.map(()=>0);
-  const seekBag=clips.map(c=>{
-    const s=(c.seeks&&c.seeks.length)? [...c.seeks]:[0];
-    for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s[i],s[j]]=[s[j],s[i]];}
-    return s;
-  });
-  let prev=-1;
-  free.forEach((p,idx)=>{
-    if(pool[0]===prev&&pool.length>1){ const k=pool.findIndex(c=>c!==prev); if(k>0)[pool[0],pool[k]]=[pool[k],pool[0]]; }
-    const ci=pool.shift();
-    p.clip=ci;
-    const bag=seekBag[ci]; p.seek=bag[seekPtr[ci]%bag.length]; seekPtr[ci]++;
-    prev=ci;
-  });
+  // Espacement maximal : aucun moment de clip ne revient tant que le stock n'est pas épuisé,
+  // jamais deux plans consécutifs du même clip si évitable, timecodes voisins toujours éloignés.
+  assignPlansSmart(M.plans, false);
   drawTimeline(); dirty(); toast('Plans mélangés — chaque clip est servi équitablement (les n\u2019ont pas bougé)');
 }
 
@@ -2913,9 +2985,10 @@ function renderClips(){
 function removeClip(ci){
   clips.splice(ci,1);
   M.plans.forEach(p=>{
-    if(p.clip===ci){ p.clip=clips.length?Math.floor(Math.random()*clips.length):null; const c=clips[p.clip]; p.seek=(c&&c.seeks&&c.seeks.length)?c.seeks[Math.floor(Math.random()*c.seeks.length)]:0; }
+    if(p.clip===ci){ p.clip=null; p.seek=0; }
     else if(p.clip>ci) p.clip--;
   });
+  assignPlansSmart(M.plans);
   renderClips(); drawTimeline(); dirty();
 }
 /* --- choisir un moment précis dans une vidéo --- */
@@ -3271,12 +3344,7 @@ function makeThumbsTag(clip, done){
 function autoAssign(){
   // répartit aléatoirement les sous-plans disponibles sur les plans non verrouillés vides
   if(!clips.length||!M||!M.plans) return;
-  M.plans.forEach(p=>{
-    if(p.clip===null&&!p.locked){
-      p.clip=Math.floor(Math.random()*clips.length);
-      const c=clips[p.clip]; p.seek=(c.seeks&&c.seeks.length)? c.seeks[Math.floor(Math.random()*c.seeks.length)] : 0;
-    }
-  });
+  assignPlansSmart(M.plans);
 }
 /* ---------- Paroles ---------- */
 function showPaste(){ $('#lyricsChoice').style.display='none'; $('#pasteZone').style.display='block'; }
@@ -4661,7 +4729,7 @@ document.addEventListener('keydown',e=>{
 /* ---------- Export ---------- */
 let exporting=false;
 /* ---------- EXPORT — dispatcher : offline (image par image, qualité garantie) sinon temps réel ---------- */
-async function exportVideo(nameSuffix, sink, batch){
+async function exportVideo(nameSuffix, sink, batch, hook){
   if(IN_WEBVIEW){ toast('Le navigateur TikTok/Instagram bloque le téléchargement — ouvre beat-cut.com dans Chrome ou Safari (menu ⋯ → Ouvrir dans le navigateur). Rien n\u2019a été décompté.'); return false; }
   if(exporting){ toast('Un export est déjà en cours — attends la fin'); return false; }
   if(!buffer){toast('Dépose d\u2019abord ton morceau');return false;}
@@ -4693,7 +4761,7 @@ async function exportVideo(nameSuffix, sink, batch){
     aiBar.done();
     return false;
   }
-  return exportOffline(nameSuffix, mode, sink, batch);
+  return exportOffline(nameSuffix, mode, sink, batch, hook);
 }
 let _avcCodec=null;
 /* Vérifie que chaque vidéo utilisée par un plan est réellement décodable (anti-export-diaporama).
@@ -4757,13 +4825,14 @@ async function _aacReallyWorks(sr,nch){
 }
 /* Export offline (comme les logiciels de montage) : chaque image est décodée
    séquentiellement (WebCodecs), rendue, puis encodée en H.264 haut débit. Zéro freeze possible. */
-async function exportOffline(nameSuffix, mode='full', sink, batch){
+async function exportOffline(nameSuffix, mode='full', sink, batch, hook){
   exporting=true;
+  const hookDur=hook?hook.dur:0, abuf=hook?hook.audio:buffer;
   const btn=$('#exportBtn'), btnLabel=btn.textContent;
   btn.disabled=true; btn.textContent='Export en cours…';
   stopAll();
   const fps=30, fmt=FORMATS[(M&&M.format)||'916'], W=fmt[0], H=fmt[1];
-  const total=Math.max(1,Math.round(ext.dur*fps));
+  const total=Math.max(1,Math.round((hookDur+ext.dur)*fps));
   // barre unique pour un lot (série) : progression globale sur l'ensemble des vidéos
   const bPct=f=>batch? 2+(batch.idx+f)/batch.total*94 : 2+f*92;
   const bLbl=s=>batch? 'Export vidéo '+(batch.idx+1)+'/'+batch.total+' — '+s : s;
@@ -4782,7 +4851,7 @@ async function exportOffline(nameSuffix, mode='full', sink, batch){
     }catch(e){}
     if(srcPeak>=0&&srcPeak<0.001) toast('L\u2019extrait audio semble SILENCIEUX — rouvre le morceau pour recharger le son avant d\u2019exporter.');
     const {Muxer,ArrayBufferTarget}=Mp4Muxer;
-    const sr=buffer.sampleRate, nch=Math.min(2,buffer.numberOfChannels||1);
+    const sr=abuf.sampleRate, nch=Math.min(2,abuf.numberOfChannels||1);
     const muxOpts={target:new ArrayBufferTarget(),video:{codec:'avc',width:W,height:H},fastStart:'in-memory'};
     if(mode==='full') muxOpts.audio={codec:'aac',numberOfChannels:nch,sampleRate:sr};
     const muxer=new Muxer(muxOpts);
@@ -4803,8 +4872,8 @@ async function exportOffline(nameSuffix, mode='full', sink, batch){
           try{ muxer.addAudioChunk(ch,m); audioChunks++; }catch(e){ aencErr=aencErr||e; }
         },error:e=>{aencErr=e;}});
         aenc.configure({codec:'mp4a.40.2',sampleRate:sr,numberOfChannels:nch,bitrate:192000});
-        const s0=Math.floor(ext.start*sr), n=Math.min(Math.floor(ext.dur*sr), buffer.length-s0);
-        const chans=[...Array(nch)].map((_,k)=>buffer.getChannelData(k));
+        const s0=hook?0:Math.floor(ext.start*sr), n=hook?abuf.length:Math.min(Math.floor(ext.dur*sr), abuf.length-s0);
+        const chans=[...Array(nch)].map((_,k)=>abuf.getChannelData(k));
         const CH=4096;
         for(let off=0;off<n;off+=CH){
           const len=Math.min(CH,n-off);
@@ -4818,9 +4887,13 @@ async function exportOffline(nameSuffix, mode='full', sink, batch){
     }
     // — Vidéo : image par image
     for(let i=0;i<total;i++){
-      const t=ext.start+i/fps;
-      await wcExportSeek(wcExp,t);
-      offlineRender=true; drawPreview(t,cv); offlineRender=false;
+      const tRel=i/fps;
+      if(hook&&tRel<hookDur){ await hook.draw(tRel, cv); }
+      else{
+        const t=ext.start+(tRel-hookDur);
+        await wcExportSeek(wcExp,t);
+        offlineRender=true; drawPreview(t,cv); offlineRender=false;
+      }
       const frame=new VideoFrame(cv,{timestamp:Math.round(i*1e6/fps),duration:Math.round(1e6/fps)});
       venc.encode(frame,{keyFrame:i%(fps*2)===0}); frame.close();
       if(venc.encodeQueueSize>6) await new Promise(r=>{ const to=setTimeout(r,80); venc.addEventListener('dequeue',()=>{clearTimeout(to);r();},{once:true}); });
@@ -4839,7 +4912,7 @@ async function exportOffline(nameSuffix, mode='full', sink, batch){
       aiBar.set(bLbl('Ajout du son (serveur)…'), bPct(0.98));
       const fd=new FormData();
       fd.append('video', blob, 'v.mp4');
-      fd.append('audio', extractWavStereoBlob(ext.start, ext.dur), 'a.wav');
+      fd.append('audio', hook?extractWavStereoBlob(0, abuf.duration, abuf):extractWavStereoBlob(ext.start, ext.dur), 'a.wav');
       blob=await uploadFinalize(fd);
     }
     if(blob.size<20000) throw new Error('fichier vide');
@@ -4862,6 +4935,394 @@ async function exportOffline(nameSuffix, mode='full', sink, batch){
     return false;
   }
 }
+
+/* ===================== TAP FOR CUT =====================
+   L'extrait joue (après un 3-2-1), l'utilisateur tape le rythme de ses coupures (écran / Espace),
+   éventuellement au ralenti ; les taps sont quantifiés sur la grille (1, ½, ¼, ⅛ temps)
+   et REMPLACENT toutes les coupures. Les plans verrouillés restent verrouillés (timing recalé). */
+const TAP={ov:null,phase:'idle',taps:[],q:[],rate:1,grid:4,src:null,t0:0,raf:0,lat:0,timer:0};
+const GRID_LBL={1:'1 temps',2:'½ temps',4:'¼ temps',8:'⅛ temps'};
+function openTapCut(){
+  if(!buffer){toast('Dépose d\u2019abord ton morceau');return;}
+  if(!bpm||!beats.length){toast('Règle d\u2019abord le tempo (BPM)');return;}
+  if(exporting){toast('Export en cours — attends la fin');return;}
+  stopAll(); exitCropMode&&exitCropMode();
+  TAP.taps=[]; TAP.q=[]; TAP.phase='idle';
+  if(TAP.ov) TAP.ov.remove();
+  const d=document.createElement('div'); d.id='tapOv'; d.setAttribute('data-testid','tapcut-overlay'); TAP.ov=d; document.body.append(d);
+  window.addEventListener('keydown', tapKey, true);
+  tapRender();
+}
+function tapRender(){
+  const d=TAP.ov; if(!d) return;
+  const seg=(id,vals,cur,fmt)=>'<div class="seg" id="'+id+'">'+vals.map(v=>'<button data-v="'+v+'" class="'+(v===cur?'on':'')+'" data-testid="'+id+'-'+v+'">'+fmt(v)+'</button>').join('')+'</div>';
+  if(TAP.phase==='idle'){
+    d.innerHTML='<div class="onb-prog"><i style="width:25%"></i></div><div class="onb-wrap" style="text-align:center">'
+      +'<div class="onb-eyebrow onb-fade">Tap for cut</div>'
+      +'<h2 class="onb-q onb-fade" style="animation-delay:.06s">Tape le rythme de tes coupures.</h2>'
+      +'<p class="onb-sub onb-fade" style="animation-delay:.12s">Après le décompte, l\u2019extrait joue : touche l\u2019écran (ou la barre <b>Espace</b>) à chaque changement de plan. Tes coupures sont ensuite calées à la perfection sur la grille.</p>'
+      +'<div class="onb-fade" style="animation-delay:.16s;display:grid;gap:14px;text-align:left">'
+      +'<div class="field"><label>Vitesse de l\u2019extrait</label>'+seg('tapRate',[1,0.75,0.5],TAP.rate,v=>Math.round(v*100)+' %')+'</div>'
+      +'<div class="field"><label>Calage (quantize)</label>'+seg('tapGrid',[1,2,4,8],TAP.grid,v=>GRID_LBL[v])+'</div></div>'
+      +'<div class="onb-fade" style="animation-delay:.22s;margin-top:18px"><button class="onb-cta" style="width:100%" data-testid="tapcut-start" onclick="tapStart()">Lancer le décompte</button></div>'
+      +'<div><button class="onb-skip" data-testid="tapcut-cancel" onclick="tapClose()">Annuler</button></div></div>';
+    d.querySelectorAll('#tapRate button').forEach(b=>b.onclick=()=>{ TAP.rate=+b.dataset.v; tapRender(); });
+    d.querySelectorAll('#tapGrid button').forEach(b=>b.onclick=()=>{ TAP.grid=+b.dataset.v; tapRender(); });
+    return;
+  }
+  if(TAP.phase==='count'){
+    d.innerHTML='<div class="onb-prog"><i style="width:50%"></i></div><div class="tap-zone"><div><div class="onb-eyebrow">Prépare-toi</div><div class="big" id="tapCount" data-testid="tapcut-count">3</div></div></div>';
+    return;
+  }
+  if(TAP.phase==='run'){
+    const inB=beats.filter(b=>b>=ext.start&&b<=ext.start+ext.dur);
+    d.innerHTML='<div class="tap-prog"><i id="tapBar"></i></div>'
+      +'<div class="tap-zone" id="tapZone" data-testid="tapcut-zone"><div><div class="onb-eyebrow">Touche à chaque coupure'+(TAP.rate<1?' · ralenti '+Math.round(TAP.rate*100)+' %':'')+'</div>'
+      +'<div class="big" id="tapN" data-testid="tapcut-n">0</div><div class="onb-sub" style="margin-top:10px">coupures</div></div>'
+      +'<div class="tap-ticks" id="tapTicks">'+inB.map(b=>'<b style="left:'+((b-ext.start)/ext.dur*100)+'%"></b>').join('')+'</div></div>'
+      +'<div style="padding:18px 22px 28px;text-align:center"><button class="onb-cta" style="width:100%;background:transparent;border:1px solid var(--hair-2,#3a3a3e);color:var(--frost,#fff)" data-testid="tapcut-stop" onclick="tapFinish()">Stop — j\u2019ai fini</button></div>';
+    const z=d.querySelector('#tapZone');
+    z.addEventListener('pointerdown',e=>{ e.preventDefault(); tapHit(); });
+    return;
+  }
+  if(TAP.phase==='done'){
+    const n=TAP.q.length;
+    d.innerHTML='<div class="onb-prog"><i style="width:100%"></i></div><div class="onb-wrap" style="text-align:center">'
+      +'<div class="onb-eyebrow onb-fade">Tap for cut</div>'
+      +'<h2 class="onb-q onb-fade" style="animation-delay:.06s" data-testid="tapcut-summary">'+(n?n+' coupure'+(n>1?'s':'')+' calée'+(n>1?'s':'')+' — '+GRID_LBL[TAP.grid]:'Aucune coupure tapée')+'</h2>'
+      +'<p class="onb-sub onb-fade" style="animation-delay:.12s">'+(n?'Elles remplacent les coupures actuelles de l\u2019extrait. Les plans verrouillés gardent leur clip.':'Relance et touche l\u2019écran pendant que l\u2019extrait joue.')+'</p>'
+      +'<div class="onb-fade" style="animation-delay:.18s;display:grid;gap:10px">'
+      +(n?'<button class="onb-cta" style="width:100%" data-testid="tapcut-apply" onclick="tapApply()">Appliquer ces coupures</button>':'')
+      +'<button class="onb-cta" style="width:100%;background:transparent;border:1px solid var(--hair-2,#3a3a3e);color:var(--frost,#fff)" data-testid="tapcut-retry" onclick="TAP.taps=[];TAP.q=[];TAP.phase=\'idle\';tapRender()">Recommencer</button></div>'
+      +'<div><button class="onb-skip" data-testid="tapcut-cancel2" onclick="tapClose()">Annuler</button></div></div>';
+  }
+}
+function tapKey(e){
+  if(!TAP.ov) return;
+  if(e.code==='Space'){ e.preventDefault(); e.stopImmediatePropagation(); if(TAP.phase==='run') tapHit(); else if(TAP.phase==='idle') tapStart(); else if(TAP.phase==='done'&&TAP.q.length) tapApply(); }
+  else if(e.key==='Escape'){ e.stopImmediatePropagation(); tapClose(); }
+}
+async function tapStart(){
+  if(TAP.phase!=='idle') return;
+  try{ await audioCtx.resume(); }catch(e){}
+  TAP.taps=[]; TAP.phase='count'; tapRender();
+  let n=3;
+  const tick=()=>{ if(TAP.phase!=='count') return; n--; if(n<=0){ tapRun(); return; } const el=document.getElementById('tapCount'); if(el) el.textContent=n; TAP.timer=setTimeout(tick,1000); };
+  TAP.timer=setTimeout(tick,1000);
+}
+function tapRun(){
+  TAP.phase='run'; tapRender();
+  const src=audioCtx.createBufferSource(); src.buffer=buffer; src.playbackRate.value=TAP.rate;
+  src.connect(audioCtx.destination);
+  src.start(0, ext.start, ext.dur);
+  TAP.src=src; TAP.t0=audioCtx.currentTime; TAP.lat=audioCtx.outputLatency||audioCtx.baseLatency||0;
+  src.onended=()=>{ if(TAP.phase==='run') tapFinish(); };
+  const loop=()=>{ if(TAP.phase!=='run') return; const f=Math.min(1,tapElapsed()/ext.dur); const b=document.getElementById('tapBar'); if(b) b.style.width=(f*100)+'%'; TAP.raf=requestAnimationFrame(loop); };
+  TAP.raf=requestAnimationFrame(loop);
+}
+function tapElapsed(){ return Math.max(0,(audioCtx.currentTime-TAP.t0-TAP.lat))*TAP.rate; }
+function tapHit(){
+  if(TAP.phase!=='run') return;
+  const t=ext.start+tapElapsed();
+  if(t>ext.start+0.05&&t<ext.start+ext.dur-0.05){
+    TAP.taps.push(t);
+    const tk=document.getElementById('tapTicks'); if(tk){ const i=document.createElement('i'); i.style.left=((t-ext.start)/ext.dur*100)+'%'; tk.append(i); }
+  }
+  const n=document.getElementById('tapN'); if(n) n.textContent=TAP.taps.length;
+  const z=document.getElementById('tapZone'); if(z){ z.classList.add('hit'); setTimeout(()=>z.classList.remove('hit'),90); }
+  if(navigator.vibrate) try{ navigator.vibrate(12); }catch(e){}
+}
+function tapQuantize(taps){
+  const step=(60/bpm)/TAP.grid, b0=beats[0]||0;
+  const q=taps.map(t=>b0+Math.round((t-b0)/step)*step).filter(t=>t>ext.start+0.04&&t<ext.start+ext.dur-0.04).sort((a,b)=>a-b);
+  return q.filter((t,i)=>i===0||t-q[i-1]>step*0.5);
+}
+function tapFinish(){
+  if(TAP.phase!=='run') return;
+  if(TAP.src){ TAP.src.onended=null; try{TAP.src.stop();}catch(e){} TAP.src=null; }
+  cancelAnimationFrame(TAP.raf);
+  TAP.q=tapQuantize(TAP.taps); TAP.phase='done'; tapRender();
+}
+function tapApply(){
+  if(!TAP.q.length||!M) return;
+  pushHistory();
+  M.noCuts=false; const nb=$('#noCutsBtn'); if(nb) nb.textContent=T('Sans coupes : OFF');
+  const oldLocked=(M.plans||[]).filter(p=>p.locked&&p.clip!==null);
+  const cs=[ext.start,...TAP.q];
+  M.cuts=cs.map((t,i)=>({time:t,source:i?'manual':'auto'}));
+  M.plans=cs.map((t,i)=>({start:t,end:cs[i+1]!==undefined?cs[i+1]:ext.start+ext.dur,clip:null,seek:0,locked:false}));
+  // plans verrouillés : le clip suit le plan le plus proche dans le temps (le timing peut bouger, le verrou reste)
+  oldLocked.forEach(lp=>{
+    let best=null,bd=1e9;
+    M.plans.forEach(p=>{ if(p.locked) return; const d=Math.abs(p.start-lp.start); if(d<bd){bd=d;best=p;} });
+    if(best){ best.clip=lp.clip; best.seek=lp.seek||0; best.locked=true; best.crop=lp.crop||null; }
+  });
+  assignPlansSmart(M.plans);
+  const n=TAP.q.length;
+  tapClose();
+  drawTimeline(); dirty();
+  toast(n+' coupure'+(n>1?'s':'')+' appliquée'+(n>1?'s':'')+' — calées '+GRID_LBL[TAP.grid]);
+}
+function tapClose(){
+  clearTimeout(TAP.timer); cancelAnimationFrame(TAP.raf);
+  if(TAP.src){ TAP.src.onended=null; try{TAP.src.stop();}catch(e){} TAP.src=null; }
+  TAP.phase='idle';
+  window.removeEventListener('keydown', tapKey, true);
+  if(TAP.ov){ TAP.ov.remove(); TAP.ov=null; }
+}
+
+/* ===================== VIDÉO HOOK =====================
+   Un extrait tiers (avec son) AVANT le morceau : l'instru joue derrière, étouffée par un passe-bas ;
+   `fade` s avant la fin le filtre s'ouvre et le drop tombe pile à la fin du hook, puis montage classique. */
+const HOOK={m:null,file:null,wc:null,audio:null,el:null,url:null,dur:0,trim:[0,0],vol:1,mus:0.35,lp:300,fade:0.5,src:'before',instr:'lowpass',instrBuf:null,instrKey:'',autoGain:1,playing:false,raf:0,nodes:[],phase:'idle'};
+function hookCanvas(){ return $('#hookPreview'); }
+function hookSizeCanvas(){
+  const cv=hookCanvas(); if(!cv) return;
+  const f=FORMATS[(M&&M.format)||'916']||FORMATS['916'];
+  const W=540, H=Math.round(540*f[1]/f[0]);
+  if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H; }
+}
+function renderHook(){
+  const sel=$('#hookMorceau'); sel.innerHTML='';
+  DB.morceaux.forEach(m=>{ const o=document.createElement('option'); o.value=m.id; o.textContent=m.title; sel.append(o); });
+  if(!DB.morceaux.length){ const o=document.createElement('option'); o.value=''; o.textContent='— crée d\u2019abord un morceau —'; sel.append(o); }
+  if(M&&DB.morceaux.some(m=>m.id===M.id)){ sel.value=M.id; HOOK.m=M; }
+  else if(DB.morceaux.length&&!HOOK.m){ hookPickMorceau(DB.morceaux[0].id); }
+  hookSizeCanvas(); hookDrawIdle();
+  const drop=$('#hookDrop'), inp=$('#hookInput');
+  if(!drop._wired){
+    drop._wired=true;
+    drop.onclick=()=>inp.click();
+    ['dragover','dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.toggle('over',ev==='dragover');}));
+    drop.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) hookLoadFile(e.dataTransfer.files[0]); });
+    inp.onchange=()=>{ if(inp.files[0]) hookLoadFile(inp.files[0]); inp.value=''; };
+  }
+}
+async function hookPickMorceau(id){
+  const m=DB.morceaux.find(x=>x.id===id); if(!m) return;
+  hookStopPreview();
+  try{
+    showLoad('Chargement du morceau…',0.2,'');
+    await serieLoadMorceau(m); await serieWaitClips();
+    HOOK.m=m; HOOK.instrBuf=null; HOOK.instrKey='';
+    if(buffer) hookAutoGain();
+    hookSizeCanvas(); hookDrawIdle();
+  }catch(e){ toast('Ouverture impossible : '+((e&&e.message)||e)); }
+  finally{ hideLoad(); }
+}
+function hookDrawIdle(){
+  const cv=hookCanvas(); if(!cv) return;
+  if(HOOK.el&&HOOK.el.readyState>=2){ hookDrawEl(cv); return; }
+  const c=cv.getContext('2d'); c.fillStyle='#0B0E12'; c.fillRect(0,0,cv.width,cv.height);
+  c.fillStyle='rgba(255,255,255,.35)'; c.font='600 26px Bricolage Grotesque, Inter, sans-serif'; c.textAlign='center';
+  c.fillText(HOOK.file?'Prêt — ▶ pour écouter':'Ta vidéo hook apparaîtra ici', cv.width/2, cv.height/2);
+}
+function drawCover(c,img,fw,fh,W,H){ const sc=Math.max(W/fw,H/fh); c.drawImage(img,(W-fw*sc)/2,(H-fh*sc)/2,fw*sc,fh*sc); }
+function hookDrawEl(cv){ const c=cv.getContext('2d'); const v=HOOK.el; if(!v||!v.videoWidth) return; c.fillStyle='#000'; c.fillRect(0,0,cv.width,cv.height); drawCover(c,v,v.videoWidth,v.videoHeight,cv.width,cv.height); }
+async function hookLoadFile(file){
+  hookStopPreview();
+  if(HOOK.url){ try{URL.revokeObjectURL(HOOK.url);}catch(e){} }
+  HOOK.file=file; HOOK.wc=null; HOOK.audio=null; HOOK.instrBuf=null; HOOK.instrKey='';
+  $('#hookDropLbl').textContent=file.name.slice(0,40);
+  showLoad('Analyse de la vidéo hook…',0.15,'lecture du fichier');
+  try{
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    // 1) son du hook (dialogues) — décodé depuis le conteneur vidéo
+    try{ HOOK.audio=await audioCtx.decodeAudioData(await file.arrayBuffer()); }
+    catch(e){ HOOK.audio=null; toast('Pas de son détecté dans cette vidéo — le hook sera muet, seule la musique jouera'); }
+    // 2) images : WebCodecs si décodable ici, sinon optimisation serveur (HEVC iPhone…)
+    let srcBlob=file;
+    try{
+      const wc=await parseWC(file);
+      let sup=true; try{ sup=(await VideoDecoder.isConfigSupported(wc.config)).supported; }catch(e){ sup=false; }
+      if(!sup) throw new Error('codec non décodable ici');
+      HOOK.wc=wc;
+    }catch(e){
+      showLoad('Optimisation de la vidéo hook…',0.3,'conversion serveur (une seule fois)');
+      const id=await API.uploadMedia(file, pct=>{ if(pct!=null) showLoad('Optimisation de la vidéo hook…',0.3+pct/100*0.4,'envoi '+pct+' %'); });
+      const st=await API.mediaStatus(id);
+      if(st&&st.transcoded){
+        const f=await API.fetchMedia(id,'hook.mp4');
+        srcBlob=f;
+        try{ HOOK.wc=await parseWC(f); }catch(e2){ HOOK.wc=null; }
+      }
+    }
+    HOOK.url=URL.createObjectURL(srcBlob);
+    const v=document.createElement('video'); v.src=HOOK.url; v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.preload='auto';
+    await new Promise((res,rej)=>{ v.onloadedmetadata=res; v.onerror=()=>rej(new Error('vidéo illisible')); setTimeout(res,8000); v.load(); });
+    HOOK.el=v;
+    HOOK.dur=(HOOK.wc&&HOOK.wc.durationS)||v.duration||(HOOK.audio&&HOOK.audio.duration)||0;
+    if(!HOOK.dur||!isFinite(HOOK.dur)) throw new Error('durée introuvable');
+    HOOK.trim=[0,Math.min(HOOK.dur, Math.max(1,HOOK.dur))];
+    const ts=$('#hookTrimStart'), te=$('#hookTrimEnd'); ts.max=te.max=HOOK.dur.toFixed(2); ts.value=0; te.value=HOOK.dur.toFixed(2);
+    hookAutoGain(); hookSet();
+    $('#hookInfo').style.display='block';
+    $('#hookInfo').textContent=file.name+' · '+HOOK.dur.toFixed(1)+' s'+(HOOK.audio?' · son OK':' · sans son')+(HOOK.wc?'':' · lecture <video>');
+    await new Promise(r=>{ v.currentTime=0.05; v.onseeked=r; setTimeout(r,1500); });
+    hookDrawIdle();
+    toast('✓ Hook prêt — écoute-le, puis exporte');
+  }catch(e){
+    HOOK.file=null; HOOK.el=null; $('#hookDropLbl').textContent='Choisir ma vidéo hook';
+    toast('Vidéo hook illisible : '+((e&&e.message)||e));
+  }finally{ hideLoad(); }
+}
+function hookHd(){ return Math.max(0.5, HOOK.trim[1]-HOOK.trim[0]); }
+function hookAutoGain(){
+  // équilibre automatique : le dialogue du hook au même niveau (RMS) que l'extrait musical
+  if(!HOOK.audio||!buffer){ HOOK.autoGain=1; return; }
+  const rms=(buf,s,d)=>{ const ch=buf.getChannelData(0), sr=buf.sampleRate; const a=Math.max(0,Math.floor(s*sr)), b=Math.min(ch.length,Math.floor((s+d)*sr)); let sum=0,n=0; for(let i=a;i<b;i+=16){ sum+=ch[i]*ch[i]; n++; } return n?Math.sqrt(sum/n):0; };
+  const rh=rms(HOOK.audio,HOOK.trim[0],hookHd()), rm=rms(buffer,ext.start,ext.dur);
+  HOOK.autoGain=(rh>1e-4&&rm>1e-4)? Math.max(0.3,Math.min(4,(rm/rh)*0.85)) : 1;
+}
+function hookSet(){
+  const ts=+$('#hookTrimStart').value, te=+$('#hookTrimEnd').value;
+  if(HOOK.dur){ HOOK.trim=[Math.min(ts,Math.max(0,te-0.5)), Math.max(te,Math.min(HOOK.dur,ts+0.5))]; $('#hookTrimLbl').textContent=HOOK.trim[0].toFixed(1)+' s → '+HOOK.trim[1].toFixed(1)+' s ('+hookHd().toFixed(1)+' s)'; }
+  HOOK.vol=+$('#hookVol').value/100; $('#hookVolLbl').textContent=$('#hookVol').value+' %';
+  HOOK.mus=+$('#hookMus').value/100; $('#hookMusLbl').textContent=$('#hookMus').value+' %';
+  HOOK.lp=+$('#hookLp').value; $('#hookLpLbl').textContent=HOOK.lp+' Hz';
+  HOOK.fade=+$('#hookFade').value; $('#hookFadeLbl').textContent=HOOK.fade.toFixed(1).replace('.',',')+' s';
+  if(HOOK.audio&&buffer) hookAutoGain();
+}
+function hookSeg(btn){
+  const seg=btn.parentElement, v=btn.dataset.v;
+  if(seg.id==='hookInstr'&&v==='ai'&&!(API.tier==='pro'||API.tier==='studio')){ toast('Séparation IA réservée aux plans Pro et Studio — le passe-bas reste actif'); return; }
+  seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===btn));
+  if(seg.id==='hookMusSrc') HOOK.src=v; else HOOK.instr=v;
+}
+function hookToggleAdv(){ const a=$('#hookAdv'); const on=a.style.display==='none'; a.style.display=on?'block':'none'; $('#hookAdvBtn').textContent=on?'Mode avancé ▴':'Mode avancé ▾'; }
+function hookMusStart(hd){ return HOOK.src==='before'? ext.start-hd : ext.start; }
+/* Graphe audio commun aperçu (temps réel) / export (OfflineAudioContext). full=true → enchaîne l'extrait complet. */
+function hookBuildGraph(ctx, dest, hd, t0, full){
+  const nodes=[]; const fadeStart=Math.max(0, hd-HOOK.fade);
+  if(HOOK.audio){
+    const hs=ctx.createBufferSource(); hs.buffer=HOOK.audio; const g=ctx.createGain(); g.gain.value=HOOK.vol*HOOK.autoGain;
+    hs.connect(g).connect(dest); hs.start(t0, HOOK.trim[0], hd); nodes.push(hs);
+  }
+  const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.Q.value=0.7;
+  lp.frequency.setValueAtTime(HOOK.lp, t0); lp.frequency.setValueAtTime(HOOK.lp, t0+fadeStart); lp.frequency.exponentialRampToValueAtTime(18000, t0+hd);
+  const mg=ctx.createGain(); mg.gain.setValueAtTime(HOOK.mus, t0); mg.gain.setValueAtTime(HOOK.mus, t0+fadeStart); mg.gain.linearRampToValueAtTime(1, t0+hd);
+  lp.connect(mg).connect(dest);
+  const ms=hookMusStart(hd);
+  if(HOOK.instr==='ai'&&HOOK.instrBuf){
+    // instru IA pendant le hook (filtrée), puis le morceau complet reprend pile au drop
+    const s1=ctx.createBufferSource(); s1.buffer=HOOK.instrBuf; s1.connect(lp); s1.start(t0, 0, hd); nodes.push(s1);
+    if(full){ const s2=ctx.createBufferSource(); s2.buffer=buffer; s2.connect(dest); s2.start(t0+hd, ext.start, ext.dur); nodes.push(s2); }
+  }else if(HOOK.src==='before'){
+    // une seule source continue : la musique d'avant l'extrait coule jusqu'au drop, le filtre s'ouvre, rien ne saute
+    const s1=ctx.createBufferSource(); s1.buffer=buffer; s1.connect(lp);
+    const total=hd+(full?ext.dur:0);
+    if(ms>=0) s1.start(t0, ms, total); else s1.start(t0-ms, 0, total+ms);
+    nodes.push(s1);
+  }else{
+    const s1=ctx.createBufferSource(); s1.buffer=buffer; s1.connect(lp); s1.start(t0, ext.start, hd); nodes.push(s1);
+    if(full){ const s2=ctx.createBufferSource(); s2.buffer=buffer; s2.connect(dest); s2.start(t0+hd, ext.start, ext.dur); nodes.push(s2); }
+  }
+  return nodes;
+}
+function hookStopNodes(){ HOOK.nodes.forEach(n=>{ try{n.onended=null; n.stop();}catch(e){} }); HOOK.nodes=[]; }
+function hookStopPreview(){
+  if(!HOOK.playing) return;
+  HOOK.playing=false; cancelAnimationFrame(HOOK.raf); hookStopNodes();
+  if(HOOK.el){ try{HOOK.el.pause();}catch(e){} }
+  if(playing) stopAll();
+  const b=$('#hookPlayBtn'); if(b) b.textContent='▶ Écouter le hook';
+  hookDrawIdle();
+}
+async function hookTogglePreview(){
+  if(HOOK.playing){ hookStopPreview(); return; }
+  if(!buffer||!M){ toast('Choisis d\u2019abord un morceau'); return; }
+  if(!HOOK.el){ toast('Importe d\u2019abord ta vidéo hook'); return; }
+  if(exporting){ toast('Export en cours'); return; }
+  if(clipsBlocking()){ toast('Tes vidéos finissent de s\u2019optimiser — un instant…'); return; }
+  try{ await audioCtx.resume(); }catch(e){}
+  const hd=hookHd(), cv=hookCanvas(); hookSizeCanvas();
+  HOOK.playing=true; $('#hookPlayBtn').textContent='■ Stop';
+  const v=HOOK.el; v.currentTime=HOOK.trim[0];
+  await new Promise(r=>{ v.onseeked=r; setTimeout(r,600); });
+  if(!HOOK.playing) return;
+  const t0=audioCtx.currentTime+0.08;
+  HOOK.nodes=hookBuildGraph(audioCtx, audioCtx.destination, hd, t0, false);
+  try{ await v.play(); }catch(e){}
+  let handed=false;
+  const loop=()=>{
+    if(!HOOK.playing) return;
+    const el=audioCtx.currentTime-t0;
+    if(el<hd){
+      const want=HOOK.trim[0]+el; if(Math.abs(v.currentTime-want)>0.18){ try{ v.currentTime=want; }catch(e){} }
+      hookDrawEl(cv);
+      // repère : ouverture du filtre
+      if(el>hd-HOOK.fade){ const c=cv.getContext('2d'); c.fillStyle='rgba(224,20,60,'+(0.25*(el-(hd-HOOK.fade))/HOOK.fade)+')'; c.fillRect(0,cv.height-6,cv.width,6); }
+    }else{
+      if(!handed){ handed=true; try{v.pause();}catch(e){} hookStopNodes(); startOff=ext.start; play(ext.start); }
+      if(playing){ drawPreview(curTime(), cv); }
+      else if(handed&&audioCtx.currentTime-t0>hd+0.6){ hookStopPreview(); return; }
+    }
+    HOOK.raf=requestAnimationFrame(loop);
+  };
+  HOOK.raf=requestAnimationFrame(loop);
+}
+/* Frame WebCodecs exacte d'un clip arbitraire (utilisé pour le hook à l'export) */
+async function wcSeekFrame(pl, wc, target){
+  if(pl.clip!==wc || target<(pl._lastT||0)-0.2){ pl.setClip(wc); pl.seek(target); }
+  pl._lastT=target;
+  const t0=performance.now(); let f=null, lastSi=-1, lastProg=performance.now();
+  while(true){
+    pl.fill(); f=pl.frameAt(target);
+    if(f && pl.frames.length && pl.frames[0].timestamp>target*1e6) break;
+    if(f && pl.si>=pl.clip.samples.length && !pl.frames.length) break;
+    if(pl.err) break;
+    if(pl.si!==lastSi||pl.buffered()){ lastSi=pl.si; lastProg=performance.now(); }
+    if(performance.now()-lastProg>2500) break;
+    if(performance.now()-t0>12000) break;
+    await new Promise(r=>setTimeout(r,5));
+  }
+  return f;
+}
+async function hookExport(){
+  if(!buffer||!M){ toast('Choisis d\u2019abord un morceau'); return; }
+  if(!HOOK.el){ toast('Importe d\u2019abord ta vidéo hook'); return; }
+  if(exporting){ toast('Un export est déjà en cours'); return; }
+  hookStopPreview();
+  const hd=hookHd();
+  const btn=$('#hookExportBtn'); btn.disabled=true;
+  try{
+    // instru IA (Pro) : séparation Demucs du segment de musique joué sous le hook (mise en cache par segment)
+    if(HOOK.instr==='ai'){
+      const ms=Math.max(0,hookMusStart(hd)), key=ms.toFixed(2)+':'+hd.toFixed(2);
+      if(!HOOK.instrBuf||HOOK.instrKey!==key){
+        aiBar.set('Séparation IA de l\u2019instrumentale… (1 à 2 min)',3);
+        const wav=extractWavStereoBlob(ms, hd);
+        const blob=await API.acapella(wav, n=>aiBar.set('Séparation IA de l\u2019instrumentale… '+(n*5)+' s',3+Math.min(40,n*1.5)), 'instrumental');
+        HOOK.instrBuf=await audioCtx.decodeAudioData(await blob.arrayBuffer()); HOOK.instrKey=key;
+      }
+    }
+    // mixage hors-ligne : hook + musique filtrée → ouverture → extrait complet
+    aiBar.set('Mixage du son du hook…',6);
+    const sr=buffer.sampleRate, nch=Math.min(2,buffer.numberOfChannels||1);
+    const off=new OfflineAudioContext(nch, Math.ceil((hd+ext.dur)*sr), sr);
+    hookBuildGraph(off, off.destination, hd, 0, true);
+    const mix=await off.startRendering();
+    // images du hook : WebCodecs (exact) ou <video> (repli)
+    const seg=HOOK.wc? new SegPlayer() : null;
+    const v=HOOK.el;
+    const draw=async(tRel,cv)=>{
+      const c=cv.getContext('2d'); const target=HOOK.trim[0]+tRel;
+      c.fillStyle='#000'; c.fillRect(0,0,cv.width,cv.height);
+      let f=null;
+      if(seg){ f=await wcSeekFrame(seg, HOOK.wc, target); }
+      if(f){ drawCover(c,f,f.displayWidth||f.codedWidth,f.displayHeight||f.codedHeight,cv.width,cv.height); return; }
+      await new Promise(r=>{ v.onseeked=r; try{ v.currentTime=target; }catch(e){ r(); } setTimeout(r,700); });
+      if(v.videoWidth) drawCover(c,v,v.videoWidth,v.videoHeight,cv.width,cv.height);
+    };
+    const ok=await exportVideo('-hook', null, null, {dur:hd, audio:mix, draw});
+    if(seg) seg.destroy();
+    if(ok){ TEL.push('hook_export',{hd:Math.round(hd*10)/10, instr:HOOK.instr, src:HOOK.src}); }
+  }catch(e){
+    aiBar.done();
+    toast('Export hook impossible : '+((e&&e.message)||e));
+  }finally{ btn.disabled=false; }
+}
+
 /* ---------- Série de vidéos (variantes réelles) ---------- */
 let kept=new Set(), serieVariants=[], serieSel=new Set(), seriePlayingIdx=-1, serieRaf=0, seriePlayBtn=null;
 function renderSerie(){
@@ -5228,9 +5689,7 @@ function psOther(){
     const i=Math.max(0,c.seeks.findIndex(s=>Math.abs(s-p.seek)<0.01));
     p.seek=c.seeks[(i+1)%c.seeks.length];
   }else{
-    p.clip=Math.floor(Math.random()*clips.length);
-    const nc=clips[p.clip];
-    p.seek=(nc.seeks&&nc.seeks.length)?nc.seeks[Math.floor(Math.random()*nc.seeks.length)]:0;
+    p.clip=null; assignPlansSmart(M.plans);
   }
   drawTimeline(); dirty(); toast('Plan changé ');
 }

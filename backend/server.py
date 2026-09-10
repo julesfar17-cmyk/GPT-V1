@@ -1753,7 +1753,8 @@ def _coerce_url(value) -> str:
     return str(value)
 
 
-def _separate_with_replicate(audio_bytes: bytes) -> str:
+def _separate_with_replicate(audio_bytes: bytes, want: str = "vocals") -> str:
+    """want='vocals' → voix isolée ; want='instrumental' → tout sauf la voix (mode two-stems de Demucs)."""
     if not REPLICATE_API_TOKEN:
         raise RuntimeError("séparation indisponible — clé Replicate manquante")
     audio = io.BytesIO(audio_bytes)
@@ -1771,11 +1772,15 @@ def _separate_with_replicate(audio_bytes: bytes) -> str:
         },
     )
     vocals_url = ""
+    keys = (("no_vocals", "instrumental", "accompaniment", "other", "no_vocals_audio") if want == "instrumental"
+            else ("vocals", "vocals_only", "vocals_audio", "audio", "output"))
     if isinstance(output, dict):
-        for key in ("vocals", "vocals_only", "vocals_audio", "audio", "output"):
+        for key in keys:
             if output.get(key):
                 vocals_url = _coerce_url(output[key])
                 break
+        if not vocals_url and want == "instrumental":
+            raise RuntimeError("piste instrumentale absente de la sortie du modèle")
         if not vocals_url:
             for v in output.values():
                 if v:
@@ -1790,10 +1795,10 @@ def _separate_with_replicate(audio_bytes: bytes) -> str:
     return vocals_url
 
 
-async def _run_separation(job_id: str, audio_bytes: bytes):
+async def _run_separation(job_id: str, audio_bytes: bytes, want: str = "vocals"):
     try:
         loop = asyncio.get_running_loop()
-        vocals_url = await loop.run_in_executor(None, _separate_with_replicate, audio_bytes)
+        vocals_url = await loop.run_in_executor(None, _separate_with_replicate, audio_bytes, want)
         await db.separation_jobs.update_one(
             {"job_id": job_id},
             {"$set": {"status": "done", "result_url": vocals_url}},
@@ -2017,8 +2022,10 @@ async def telemetry_onboarding(payload: dict, user: dict = Depends(get_current_u
 
 
 @api_router.post("/separate")
-async def start_separation(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+async def start_separation(file: UploadFile = File(...), stem: str = Form("vocals"),
+                           user: dict = Depends(get_current_user)):
     user = await require_pro(user)
+    want = "instrumental" if stem == "instrumental" else "vocals"
     content = await file.read()
     if len(content) > 30_000_000:
         raise HTTPException(status_code=413, detail="Extrait trop long — raccourcis la sélection")
@@ -2029,10 +2036,10 @@ async def start_separation(file: UploadFile = File(...), user: dict = Depends(ge
         "created_at": iso(now_utc()),
     })
     await db.separation_logs.insert_one({
-        "user_id": user["user_id"], "job_id": job_id,
+        "user_id": user["user_id"], "job_id": job_id, "stem": want,
         "size": len(content), "created_at": iso(now_utc()),
     })
-    asyncio.create_task(_run_separation(job_id, content))
+    asyncio.create_task(_run_separation(job_id, content, want))
     return {"id": job_id, "status": "processing"}
 
 
