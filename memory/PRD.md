@@ -1061,3 +1061,6 @@ Fix :
 - Export hook non testable en headless (pas d'encodeur AVC) : logique testée par morceaux (frames WC, mix offline 9 s = 3+6, niveau plein au drop).
 
 - **Sous-titres du hook** : après import, transcription automatique du dialogue (Groq/Whisper via `/api/proxy/transcribe`, langue = sélecteur paroles) → `HOOK.words` (temps hook) ; dessinés avec le style de sous-titres du morceau via `hookDrawSubs` (swap temporaire de `M.words` → `drawLyricBlock`) en aperçu et à l'export ; bouton ON/OFF + « Retranscrire », texte visible sous l'import. Testé en page (appel API réel + rendu pixels + toggle).
+
+- **Correction des mots du hook** : chips cliquables (`hook-word-{i}`) → input en place (Entrée valide, vide = supprime, Échap annule), redessin immédiat.
+- **Hook dans Série** : page Série affiche « Ajouter mon hook à chaque vidéo » (`serie-hook-toggle`) si un hook est chargé pour le morceau sélectionné (`hookReadyFor`) ; `exportKept` prépare le préroll UNE fois (`hookInstrReady` + `hookPrepareExport`) et le passe à chaque `exportVideo(..., hk)` ; suffixe `-hook-vN`. Lien « Utiliser ce hook sur une Série » depuis la page Hook. Testé en page (édition/suppression de mot, toggle Série, préroll réutilisable : mix 7 s = 3+4, sous-titres dessinés).

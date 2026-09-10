@@ -1071,6 +1071,9 @@ document.addEventListener('DOMContentLoaded',function(){
     <div class="field" style="max-width:680px"><label>Styles de sous-titres — choisis-en un ou plusieurs (tes styles ★ inclus)</label>
       <div id="serieStyles" class="presets" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))"></div>
     </div>
+    <div class="field" id="serieHookField" style="max-width:680px;display:none" data-testid="serie-hook-field"><label>Vidéo hook</label>
+      <button class="small" id="serieHookBtn" onclick="serieToggleHook()" data-testid="serie-hook-toggle">Ajouter mon hook à chaque vidéo : OFF</button>
+      <span class="hint" id="serieHookInfo" style="margin-left:8px"></span></div>
     <button class="primary" onclick="genSerie()" id="serieGenBtn" data-testid="serie-generate-btn">Préparer les vidéos →</button>
     <p class="hint" style="margin-top:10px">Chaque vidéo garde tes paroles calées : seuls les plans et le style changent. Seules celles que tu gardes comptent dans tes exports.</p>
   </div>
@@ -1121,6 +1124,7 @@ document.addEventListener('DOMContentLoaded',function(){
         <button class="primary" id="hookExportBtn" onclick="hookExport()" data-testid="hook-export-btn">Exporter la vidéo hook</button>
       </div>
       <p class="hint" style="margin-top:10px">La vidéo finale = ton hook puis ton montage complet. Un export hook compte comme un export.</p>
+      <button class="small ghost" onclick="go('serie')" data-testid="hook-to-serie" style="margin-top:6px">Utiliser ce hook sur une Série de vidéos →</button>
     </div>
     <div class="hook-stage"><canvas id="hookPreview" width="540" height="960" data-testid="hook-preview"></canvas></div>
   </div>
@@ -1696,7 +1700,7 @@ const EN={
 "Un morceau se règle une fois (extrait, tempo, paroles). Ensuite tu en tires autant de vidéos que tu veux.":"A track is set up once (extract, tempo, lyrics). Then make as many videos from it as you like.",
 "Morceau":"Track","↶ Annuler":"↶ Undo","Enregistré":"Saved","Versions":"History","Exporter la vidéo":"Export video","Clips vidéo":"Video clips","＋ Ajouter des vidéos":"＋ Add videos","Découpées en plans, placées sur le beat":"Cut into shots, placed on the beat","Banque de clips":"Clip library","vidéos":"videos",
 "Entrée pour chercher — clique une vignette pour l'ajouter.":"Press Enter to search — click a thumbnail to add it.",
-"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Vidéo hook":"Hook video","Hook":"Hook","Tap for cut":"Tap for cut","Tap for cut — taper mes coupures":"Tap for cut — tap my cuts","Mode avancé ▾":"Advanced mode ▾","Mode avancé ▴":"Advanced mode ▴","▶ Écouter le hook":"▶ Play the hook","Exporter la vidéo hook":"Export the hook video","Vidéo hook (avec son)":"Hook video (with sound)","Choisir ma vidéo hook":"Pick my hook video","Volume du hook":"Hook volume","Musique sous le hook":"Music under the hook","Passe-bas":"Low-pass","Ouverture du filtre avant le drop":"Filter opening before the drop","Musique jouée pendant le hook":"Music played during the hook","Instrumentale":"Instrumental","Fin du hook":"Hook end","Sous-titres du hook : ON":"Hook subtitles: ON","Sous-titres du hook : OFF":"Hook subtitles: OFF","Retranscrire":"Transcribe again","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
+"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Vidéo hook":"Hook video","Hook":"Hook","Tap for cut":"Tap for cut","Tap for cut — taper mes coupures":"Tap for cut — tap my cuts","Mode avancé ▾":"Advanced mode ▾","Mode avancé ▴":"Advanced mode ▴","▶ Écouter le hook":"▶ Play the hook","Exporter la vidéo hook":"Export the hook video","Vidéo hook (avec son)":"Hook video (with sound)","Choisir ma vidéo hook":"Pick my hook video","Volume du hook":"Hook volume","Musique sous le hook":"Music under the hook","Passe-bas":"Low-pass","Ouverture du filtre avant le drop":"Filter opening before the drop","Musique jouée pendant le hook":"Music played during the hook","Instrumentale":"Instrumental","Fin du hook":"Hook end","Sous-titres du hook : ON":"Hook subtitles: ON","Sous-titres du hook : OFF":"Hook subtitles: OFF","Retranscrire":"Transcribe again","Clique un mot pour le corriger.":"Click a word to fix it.","Ajouter mon hook à chaque vidéo : OFF":"Add my hook to every video: OFF","Ajouter mon hook à chaque vidéo : ON":"Add my hook to every video: ON","Utiliser ce hook sur une Série de vidéos →":"Use this hook on a video batch →","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
 "Glisse la zone rouge pour déplacer l'extrait · tire ses bords pour l'allonger ou le raccourcir · il joue en boucle pendant que tu ajustes.":"Drag the red zone to move the extract · pull its edges to stretch or shorten it · it loops while you adjust.",
 "Tempo du morceau":"Track tempo","Tape TAP en rythme sur le beat, ou entre la valeur si tu la connais.":"Hit TAP on the beat, or type the value if you know it.",
 "Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.":"The vocals get isolated first, then each word lands at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
@@ -5282,11 +5286,40 @@ async function hookTranscribe(force){
     const wav=extractWavBlob(0, HOOK.dur, HOOK.audio);
     const words=await API.transcribe(wav, lyrLang());
     HOOK.words=words.map(w=>({text:w.text,start:w.start,end:w.end}));
-    txt.textContent=HOOK.words.length? HOOK.words.map(w=>w.text).join(' ') : 'Aucune parole détectée dans le hook.';
+    hookRenderWords();
     if(HOOK.words.length) toast('✓ Dialogue du hook transcrit ('+HOOK.words.length+' mots) — affiché dans ton style');
     hookDrawIdle();
   }catch(e){ HOOK.words=null; txt.textContent='Transcription indisponible ('+((e&&e.message)||e)+') — Retranscrire pour réessayer.'; }
   finally{ HOOK.transcribing=false; }
+}
+/* Mots du hook : chips cliquables → correction en place (Entrée valide, vide = supprime, Échap annule) */
+function hookRenderWords(){
+  const txt=$('#hookSubsTxt'); if(!txt) return; txt.innerHTML='';
+  if(!HOOK.words||!HOOK.words.length){ txt.textContent='Aucune parole détectée dans le hook.'; return; }
+  const hint=document.createElement('div'); hint.className='hint'; hint.style.marginBottom='6px'; hint.textContent='Clique un mot pour le corriger.'; txt.append(hint);
+  const row=document.createElement('div'); row.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
+  HOOK.words.forEach((w,i)=>{
+    const b=document.createElement('button'); b.className='small hook-word'; b.textContent=w.text; b.setAttribute('data-testid','hook-word-'+i);
+    b.onclick=()=>hookEditWord(i,b);
+    row.append(b);
+  });
+  txt.append(row);
+}
+function hookEditWord(i,btn){
+  const w=HOOK.words[i]; if(!w) return;
+  const inp=document.createElement('input'); inp.type='text'; inp.value=w.text; inp.className='hook-word-inp'; inp.setAttribute('data-testid','hook-word-input');
+  inp.style.cssText='width:'+Math.max(60,btn.offsetWidth+16)+'px;font-size:12.5px;padding:4px 8px';
+  let doneOnce=false;
+  const commit=()=>{
+    if(doneOnce) return; doneOnce=true;
+    const v=inp.value.trim();
+    if(!v){ HOOK.words.splice(i,1); toast('Mot supprimé'); }
+    else if(v!==w.text){ w.text=v; toast('Mot corrigé ✓'); }
+    hookRenderWords(); hookDrawIdle();
+  };
+  inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ doneOnce=true; hookRenderWords(); } };
+  inp.onblur=commit;
+  btn.replaceWith(inp); inp.focus(); inp.select();
 }
 function hookToggleSubs(){ HOOK.subs=!HOOK.subs; $('#hookSubsBtn').textContent='Sous-titres du hook : '+(HOOK.subs?'ON':'OFF'); hookDrawIdle(); }
 function hookDrawSubs(c, tHook, W, H){
@@ -5315,6 +5348,40 @@ async function wcSeekFrame(pl, wc, target){
   }
   return f;
 }
+/* Prépare le préroll hook pour exportOffline : mix audio hors-ligne + dessin des frames (réutilisable pour une Série) */
+async function hookPrepareExport(hd){
+  aiBar.set('Mixage du son du hook…',6);
+  const sr=buffer.sampleRate, nch=Math.min(2,buffer.numberOfChannels||1);
+  const off=new OfflineAudioContext(nch, Math.ceil((hd+ext.dur)*sr), sr);
+  hookBuildGraph(off, off.destination, hd, 0, true);
+  const mix=await off.startRendering();
+  const seg=HOOK.wc? new SegPlayer() : null;
+  const v=HOOK.el;
+  const draw=async(tRel,cv)=>{
+    const c=cv.getContext('2d'); const target=HOOK.trim[0]+tRel;
+    c.fillStyle='#000'; c.fillRect(0,0,cv.width,cv.height);
+    let f=null;
+    if(seg){ f=await wcSeekFrame(seg, HOOK.wc, target); }
+    if(f){ drawCover(c,f,f.displayWidth||f.codedWidth,f.displayHeight||f.codedHeight,cv.width,cv.height); }
+    else{
+      await new Promise(r=>{ v.onseeked=r; try{ v.currentTime=target; }catch(e){ r(); } setTimeout(r,700); });
+      if(v.videoWidth) drawCover(c,v,v.videoWidth,v.videoHeight,cv.width,cv.height);
+    }
+    hookDrawSubs(c, target, cv.width, cv.height);
+  };
+  return {dur:hd, audio:mix, draw, release:()=>{ if(seg) seg.destroy(); }};
+}
+/* Hook utilisable pour le morceau courant (page Série) */
+function hookReadyFor(m){ return !!(HOOK.el&&HOOK.file&&HOOK.m&&m&&HOOK.m.id===m.id); }
+async function hookInstrReady(hd){
+  if(HOOK.instr!=='ai') return;
+  const ms=Math.max(0,hookMusStart(hd)), key=ms.toFixed(2)+':'+hd.toFixed(2);
+  if(HOOK.instrBuf&&HOOK.instrKey===key) return;
+  aiBar.set('Séparation IA de l\u2019instrumentale… (1 à 2 min)',3);
+  const wav=extractWavStereoBlob(ms, hd);
+  const blob=await API.acapella(wav, n=>aiBar.set('Séparation IA de l\u2019instrumentale… '+(n*5)+' s',3+Math.min(40,n*1.5)), 'instrumental');
+  HOOK.instrBuf=await audioCtx.decodeAudioData(await blob.arrayBuffer()); HOOK.instrKey=key;
+}
 async function hookExport(){
   if(!buffer||!M){ toast('Choisis d\u2019abord un morceau'); return; }
   if(!HOOK.el){ toast('Importe d\u2019abord ta vidéo hook'); return; }
@@ -5323,39 +5390,10 @@ async function hookExport(){
   const hd=hookHd();
   const btn=$('#hookExportBtn'); btn.disabled=true;
   try{
-    // instru IA (Pro) : séparation Demucs du segment de musique joué sous le hook (mise en cache par segment)
-    if(HOOK.instr==='ai'){
-      const ms=Math.max(0,hookMusStart(hd)), key=ms.toFixed(2)+':'+hd.toFixed(2);
-      if(!HOOK.instrBuf||HOOK.instrKey!==key){
-        aiBar.set('Séparation IA de l\u2019instrumentale… (1 à 2 min)',3);
-        const wav=extractWavStereoBlob(ms, hd);
-        const blob=await API.acapella(wav, n=>aiBar.set('Séparation IA de l\u2019instrumentale… '+(n*5)+' s',3+Math.min(40,n*1.5)), 'instrumental');
-        HOOK.instrBuf=await audioCtx.decodeAudioData(await blob.arrayBuffer()); HOOK.instrKey=key;
-      }
-    }
-    // mixage hors-ligne : hook + musique filtrée → ouverture → extrait complet
-    aiBar.set('Mixage du son du hook…',6);
-    const sr=buffer.sampleRate, nch=Math.min(2,buffer.numberOfChannels||1);
-    const off=new OfflineAudioContext(nch, Math.ceil((hd+ext.dur)*sr), sr);
-    hookBuildGraph(off, off.destination, hd, 0, true);
-    const mix=await off.startRendering();
-    // images du hook : WebCodecs (exact) ou <video> (repli)
-    const seg=HOOK.wc? new SegPlayer() : null;
-    const v=HOOK.el;
-    const draw=async(tRel,cv)=>{
-      const c=cv.getContext('2d'); const target=HOOK.trim[0]+tRel;
-      c.fillStyle='#000'; c.fillRect(0,0,cv.width,cv.height);
-      let f=null;
-      if(seg){ f=await wcSeekFrame(seg, HOOK.wc, target); }
-      if(f){ drawCover(c,f,f.displayWidth||f.codedWidth,f.displayHeight||f.codedHeight,cv.width,cv.height); }
-      else{
-        await new Promise(r=>{ v.onseeked=r; try{ v.currentTime=target; }catch(e){ r(); } setTimeout(r,700); });
-        if(v.videoWidth) drawCover(c,v,v.videoWidth,v.videoHeight,cv.width,cv.height);
-      }
-      hookDrawSubs(c, target, cv.width, cv.height);
-    };
-    const ok=await exportVideo('-hook', null, null, {dur:hd, audio:mix, draw});
-    if(seg) seg.destroy();
+    await hookInstrReady(hd);   // instru IA (Pro) : séparation Demucs du segment sous le hook (cache par segment)
+    const hk=await hookPrepareExport(hd);
+    const ok=await exportVideo('-hook', null, null, hk);
+    hk.release();
     if(ok){ TEL.push('hook_export',{hd:Math.round(hd*10)/10, instr:HOOK.instr, src:HOOK.src}); }
   }catch(e){
     aiBar.done();
@@ -5372,6 +5410,8 @@ function renderSerie(){
   if(!DB.morceaux.length){ const o=document.createElement('option'); o.textContent='— crée d\u2019abord un morceau —'; sel.append(o); }
   $$('#serieCount button').forEach(b=>b.onclick=()=>{$$('#serieCount button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
   renderSerieStyles();
+  serieHookUI();
+  if(!sel._hookWired){ sel._hookWired=true; sel.addEventListener('change', serieHookUI); }
   $('#serieConfig').style.display='block'; $('#serieReview').style.display='none';
   $('#step1').classList.add('on'); $('#step2').classList.remove('on');
 }
@@ -5389,6 +5429,18 @@ function renderSerieStyles(){
     root.append(d);
   });
 }
+let serieHook=false;
+function serieHookUI(){
+  const f=$('#serieHookField'); if(!f) return;
+  const id=$('#serieMorceau').value; const m=DB.morceaux.find(x=>x.id===id);
+  const ready=hookReadyFor(m);
+  f.style.display=ready?'block':'none';
+  if(!ready) serieHook=false;
+  $('#serieHookBtn').textContent='Ajouter mon hook à chaque vidéo : '+(serieHook?'ON':'OFF');
+  $('#serieHookBtn').classList.toggle('on',serieHook);
+  $('#serieHookInfo').textContent=ready?(((HOOK.file&&HOOK.file.name)||'hook').slice(0,30)+' · '+hookHd().toFixed(1)+' s'+((HOOK.words&&HOOK.words.length&&HOOK.subs)?' · sous-titré':'')):'';
+}
+function serieToggleHook(){ serieHook=!serieHook; serieHookUI(); toast(serieHook?'Chaque vidéo de la série commencera par ton hook':'Série sans hook'); }
 /* Charge le morceau choisi dans l'état global sans ouvrir l'éditeur */
 async function serieLoadMorceau(m){
   M=m;
@@ -5591,11 +5643,17 @@ async function exportKept(){
   const origStyle=M.style, origPlans=M.plans;
   const sink=[];   // les vidéos exportées sont regroupées en UN SEUL fichier .zip
   let done=0;
+  // hook commun à toute la série : mix + décodeur préparés UNE fois, réutilisés pour chaque vidéo
+  let hk=null;
+  if(serieHook&&hookReadyFor(M)){
+    try{ const hd=hookHd(); await hookInstrReady(hd); hk=await hookPrepareExport(hd); }
+    catch(e){ toast('Hook indisponible pour la série ('+((e&&e.message)||e)+') — export sans hook'); hk=null; }
+  }
   for(let k=0;k<list.length;k++){
     const va=serieVariants[list[k]];
     style=Object.assign({},va.style); M.style=style;
     M.plans=va.plans.map(p=>({...p}));
-    const ok=await exportVideo('-v'+(list[k]+1), sink, {idx:k, total:list.length});
+    const ok=await exportVideo((hk?'-hook':'')+'-v'+(list[k]+1), sink, {idx:k, total:list.length}, hk);
     if(!ok){
       if(API.plan!=='pro'&&API.quota.left<=0) toast('Quota atteint — '+done+' vidéo(s) exportée(s) sur '+list.length);
       else toast('Série interrompue — '+done+' vidéo(s) exportée(s) sur '+list.length);
@@ -5603,6 +5661,7 @@ async function exportKept(){
     }
     done++;
   }
+  if(hk) hk.release();
   M.style=origStyle; M.plans=origPlans;
   if(origStyle) style=Object.assign({},origStyle);
   dirty();
