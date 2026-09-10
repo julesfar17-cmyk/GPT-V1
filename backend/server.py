@@ -3021,6 +3021,9 @@ def _project_media_ids(state: dict) -> set:
     for c in list(st.get("clips") or []) + list(st.get("clipRefs") or []):
         if isinstance(c, dict) and c.get("mediaId"):
             ids.add(str(c["mediaId"]))
+    hook = st.get("hook") or {}
+    if isinstance(hook, dict) and hook.get("mediaId"):
+        ids.add(str(hook["mediaId"]))
     return ids
 
 
