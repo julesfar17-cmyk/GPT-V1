@@ -1033,3 +1033,9 @@ REDÉPLOIEMENT REQUIS.
 - "Ça fonctionne pas" (recadrage) : cause identifiée = clip déjà 9:16 → aucun excès à glisser. Fix : ZOOM (plan.crop.z 1→2.5) via curseur (100-250%), molette et pincement 2 doigts. Draw : s=cover*z (aperçu + vignette + export). Centrer remet tout à zéro.
 - Vignettes : thumbDoctor() — passe toutes les 3 s (12 max) tant qu'il manque des vignettes, relance wcMakeThumbs(missing) par clip (_thumbBusy anti-concurrence), déclenché après chaque makeThumbs.
 - Vérifié e2e : slider z=2, drag zoomé {x:.11,y:.25,z:2}, molette z=2.45, Centrer→null. Prod servait bien v13.12 (pas de cache CDN, header no-store). REDÉPLOIEMENT REQUIS pour v13.13.
+
+
+## 2026-06 — Fix double décompte du compteur d'export
+- Cause : `/api/telemetry/export` (envoyé à chaque fin d'encodage) écrivait dans `export_logs`, la collection du quota → 1 export comptait 2 (intermittent car fetch fire-and-forget).
+- Fix : télémétrie déplacée dans `db.export_telemetry` ; migration au démarrage (`export_telemetry_split_v1`) qui purge les anciens logs télémétrie d'`export_logs` (corrige rétroactivement les quotas clients) ; index `(user_id, created_at)` sur `export_logs`.
+- Testé via curl : télémétrie → quota inchangé ; register → +1.

@@ -1023,7 +1023,7 @@ async def log_export_telemetry(request: Request, user: dict = Depends(get_curren
         body = await request.json()
     except Exception:
         body = {}
-    await db.export_logs.insert_one({
+    await db.export_telemetry.insert_one({
         "user_id": user.get("user_id"),
         "mode": str(body.get("mode"))[:20],
         "server_audio": bool(body.get("server_audio")),
@@ -1041,8 +1041,8 @@ async def log_export_telemetry(request: Request, user: dict = Depends(get_curren
 @api_router.get("/admin/telemetry/exports")
 async def admin_export_telemetry(user: dict = Depends(get_current_user)):
     await require_admin(user)
-    total = await db.export_logs.count_documents({})
-    samples = await db.export_logs.find({}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(50)
+    total = await db.export_telemetry.count_documents({})
+    samples = await db.export_telemetry.find({}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(50)
     return {"total": total, "samples": samples}
 
 
@@ -4258,6 +4258,14 @@ async def startup():
     if not await db.meta.find_one({"_id": "sid_limit_migration_v2"}):
         await db.users.update_many({"sids.0": {"$exists": True}}, {"$unset": {"sids": ""}})
         await db.meta.insert_one({"_id": "sid_limit_migration_v2"})
+    # migration unique : les logs de télémétrie (champ "mode") étaient dans export_logs → double décompte du quota
+    if not await db.meta.find_one({"_id": "export_telemetry_split_v1"}):
+        tele = await db.export_logs.find({"mode": {"$exists": True}}, {"_id": 0}).to_list(None)
+        if tele:
+            await db.export_telemetry.insert_many(tele)
+            await db.export_logs.delete_many({"mode": {"$exists": True}})
+        await db.meta.insert_one({"_id": "export_telemetry_split_v1"})
+    await db.export_logs.create_index([("user_id", 1), ("created_at", -1)])
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id")
     await db.users.create_index("ref_code")
