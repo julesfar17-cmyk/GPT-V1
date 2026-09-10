@@ -1094,6 +1094,13 @@ document.addEventListener('DOMContentLoaded',function(){
         <input type="file" id="hookInput" accept="video/*" style="display:none">
       </div>
       <div id="hookInfo" class="hint" style="display:none;margin:-4px 0 12px" data-testid="hook-info"></div>
+      <div id="hookSubsBox" style="display:none;margin-bottom:12px;max-width:420px" data-testid="hook-subs-box">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="small" id="hookSubsBtn" onclick="hookToggleSubs()" data-testid="hook-subs-toggle">Sous-titres du hook : ON</button>
+          <button class="small ghost" onclick="hookTranscribe(true)" data-testid="hook-subs-redo">Retranscrire</button>
+        </div>
+        <div class="hint" id="hookSubsTxt" style="margin-top:6px;max-height:72px;overflow:auto" data-testid="hook-subs-text"></div>
+      </div>
       <button class="small ghost" id="hookAdvBtn" onclick="hookToggleAdv()" data-testid="hook-adv-btn" style="margin-bottom:12px">Mode avancé ▾</button>
       <div id="hookAdv" style="display:none;max-width:420px">
         <div class="field"><label>Rognage du hook — début <span id="hookTrimLbl" class="mono"></span></label>
@@ -1437,11 +1444,12 @@ const API = {
 };
 
 /* Encode un extrait de l'AudioBuffer en WAV 16-bit mono (pour transcription/acapella) */
-function extractWavBlob(start, dur){
-  if(!buffer) throw new Error('Aucun audio chargé');
-  const sr=buffer.sampleRate;
-  const s0=Math.floor(start*sr), n=Math.min(Math.floor(dur*sr), buffer.length-s0);
-  const ch=buffer.getChannelData(0).slice(s0, s0+n);
+function extractWavBlob(start, dur, buf){
+  buf=buf||buffer;
+  if(!buf) throw new Error('Aucun audio chargé');
+  const sr=buf.sampleRate;
+  const s0=Math.floor(start*sr), n=Math.min(Math.floor(dur*sr), buf.length-s0);
+  const ch=buf.getChannelData(0).slice(s0, s0+n);
   const out=new DataView(new ArrayBuffer(44+n*2));
   const ws=(o,s)=>{for(let i=0;i<s.length;i++)out.setUint8(o+i,s.charCodeAt(i));};
   ws(0,'RIFF'); out.setUint32(4,36+n*2,true); ws(8,'WAVE'); ws(12,'fmt ');
@@ -1688,7 +1696,7 @@ const EN={
 "Un morceau se règle une fois (extrait, tempo, paroles). Ensuite tu en tires autant de vidéos que tu veux.":"A track is set up once (extract, tempo, lyrics). Then make as many videos from it as you like.",
 "Morceau":"Track","↶ Annuler":"↶ Undo","Enregistré":"Saved","Versions":"History","Exporter la vidéo":"Export video","Clips vidéo":"Video clips","＋ Ajouter des vidéos":"＋ Add videos","Découpées en plans, placées sur le beat":"Cut into shots, placed on the beat","Banque de clips":"Clip library","vidéos":"videos",
 "Entrée pour chercher — clique une vignette pour l'ajouter.":"Press Enter to search — click a thumbnail to add it.",
-"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Vidéo hook":"Hook video","Hook":"Hook","Tap for cut":"Tap for cut","Tap for cut — taper mes coupures":"Tap for cut — tap my cuts","Mode avancé ▾":"Advanced mode ▾","Mode avancé ▴":"Advanced mode ▴","▶ Écouter le hook":"▶ Play the hook","Exporter la vidéo hook":"Export the hook video","Vidéo hook (avec son)":"Hook video (with sound)","Choisir ma vidéo hook":"Pick my hook video","Volume du hook":"Hook volume","Musique sous le hook":"Music under the hook","Passe-bas":"Low-pass","Ouverture du filtre avant le drop":"Filter opening before the drop","Musique jouée pendant le hook":"Music played during the hook","Instrumentale":"Instrumental","Fin du hook":"Hook end","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
+"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Vidéo hook":"Hook video","Hook":"Hook","Tap for cut":"Tap for cut","Tap for cut — taper mes coupures":"Tap for cut — tap my cuts","Mode avancé ▾":"Advanced mode ▾","Mode avancé ▴":"Advanced mode ▴","▶ Écouter le hook":"▶ Play the hook","Exporter la vidéo hook":"Export the hook video","Vidéo hook (avec son)":"Hook video (with sound)","Choisir ma vidéo hook":"Pick my hook video","Volume du hook":"Hook volume","Musique sous le hook":"Music under the hook","Passe-bas":"Low-pass","Ouverture du filtre avant le drop":"Filter opening before the drop","Musique jouée pendant le hook":"Music played during the hook","Instrumentale":"Instrumental","Fin du hook":"Hook end","Sous-titres du hook : ON":"Hook subtitles: ON","Sous-titres du hook : OFF":"Hook subtitles: OFF","Retranscrire":"Transcribe again","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
 "Glisse la zone rouge pour déplacer l'extrait · tire ses bords pour l'allonger ou le raccourcir · il joue en boucle pendant que tu ajustes.":"Drag the red zone to move the extract · pull its edges to stretch or shorten it · it loops while you adjust.",
 "Tempo du morceau":"Track tempo","Tape TAP en rythme sur le beat, ou entre la valeur si tu la connais.":"Hit TAP on the beat, or type the value if you know it.",
 "Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.":"The vocals get isolated first, then each word lands at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
@@ -5074,7 +5082,7 @@ function tapClose(){
 /* ===================== VIDÉO HOOK =====================
    Un extrait tiers (avec son) AVANT le morceau : l'instru joue derrière, étouffée par un passe-bas ;
    `fade` s avant la fin le filtre s'ouvre et le drop tombe pile à la fin du hook, puis montage classique. */
-const HOOK={m:null,file:null,wc:null,audio:null,el:null,url:null,dur:0,trim:[0,0],vol:1,mus:0.35,lp:300,fade:0.5,src:'before',instr:'lowpass',instrBuf:null,instrKey:'',autoGain:1,playing:false,raf:0,nodes:[],phase:'idle'};
+const HOOK={m:null,file:null,wc:null,audio:null,el:null,url:null,dur:0,trim:[0,0],vol:1,mus:0.35,lp:300,fade:0.5,src:'before',instr:'lowpass',instrBuf:null,instrKey:'',autoGain:1,playing:false,raf:0,nodes:[],phase:'idle',words:null,subs:true,transcribing:false};
 function hookCanvas(){ return $('#hookPreview'); }
 function hookSizeCanvas(){
   const cv=hookCanvas(); if(!cv) return;
@@ -5118,11 +5126,12 @@ function hookDrawIdle(){
   c.fillText(HOOK.file?'Prêt — ▶ pour écouter':'Ta vidéo hook apparaîtra ici', cv.width/2, cv.height/2);
 }
 function drawCover(c,img,fw,fh,W,H){ const sc=Math.max(W/fw,H/fh); c.drawImage(img,(W-fw*sc)/2,(H-fh*sc)/2,fw*sc,fh*sc); }
-function hookDrawEl(cv){ const c=cv.getContext('2d'); const v=HOOK.el; if(!v||!v.videoWidth) return; c.fillStyle='#000'; c.fillRect(0,0,cv.width,cv.height); drawCover(c,v,v.videoWidth,v.videoHeight,cv.width,cv.height); }
+function hookDrawEl(cv){ const c=cv.getContext('2d'); const v=HOOK.el; if(!v||!v.videoWidth) return; c.fillStyle='#000'; c.fillRect(0,0,cv.width,cv.height); drawCover(c,v,v.videoWidth,v.videoHeight,cv.width,cv.height); if(!HOOK.playing&&HOOK.words){ const w=HOOK.words.find(w=>w.start>=HOOK.trim[0])||HOOK.words[0]; if(w) hookDrawSubs(c,w.start+0.05,cv.width,cv.height); } }
 async function hookLoadFile(file){
   hookStopPreview();
   if(HOOK.url){ try{URL.revokeObjectURL(HOOK.url);}catch(e){} }
-  HOOK.file=file; HOOK.wc=null; HOOK.audio=null; HOOK.instrBuf=null; HOOK.instrKey='';
+  HOOK.file=file; HOOK.wc=null; HOOK.audio=null; HOOK.instrBuf=null; HOOK.instrKey=''; HOOK.words=null;
+  $('#hookSubsBox').style.display='none'; $('#hookSubsTxt').textContent='';
   $('#hookDropLbl').textContent=file.name.slice(0,40);
   showLoad('Analyse de la vidéo hook…',0.15,'lecture du fichier');
   try{
@@ -5161,6 +5170,7 @@ async function hookLoadFile(file){
     await new Promise(r=>{ v.currentTime=0.05; v.onseeked=r; setTimeout(r,1500); });
     hookDrawIdle();
     toast('✓ Hook prêt — écoute-le, puis exporte');
+    if(HOOK.audio) hookTranscribe(false);   // sous-titres du dialogue : transcription automatique en arrière-plan
   }catch(e){
     HOOK.file=null; HOOK.el=null; $('#hookDropLbl').textContent='Choisir ma vidéo hook';
     toast('Vidéo hook illisible : '+((e&&e.message)||e));
@@ -5249,7 +5259,7 @@ async function hookTogglePreview(){
     const el=audioCtx.currentTime-t0;
     if(el<hd){
       const want=HOOK.trim[0]+el; if(Math.abs(v.currentTime-want)>0.18){ try{ v.currentTime=want; }catch(e){} }
-      hookDrawEl(cv);
+      hookDrawEl(cv); hookDrawSubs(cv.getContext('2d'), HOOK.trim[0]+el, cv.width, cv.height);
       // repère : ouverture du filtre
       if(el>hd-HOOK.fade){ const c=cv.getContext('2d'); c.fillStyle='rgba(224,20,60,'+(0.25*(el-(hd-HOOK.fade))/HOOK.fade)+')'; c.fillRect(0,cv.height-6,cv.width,6); }
     }else{
@@ -5260,6 +5270,33 @@ async function hookTogglePreview(){
     HOOK.raf=requestAnimationFrame(loop);
   };
   HOOK.raf=requestAnimationFrame(loop);
+}
+/* Sous-titres du hook : dialogue transcrit (Groq/Whisper), dessiné avec LE style de sous-titres du morceau */
+async function hookTranscribe(force){
+  if(!HOOK.audio||HOOK.transcribing) return;
+  if(HOOK.words&&!force) return;
+  HOOK.transcribing=true;
+  const box=$('#hookSubsBox'), txt=$('#hookSubsTxt');
+  box.style.display='block'; txt.textContent='Transcription du dialogue en cours…';
+  try{
+    const wav=extractWavBlob(0, HOOK.dur, HOOK.audio);
+    const words=await API.transcribe(wav, lyrLang());
+    HOOK.words=words.map(w=>({text:w.text,start:w.start,end:w.end}));
+    txt.textContent=HOOK.words.length? HOOK.words.map(w=>w.text).join(' ') : 'Aucune parole détectée dans le hook.';
+    if(HOOK.words.length) toast('✓ Dialogue du hook transcrit ('+HOOK.words.length+' mots) — affiché dans ton style');
+    hookDrawIdle();
+  }catch(e){ HOOK.words=null; txt.textContent='Transcription indisponible ('+((e&&e.message)||e)+') — Retranscrire pour réessayer.'; }
+  finally{ HOOK.transcribing=false; }
+}
+function hookToggleSubs(){ HOOK.subs=!HOOK.subs; $('#hookSubsBtn').textContent='Sous-titres du hook : '+(HOOK.subs?'ON':'OFF'); hookDrawIdle(); }
+function hookDrawSubs(c, tHook, W, H){
+  if(!HOOK.subs||!HOOK.words||!HOOK.words.length||!M) return;
+  const sw=M.words; M.words=HOOK.words;
+  try{
+    if(style&&style.invert){ c.save(); c.globalCompositeOperation='difference'; drawLyricBlock(c,tHook,W,H); c.restore(); }
+    else drawLyricBlock(c,tHook,W,H);
+  }catch(e){}
+  finally{ M.words=sw; }
 }
 /* Frame WebCodecs exacte d'un clip arbitraire (utilisé pour le hook à l'export) */
 async function wcSeekFrame(pl, wc, target){
@@ -5310,9 +5347,12 @@ async function hookExport(){
       c.fillStyle='#000'; c.fillRect(0,0,cv.width,cv.height);
       let f=null;
       if(seg){ f=await wcSeekFrame(seg, HOOK.wc, target); }
-      if(f){ drawCover(c,f,f.displayWidth||f.codedWidth,f.displayHeight||f.codedHeight,cv.width,cv.height); return; }
-      await new Promise(r=>{ v.onseeked=r; try{ v.currentTime=target; }catch(e){ r(); } setTimeout(r,700); });
-      if(v.videoWidth) drawCover(c,v,v.videoWidth,v.videoHeight,cv.width,cv.height);
+      if(f){ drawCover(c,f,f.displayWidth||f.codedWidth,f.displayHeight||f.codedHeight,cv.width,cv.height); }
+      else{
+        await new Promise(r=>{ v.onseeked=r; try{ v.currentTime=target; }catch(e){ r(); } setTimeout(r,700); });
+        if(v.videoWidth) drawCover(c,v,v.videoWidth,v.videoHeight,cv.width,cv.height);
+      }
+      hookDrawSubs(c, target, cv.width, cv.height);
     };
     const ok=await exportVideo('-hook', null, null, {dur:hd, audio:mix, draw});
     if(seg) seg.destroy();
