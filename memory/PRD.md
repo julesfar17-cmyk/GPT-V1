@@ -1048,3 +1048,7 @@ Fix :
 - Studio (`studio.html` bloc « Sauvegarde fiabilisée ») : saves sérialisées, retry exponentiel (2→30 s), flush `keepalive` sur pagehide/visibilitychange, flush avant changement de morceau, `canPersist()` bloque si projet distant non chargé, `restoreIncomplete=true` posé AVANT le GET, brouillon IndexedDB (`bc_drafts`) restauré silencieusement si plus récent/complet que le serveur, écran bloquant style tuto (`save-block-overlay`) pour 401 (bouton reconnexion + « Je suis reconnecté ») / 429 (liste des projets avec Supprimer + lien tarifs) / offline / serveur ; remap des indices de plans si clip manquant + modal `missing-clips-modal` mettant en avant « Récupérer mes vidéos ».
 - Admin React : section `SaveFailuresAdmin` (par raison + par utilisateur).
 - Testé : iteration_31.json (100 % backend/frontend).
+
+
+## 2026-06 — Partage direct après export
+- Bouton « Partager » dans la modale « Ta vidéo est prête » (`dl-share-{i}`) : Web Share API niveau 2 (`navigator.share({files})`) → feuille de partage du téléphone (TikTok / Instagram / WhatsApp…). Affiché seulement si `canShare` avec fichier est supporté (iOS Safari, Chrome Android) ; masqué sur desktop et pour les .zip de série. Le partage réussi décompte l'export comme un téléchargement ; annulation (AbortError) = rien. Testé via screenshot avec API simulée (fichier mp4 transmis, export compté).

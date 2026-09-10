@@ -363,6 +363,9 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
 .dl-meta b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dl-meta span{color:var(--muted);font-size:12px}
 .dl-btn{white-space:nowrap;flex-shrink:0}
+.dl-acts{display:flex;gap:8px;flex-shrink:0}
+.dl-share{background:transparent;border:1px solid var(--line);color:inherit}
+@media(max-width:600px){.dl-row{flex-wrap:wrap}.dl-meta{flex:1 1 100%}.dl-acts{width:100%}.dl-acts button{flex:1}}
 .dl-note{margin:12px 0 14px}
 @media (prefers-reduced-motion:reduce){.logo::before,.dl-check,#dlOv.show,.dl-card{animation:none!important}.card:hover,button.primary:hover{transform:none}}
 
@@ -1566,7 +1569,7 @@ function _dlRegister(entry){
 }
 function showDownloadModal(blob,fname,info){
   const url=URL.createObjectURL(blob);
-  _dlQueue.push({url,fname,size:blob.size,info,registered:false});
+  _dlQueue.push({url,blob,fname,size:blob.size,info,registered:false});
   renderDownloadModal(true);
 }
 function renderDownloadModal(open){
@@ -1577,14 +1580,34 @@ function renderDownloadModal(open){
     const mb=(e.size/1048576).toFixed(1);
     return '<div class="dl-row" data-testid="dl-row-'+i+'">'
       +'<div class="dl-meta"><b>'+e.fname.replace(/</g,'&lt;')+'</b><span>'+(e.info.count>1? e.info.count+' '+T('vidéos')+' (.zip)' : e.info.W+'×'+e.info.H)+' · '+mb+' Mo'+(e.registered?' · '+T('téléchargée ✓'):'')+'</span></div>'
-      +'<button class="primary dl-btn" onclick="dlGo('+i+')">'+T(e.registered?'Re-télécharger':'Télécharger')+'</button></div>';
+      +'<div class="dl-acts">'
+      +(canShareEntry(e)?'<button class="dl-btn dl-share" data-testid="dl-share-'+i+'" onclick="dlShare('+i+')">'+T('Partager')+'</button>':'')
+      +'<button class="primary dl-btn" data-testid="dl-download-'+i+'" onclick="dlGo('+i+')">'+T(e.registered?'Re-télécharger':'Télécharger')+'</button></div></div>';
   }).join('');
   ov.innerHTML='<div class="dl-card"><div class="dl-check">✓</div>'
     +'<h2>'+(_dlQueue.length>1?_dlQueue.length+' '+T('vidéos prêtes'):T('Ta vidéo est prête'))+'</h2>'
     +rows
-    +'<p class="hint dl-note">'+T('Le décompte se fait au téléchargement — fermer sans télécharger ne consomme rien.')+'</p>'
+    +'<p class="hint dl-note">'+T('Le décompte se fait au téléchargement ou au partage — fermer sans rien faire ne consomme rien.')+'</p>'
     +'<button class="ghost" onclick="document.getElementById(\'dlOv\').classList.remove(\'show\')">'+T('Fermer')+'</button></div>';
   if(open) ov.classList.add('show');
+}
+/* Partage direct (Web Share API niveau 2) : feuille de partage du téléphone → TikTok / Instagram / WhatsApp… */
+function canShareEntry(e){
+  if(!e||!e.blob||(e.info&&e.info.count>1)) return false;
+  if(!navigator.share||!navigator.canShare) return false;
+  try{ return navigator.canShare({files:[new File([e.blob],e.fname,{type:'video/mp4'})]}); }catch(err){ return false; }
+}
+async function dlShare(i){
+  const e=_dlQueue[i]; if(!e) return;
+  const file=new File([e.blob],e.fname,{type:'video/mp4'});
+  try{
+    await navigator.share({files:[file],title:e.fname.replace(/\.mp4$/,'')});
+    _dlRegister(e); renderDownloadModal(false);
+    toast('Vidéo partagée ✓');
+  }catch(err){
+    if(err&&err.name==='AbortError') return;   // feuille de partage refermée : rien à faire
+    toast('Partage impossible ici — utilise Télécharger puis poste depuis ta galerie');
+  }
 }
 function dlGo(i){
   const e=_dlQueue[i]; if(!e) return;
@@ -1608,7 +1631,7 @@ const EN={
 "Un morceau se règle une fois (extrait, tempo, paroles). Ensuite tu en tires autant de vidéos que tu veux.":"A track is set up once (extract, tempo, lyrics). Then make as many videos from it as you like.",
 "Morceau":"Track","↶ Annuler":"↶ Undo","Enregistré":"Saved","Versions":"History","Exporter la vidéo":"Export video","Clips vidéo":"Video clips","＋ Ajouter des vidéos":"＋ Add videos","Découpées en plans, placées sur le beat":"Cut into shots, placed on the beat","Banque de clips":"Clip library","vidéos":"videos",
 "Entrée pour chercher — clique une vignette pour l'ajouter.":"Press Enter to search — click a thumbnail to add it.",
-"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
+"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
 "Glisse la zone rouge pour déplacer l'extrait · tire ses bords pour l'allonger ou le raccourcir · il joue en boucle pendant que tu ajustes.":"Drag the red zone to move the extract · pull its edges to stretch or shorten it · it loops while you adjust.",
 "Tempo du morceau":"Track tempo","Tape TAP en rythme sur le beat, ou entre la valeur si tu la connais.":"Hit TAP on the beat, or type the value if you know it.",
 "Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.":"The vocals get isolated first, then each word lands at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
@@ -1632,7 +1655,7 @@ const EN={
 "ex : néon, fumée, ville la nuit…":"e.g. neon, smoke, city at night…","Colle tes paroles ici…":"Paste your lyrics here…",
 "Annuler (Ctrl+Z)":"Undo (Ctrl+Z)","Contour blanc":"White outline","Contour noir":"Black outline","Dézoomer":"Zoom out","Exports restants ce mois":"Exports left this month","Format de la vidéo":"Video format","Historique des versions du morceau":"Track version history","La durée exacte pour que la vidéo boucle parfaitement":"The exact length for a perfect loop","Plein écran (F)":"Fullscreen (F)","Régler le tempo":"Set the tempo","Zoomer":"Zoom in","Paroles & style":"Lyrics & style",
 "Un export est déjà en cours — attends la fin":"An export is already running — wait for it to finish","Dépose d'abord ton morceau":"Drop your track first","Téléchargement lancé ✓":"Download started ✓","Morceau supprimé":"Track deleted","Ta vidéo est prête":"Your video is ready","vidéos prêtes":"videos ready","Télécharger":"Download","Re-télécharger":"Download again","téléchargée ✓":"downloaded ✓","Fermer":"Close",
-"Le décompte se fait au téléchargement — fermer sans télécharger ne consomme rien.":"Your quota is only used when you download — closing without downloading costs nothing.",
+"Le décompte se fait au téléchargement ou au partage — fermer sans rien faire ne consomme rien.":"Your quota is only used when you download or share — closing without doing anything costs nothing.",
 "Télécharge d'abord ta vidéo prête (fenêtre ✓) — elle utilise ton quota restant":"Download your ready video first (✓ window) — it uses your remaining quota",
 "Le navigateur TikTok/Instagram bloque le téléchargement — ouvre beat-cut.com dans Chrome ou Safari (menu ⋯ → Ouvrir dans le navigateur). Rien n'a été décompté.":"The TikTok/Instagram browser blocks downloads — open beat-cut.com in Chrome or Safari (⋯ menu → Open in browser). Nothing was deducted.",
 "Plans par vidéo :":"Shots per video:","Plans par vidéo":"Shots per video","Jusqu'à 24 plans par vidéo — limité par la durée du clip.":"Up to 24 shots per video — limited by clip length.","Auto":"Auto","Sans coupes : OFF":"No cuts: OFF","Sans coupes : ON":"No cuts: ON","Vidéo entière, sans coupes ":"Full video, no cuts ","Coupes sur le beat réactivées ":"Beat cuts back on ","Texte en négatif (couleur inversée du fond)":"Negative text (inverts what's behind)","Saturé 4K":"4K saturated","Glow (halo lumineux)":"Glow (bloom)","Caméra instable":"Handheld camera","Fisheye léger":"Light fisheye","Archivo Narrow — condensé viral":"Archivo Narrow — viral condensed","Silkscreen — pixel rétro":"Silkscreen — retro pixel","Rubik Distressed — abrasé":"Rubik Distressed — distressed","Plans mélangés — chaque clip est servi équitablement (les n'ont pas bougé)":"Shots shuffled — every clip dealt fairly (untouched)","Ajoute d'abord des vidéos à gauche":"Add videos on the left first","Préparation de l'export studio…":"Preparing studio export…","Finalisation du MP4…":"Finalizing MP4…","Ajout du son (serveur)…":"Adding audio (server)…","Vérification des vidéos…":"Checking videos…",
