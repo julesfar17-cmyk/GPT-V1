@@ -383,7 +383,47 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
 .hk-seg-drop{flex:0 0 auto;background:var(--accent);color:var(--accent-ink);font-weight:700}
 .hk-seg-mont{flex:3;background:var(--panel-2);border:1px solid var(--line)}
 #hookExportBtn:disabled{opacity:.45;cursor:not-allowed}
-@media(max-width:900px){.hook-grid{grid-template-columns:1fr}.hook-right{position:static}.hook-stage canvas{max-height:44vh}.hk-card{padding:14px}}
+.hk-mob-only{display:none}
+@media(max-width:900px) and (min-width:701px){.hook-grid{grid-template-columns:1fr}.hook-right{position:static}.hook-stage canvas{max-height:44vh}.hk-card{padding:14px}}
+/* ===== Mobile : même logique que le studio → haut (étape) · aperçu plein écran · barre d'outils basse ===== */
+@media(max-width:700px){
+  body.mob-hook{overflow:hidden;position:fixed;inset:0;width:100%}
+  body.mob-hook header,body.mob-hook #homeTabs{display:none!important}
+  #pageHook.show{display:flex;flex-direction:column;height:100dvh;padding:0;max-width:none}
+  #pageHook>h2,#pageHook>.hint,#pageHook>.steps{display:none}
+  .hk-mob-only{display:inline-flex}
+  .hk-mobtop{display:flex;align-items:center;gap:8px;height:54px;min-height:54px;padding:0 10px;border-bottom:1px solid var(--line);background:var(--bg)}
+  .hk-mobtop>button.small{min-width:42px;min-height:42px;padding:0;font-size:22px;border-radius:12px;display:inline-grid;place-items:center}
+  .hk-mobtitle{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+  .hk-mobtitle b{font-size:13.5px}
+  .hk-mobtitle span{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hk-mobtop .primary{min-height:40px;padding:8px 14px;font-size:13px;white-space:nowrap}
+  .hook-grid{display:flex;flex-direction:column;flex:1;min-height:0;gap:0}
+  .hook-right{position:static;flex:1;min-height:0;display:flex;order:-1}
+  .hook-right .hk-card{flex:1;min-height:0;display:flex;flex-direction:column;background:none;border:none;border-radius:0;padding:8px 10px calc(74px + env(safe-area-inset-bottom))}
+  .hook-right .hk-title,#hookPlayBtn,#hookExportBtn,#hookExportHint,[data-testid=hook-to-serie],#hookAdvBtn{display:none}
+  #hookAdv{display:block!important;margin-top:0}
+  .hook-stage{flex:1;min-height:0;border-radius:14px}
+  .hook-stage canvas{width:100%;height:100%;max-height:none;object-fit:contain}
+  .hk-timeline{margin-top:8px}
+  /* cartes = panneaux coulissants depuis le bas */
+  .hook-left{display:contents}
+  .hk-sheet{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));max-height:62dvh;overflow-y:auto;z-index:80;
+    background:var(--panel);border:none;border-top:1px solid var(--line);border-radius:18px 18px 0 0;
+    transform:translateY(130%);transition:transform .28s cubic-bezier(.3,.9,.3,1);box-shadow:0 -24px 70px rgba(0,0,0,.65);padding:6px 16px 20px;overscroll-behavior:contain}
+  .hk-sheet::before{content:'';display:block;width:44px;height:4px;border-radius:2px;background:#3A4450;margin:8px auto 12px}
+  .hk-sheet.open{transform:none}
+  .hk-mobbar{display:grid;grid-template-columns:1fr 1fr 64px 1fr 1fr;position:fixed;left:0;right:0;bottom:0;z-index:90;height:calc(64px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);
+    background:rgba(14,17,22,.97);border-top:1px solid var(--line);backdrop-filter:blur(12px)}
+  .hk-mobbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;border-radius:0;min-height:100%;padding:6px 2px;color:var(--muted)}
+  .hk-mobbar button.on{color:var(--text)}
+  .hk-mobbar button .ic{font-size:20px;line-height:1}
+  .hk-mobbar button .lb{font-size:10.5px;font-weight:600;letter-spacing:.02em}
+  .hk-mobbar button.hk-play{align-self:center;justify-self:center;width:52px;height:52px;min-height:52px;border-radius:50%;background:var(--accent);color:var(--accent-ink);box-shadow:var(--glow,none)}
+  .hk-mobbar button.hk-play .ic{font-size:20px}
+  .hk-mobbar button.hk-play:disabled{opacity:.4}
+  .hk-mobbar button.hk-badge .lb::after{content:' •';color:var(--accent)}
+}
 #tapOv{position:fixed;inset:0;z-index:9985;background:var(--void,#000);display:flex;flex-direction:column;overflow:auto;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 #tapOv .tap-zone{flex:1;display:grid;place-items:center;text-align:center;cursor:pointer;position:relative;min-height:46vh}
 #tapOv .tap-zone .big{font-size:clamp(64px,18vw,160px);font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--frost,#fff)}
@@ -1112,14 +1152,19 @@ document.addEventListener('DOMContentLoaded',function(){
     <span id="hkStep2"><span class="n">2</span>Vidéo hook</span> →
     <span id="hkStep3"><span class="n">3</span>Écouter &amp; exporter</span>
   </div>
+  <div class="hk-mobtop hk-mob-only" data-testid="hook-mob-top">
+    <button class="small" onclick="go('accueil')" aria-label="Retour" data-testid="hook-mob-back">‹</button>
+    <div class="hk-mobtitle"><b>Vidéo hook</b><span id="hkMobStep" data-testid="hook-mob-step">Étape 1/3 · Choisis le morceau</span></div>
+    <button class="primary" id="hookMobExport" onclick="hookExport()" data-testid="hook-mob-export">Exporter</button>
+  </div>
   <div class="hook-grid">
     <div class="hook-left">
-      <div class="hk-card" data-testid="hook-card-morceau">
+      <div class="hk-card hk-sheet" id="hkCardMorceau" data-testid="hook-card-morceau">
         <div class="hk-title"><span class="n">1</span>Choisis le morceau</div>
         <select id="hookMorceau" data-testid="hook-morceau-select" onchange="hookPickMorceau(this.value)"></select>
         <div class="hint" id="hookMorceauInfo" style="margin-top:6px"></div>
       </div>
-      <div class="hk-card" data-testid="hook-card-video">
+      <div class="hk-card hk-sheet" id="hkCardVideo" data-testid="hook-card-video">
         <div class="hk-title"><span class="n">2</span>Importe ta vidéo hook</div>
         <div class="drop" id="hookDrop" data-testid="hook-drop" style="padding:22px 16px"><div><b id="hookDropLbl">Choisir ma vidéo hook</b><div class="hint" style="margin-top:6px">MP4 / MOV avec son — 2 à 30 s conseillés</div></div></div>
         <input type="file" id="hookInput" accept="video/*" style="display:none">
@@ -1136,8 +1181,9 @@ document.addEventListener('DOMContentLoaded',function(){
           </div>
         </div>
       </div>
-      <div class="hk-card hk-adv-card">
+      <div class="hk-card hk-adv-card hk-sheet" id="hkCardAdv">
         <button class="small ghost" id="hookAdvBtn" onclick="hookToggleAdv()" data-testid="hook-adv-btn">Mode avancé ▾</button>
+        <button class="small ghost hk-mob-only" onclick="go('serie')" data-testid="hook-to-serie-mob" style="margin-left:8px">Utiliser sur une Série →</button>
         <div id="hookAdv" style="display:none;margin-top:12px">
           <div class="field"><label>Rognage du hook — début <span id="hookTrimLbl" class="mono"></span></label>
             <input type="range" id="hookTrimStart" min="0" max="1" step="0.05" value="0" oninput="hookSet()" data-testid="hook-trim-start">
@@ -1157,7 +1203,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <div class="hook-right">
       <div class="hk-card" data-testid="hook-card-export">
         <div class="hk-title"><span class="n">3</span>Écoute, puis exporte</div>
-        <div class="hook-stage" id="hookStage" onclick="hookTogglePreview()" data-testid="hook-stage">
+        <div class="hook-stage" id="hookStage" onclick="if(!hookCloseSheets()) hookTogglePreview()" data-testid="hook-stage">
           <canvas id="hookPreview" width="540" height="960" data-testid="hook-preview"></canvas>
           <div class="hk-playbtn" id="hookPlayOv">▶</div>
         </div>
@@ -1168,6 +1214,13 @@ document.addEventListener('DOMContentLoaded',function(){
         <button class="small ghost" onclick="go('serie')" data-testid="hook-to-serie" style="margin-top:8px;width:100%">Utiliser ce hook sur une Série de vidéos →</button>
       </div>
     </div>
+  </div>
+  <div class="hk-mobbar hk-mob-only" data-testid="hook-mob-bar">
+    <button data-hs="hkCardMorceau" onclick="hookMobSheet('hkCardMorceau')" data-testid="hook-mob-tab-morceau"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="lb">Morceau</span></button>
+    <button data-hs="hkCardVideo" onclick="hookMobSheet('hkCardVideo')" data-testid="hook-mob-tab-hook"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20M7 4v5M17 4v5"/></svg></span><span class="lb">Hook</span></button>
+    <button class="hk-play" id="hookMobPlay" onclick="hookTogglePreview()" data-testid="hook-mob-play"><span class="ic">▶</span></button>
+    <button data-hs="hkCardAdv" onclick="hookMobSheet('hkCardAdv')" data-testid="hook-mob-tab-settings"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h16M4 16h16"/><circle cx="9" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="16" r="2" fill="currentColor" stroke="none"/></svg></span><span class="lb">Réglages</span></button>
+    <button onclick="hookToggleSubs();hookUiState()" id="hookMobSubs" data-testid="hook-mob-subs"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg></span><span class="lb">Sous-titres</span></button>
   </div>
 </div>
 
@@ -1741,7 +1794,7 @@ const EN={
 "Un morceau se règle une fois (extrait, tempo, paroles). Ensuite tu en tires autant de vidéos que tu veux.":"A track is set up once (extract, tempo, lyrics). Then make as many videos from it as you like.",
 "Morceau":"Track","↶ Annuler":"↶ Undo","Enregistré":"Saved","Versions":"History","Exporter la vidéo":"Export video","Clips vidéo":"Video clips","＋ Ajouter des vidéos":"＋ Add videos","Découpées en plans, placées sur le beat":"Cut into shots, placed on the beat","Banque de clips":"Clip library","vidéos":"videos",
 "Entrée pour chercher — clique une vignette pour l'ajouter.":"Press Enter to search — click a thumbnail to add it.",
-"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Vidéo hook":"Hook video","Hook":"Hook","Tap for cut":"Tap for cut","Tap for cut — taper mes coupures":"Tap for cut — tap my cuts","Mode avancé ▾":"Advanced mode ▾","Mode avancé ▴":"Advanced mode ▴","▶ Écouter le hook":"▶ Play the hook","Exporter la vidéo hook":"Export the hook video","Vidéo hook (avec son)":"Hook video (with sound)","Choisir ma vidéo hook":"Pick my hook video","Volume du hook":"Hook volume","Musique sous le hook":"Music under the hook","Passe-bas":"Low-pass","Ouverture du filtre avant le drop":"Filter opening before the drop","Musique jouée pendant le hook":"Music played during the hook","Instrumentale":"Instrumental","Fin du hook":"Hook end","Sous-titres du hook : ON":"Hook subtitles: ON","Sous-titres du hook : OFF":"Hook subtitles: OFF","Retranscrire":"Transcribe again","Clique un mot pour le corriger.":"Click a word to fix it.","Ajouter mon hook à chaque vidéo : OFF":"Add my hook to every video: OFF","Ajouter mon hook à chaque vidéo : ON":"Add my hook to every video: ON","Utiliser ce hook sur une Série de vidéos →":"Use this hook on a video batch →","Retirer le hook de ce morceau":"Remove the hook from this track","Choisis le morceau":"Pick the track","Importe ta vidéo hook":"Import your hook video","Écoute, puis exporte":"Listen, then export","Écouter & exporter":"Listen & export","Changer":"Change","Retirer":"Remove","MP4 / MOV avec son — 2 à 30 s conseillés":"MP4 / MOV with sound — 2 to 30 s recommended","Charger le hook mémorisé":"Load the saved hook","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
+"Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Vidéo hook":"Hook video","Hook":"Hook","Tap for cut":"Tap for cut","Tap for cut — taper mes coupures":"Tap for cut — tap my cuts","Mode avancé ▾":"Advanced mode ▾","Mode avancé ▴":"Advanced mode ▴","▶ Écouter le hook":"▶ Play the hook","Exporter la vidéo hook":"Export the hook video","Vidéo hook (avec son)":"Hook video (with sound)","Choisir ma vidéo hook":"Pick my hook video","Volume du hook":"Hook volume","Musique sous le hook":"Music under the hook","Passe-bas":"Low-pass","Ouverture du filtre avant le drop":"Filter opening before the drop","Musique jouée pendant le hook":"Music played during the hook","Instrumentale":"Instrumental","Fin du hook":"Hook end","Sous-titres du hook : ON":"Hook subtitles: ON","Sous-titres du hook : OFF":"Hook subtitles: OFF","Retranscrire":"Transcribe again","Clique un mot pour le corriger.":"Click a word to fix it.","Ajouter mon hook à chaque vidéo : OFF":"Add my hook to every video: OFF","Ajouter mon hook à chaque vidéo : ON":"Add my hook to every video: ON","Utiliser ce hook sur une Série de vidéos →":"Use this hook on a video batch →","Retirer le hook de ce morceau":"Remove the hook from this track","Choisis le morceau":"Pick the track","Importe ta vidéo hook":"Import your hook video","Écoute, puis exporte":"Listen, then export","Écouter & exporter":"Listen & export","Changer":"Change","Retirer":"Remove","MP4 / MOV avec son — 2 à 30 s conseillés":"MP4 / MOV with sound — 2 to 30 s recommended","Charger le hook mémorisé":"Load the saved hook","Sous-titres":"Subtitles","Utiliser sur une Série →":"Use on a batch →","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
 "Glisse la zone rouge pour déplacer l'extrait · tire ses bords pour l'allonger ou le raccourcir · il joue en boucle pendant que tu ajustes.":"Drag the red zone to move the extract · pull its edges to stretch or shorten it · it loops while you adjust.",
 "Tempo du morceau":"Track tempo","Tape TAP en rythme sur le beat, ou entre la valeur si tu la connais.":"Hit TAP on the beat, or type the value if you know it.",
 "Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.":"The vocals get isolated first, then each word lands at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
@@ -2085,6 +2138,8 @@ function route(){
   $$('.page').forEach(el=>el.classList.remove('show'));
   $$('nav a').forEach(a=>a.classList.toggle('active',a.dataset.nav===p[0]));
   document.body.classList.toggle('mob-edit', p[0]==='edit');
+  document.body.classList.toggle('mob-hook', p[0]==='hook');
+  if(p[0]!=='hook') $$('#pageHook .hk-sheet.open').forEach(x=>x.classList.remove('open'));
   document.body.classList.toggle('editing', p[0]==='edit');
   document.querySelectorAll('.edit-main>.col.open,#extractZone.open,#mobMore.open').forEach(c=>c.classList.remove('open'));
   $$('#mobBar button').forEach(b=>b.classList.remove('on'));
@@ -4015,6 +4070,8 @@ async function parseWC(blob){
       if(stable<2) return;
       clearInterval(poll);
       try{ mp4.stop(); }catch(e){}
+      // normalisation : la 1re image doit être à t=0 (edit list / délai B-frames décalent les cts)
+      if(wc.samples.length){ let mn=Infinity; for(const s of wc.samples){ if(s.ts<mn) mn=s.ts; } if(mn>0&&isFinite(mn)) for(const s of wc.samples) s.ts-=mn; }
       if(!wc.samples.length){ fail(new Error('aucune frame extraite')); return; }
       // le codec est-il décodable sur CETTE machine ? (cas HEVC iPhone)
       try{
@@ -4081,6 +4138,8 @@ class SegPlayer{
       if(this.cur){ try{this.cur.close();}catch(e){} }
       this.cur=this.frames.shift();
     }
+    // cible AVANT la première image disponible (début de clip) : la première image est la bonne, on n'attend pas 12 s pour rien
+    if(!this.cur && this.frames.length && this.frames[0].timestamp>wantUs) this.cur=this.frames.shift();
     return this.cur;
   }
   buffered(){ return this.frames.length; }
@@ -5183,6 +5242,7 @@ async function hookPickMorceau(id){
     hideLoad();
     if(m.hook&&m.hook.mediaId) await hookRestore(m);
     hookUiState();
+    if(window.matchMedia('(max-width:700px)').matches){ if(!HOOK.file) hookMobSheet('hkCardVideo'); else hookCloseSheets(); }
   }catch(e){ toast('Ouverture impossible : '+((e&&e.message)||e)); }
   finally{ hideLoad(); }
 }
@@ -5245,7 +5305,7 @@ async function hookLoadFile(file, restore){
     $('#hookFileName').textContent=file.name;
     $('#hookInfo').textContent=HOOK.dur.toFixed(1)+' s'+(HOOK.audio?' · son OK':' · sans son')+(HOOK.wc?' · optimisé ✓':' · ⚠ non décodable ici');
     await new Promise(r=>{ v.currentTime=Math.max(0.05,HOOK.trim[0]); v.onseeked=r; setTimeout(r,1500); });
-    HOOK._loading=false; hookUiState(); hookDrawIdle();
+    HOOK._loading=false; hookUiState(); hookDrawIdle(); hookCloseSheets();
     if(restore){ toast('✓ Hook retrouvé avec le morceau'); }
     else{
       toast('✓ Hook prêt — touche l\u2019aperçu pour l\u2019écouter');
@@ -5257,10 +5317,24 @@ async function hookLoadFile(file, restore){
     toast('Vidéo hook illisible : '+((e&&e.message)||e));
   }finally{ HOOK._loading=false; hideLoad(); hookUiState(); }
 }
+/* Mobile : panneaux coulissants (un seul ouvert), la barre basse reflète l'ouvert */
+function hookMobSheet(id){
+  const el=document.getElementById(id); if(!el) return;
+  const wasOpen=el.classList.contains('open');
+  $$('#pageHook .hk-sheet.open').forEach(x=>x.classList.remove('open'));
+  if(!wasOpen){ el.classList.add('open'); if(id==='hkCardAdv'&&$('#hookAdv').style.display==='none') hookToggleAdv(); }
+  $$('.hk-mobbar button[data-hs]').forEach(b=>b.classList.toggle('on',!wasOpen&&b.dataset.hs===id));
+}
+function hookCloseSheets(){ const o=$$('#pageHook .hk-sheet.open'); o.forEach(x=>x.classList.remove('open')); $$('.hk-mobbar button[data-hs]').forEach(b=>b.classList.remove('on')); return o.length>0; }
 /* État visuel de la page (étapes, carte fichier, bouton export) */
 function hookUiState(){
   const page=$('#pageHook'); if(!page) return;
   const hasM=!!(M&&buffer), hasH=!!(HOOK.file&&HOOK.el&&!HOOK._loading), ready=hasM&&hasH&&!!HOOK.wc;
+  // mobile : étape courante + boutons de la barre
+  const stepEl=$('#hkMobStep'); if(stepEl) stepEl.textContent=!hasM?'Étape 1/3 · Choisis le morceau':!hasH?'Étape 2/3 · Importe ta vidéo hook':'Étape 3/3 · Écoute, puis exporte';
+  const me=$('#hookMobExport'); if(me) me.disabled=!ready||!!exporting;
+  const mp=$('#hookMobPlay'); if(mp){ mp.disabled=!hasH||!hasM; mp.querySelector('.ic').textContent=HOOK.playing?'■':'▶'; }
+  const ms=$('#hookMobSubs'); if(ms){ ms.classList.toggle('hk-badge',!!(HOOK.words&&HOOK.words.length&&HOOK.subs)); ms.disabled=!(HOOK.words&&HOOK.words.length); ms.classList.toggle('on',!!(HOOK.subs&&HOOK.words&&HOOK.words.length)); }
   $('#hkStep1').classList.toggle('on',true); $('#hkStep2').classList.toggle('on',hasM); $('#hkStep3').classList.toggle('on',hasM&&hasH);
   $('#hookDrop').style.display=hasH?'none':'grid'; $('#hookLoaded').style.display=hasH?'block':'none';
   $('#hookMorceauInfo').textContent=hasM?('Extrait de '+ext.dur.toFixed(0)+' s · '+((M.plans||[]).length)+' plans'+(clips.length?' · '+clips.length+' vidéo'+(clips.length>1?'s':''):' · ⚠ aucune vidéo dans ce morceau')):'Choisis un morceau déjà monté dans le studio.';
@@ -5362,7 +5436,7 @@ function hookStopPreview(){
   if(playing) stopAll();
   const b=$('#hookPlayBtn'); if(b) b.textContent='▶ Écouter le hook';
   const st=$('#hookStage'); if(st) st.classList.remove('playing');
-  hookDrawIdle();
+  hookDrawIdle(); hookUiState();
 }
 async function hookTogglePreview(){
   if(HOOK.playing){ hookStopPreview(); return; }
@@ -5372,7 +5446,7 @@ async function hookTogglePreview(){
   if(clipsBlocking()){ toast('Tes vidéos finissent de s\u2019optimiser — un instant…'); return; }
   try{ await audioCtx.resume(); }catch(e){}
   const hd=hookHd(), cv=hookCanvas(); hookSizeCanvas();
-  HOOK.playing=true; $('#hookPlayBtn').textContent='■ Stop'; $('#hookStage').classList.add('playing');
+  HOOK.playing=true; $('#hookPlayBtn').textContent='■ Stop'; $('#hookStage').classList.add('playing'); hookCloseSheets(); hookUiState();
   const v=HOOK.el; v.currentTime=HOOK.trim[0];
   await new Promise(r=>{ v.onseeked=r; setTimeout(r,600); });
   if(!HOOK.playing) return;
@@ -5408,7 +5482,7 @@ async function hookTranscribe(force){
     const wav=extractWavBlob(0, HOOK.dur, HOOK.audio);
     const words=await API.transcribe(wav, lyrLang());
     HOOK.words=words.map(w=>({text:w.text,start:w.start,end:w.end}));
-    hookRenderWords(); hookSave();
+    hookRenderWords(); hookSave(); hookUiState();
     if(HOOK.words.length) toast('✓ Dialogue du hook transcrit ('+HOOK.words.length+' mots) — affiché dans ton style');
     hookDrawIdle();
   }catch(e){ HOOK.words=null; txt.textContent='Transcription indisponible ('+((e&&e.message)||e)+') — Retranscrire pour réessayer.'; }
