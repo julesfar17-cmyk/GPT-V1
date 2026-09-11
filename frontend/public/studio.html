@@ -1595,7 +1595,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.23-serie-mobile';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.24-pool';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -4218,7 +4218,7 @@ function wcActivate(i){
   const w=wcPlanSrc(p); let freed=null;
   if(w){
     const k=wcPool.findIndex(e=>e.idx===i&&e.pl.clip===w);
-    if(k>=0){ freed=wcA; wcA=wcPool.splice(k,1)[0].pl; }   // pré-décodé → actif (latence ~0)
+    if(k>=0){ freed=wcA; wcA=wcPool.splice(k,1)[0].pl; if(wcA.err){ wcA.recover(); wcA.setClip(w); wcA.seek(wcSeekOf(p)); } }   // pré-décodé → actif (latence ~0)
     else{
       if(!wcA) wcA=new SegPlayer();
       if(wcA.err) wcA.recover();

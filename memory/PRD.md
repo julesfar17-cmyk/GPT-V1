@@ -1087,3 +1087,5 @@ Fix :
 - `cutCache` conservé **uniquement en secours** (décodeur pas encore prêt → image du plan au lieu d'un gel/noir), construit seulement à l'arrêt (`SHORT_PLAN=0.5`), jamais pendant la lecture.
 - Test harnais node (`/tmp/pool_test.js`, décodeur simulé, latence configure 120-300 ms) : plans 62 ms/latence 300 ms → **0 tick sans frame**, ~2,4 frames distinctes par plan (= vraie vidéo), 64 plans ; idem 40 ms, 125 ms, 250 ms, 500 ms. Export non touché (`wcExportSeek` inchangé).
 - À vérifier par l'utilisateur sur PC (Chrome/Firefox) et iPhone avec son projet à coupes ⅛ de temps.
+- Validation en VRAI Chrome (headless, VP9 logiciel, clips injectés) : 78 plans de 100 ms joués → 0 tick sans frame, 0 mauvais clip, pool plein (8), aucun `preview_stall`/`frame_miss`. Build `v13.24-pool`.
+- ⚠️ L'utilisateur testait sur le SITE DÉPLOYÉ (pas la preview) → il doit REDÉPLOYER pour voir la correction. Décodeur d'un pool en erreur → recover() à l'activation (ajouté).
