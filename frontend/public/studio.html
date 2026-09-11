@@ -4042,8 +4042,12 @@ class SegPlayer{
   _newDecoder(){
     if(this.dec){ try{this.dec.close();}catch(e){} }
     this.dec=new VideoDecoder({ output:f=>this._onFrame(f), error:e=>{this._telErr(e);} });
-    this.dec.configure(this.clip.config); this.cfgFor=this.clip;
+    // repli logiciel après une erreur matérielle (coupes très rapprochées = resets en rafale : certains décodeurs HW lâchent)
+    const cfg=this.soft? Object.assign({}, this.clip.config, {hardwareAcceleration:'prefer-software'}) : this.clip.config;
+    try{ this.dec.configure(cfg); }catch(e){ this.dec.configure(this.clip.config); }
+    this.cfgFor=this.clip;
   }
+  recover(){ this.err=null; this.soft=true; this.clearFrames(); this._newDecoder(); }
   _onFrame(f){
     if(f.timestamp < this.targetUs-40000){ f.close(); return; }   // frames d'avant la cible (décodées depuis la keyframe) : jetées
     this.frames.push(f);
@@ -4148,10 +4152,24 @@ async function wcExportSeek(pl, t){
   const p=plans[pi]; if(p.clip===null||!clips[p.clip]||!clips[p.clip].wc) return;
   const wc=clips[p.clip].wc; const d=wc.durationS||0;
   let target=(p.seek||0)+(t-p.start); if(d) target%=Math.max(0.05,d);
-  if(_wcExpPi!==pi || pl.clip!==wc || target<(pl._lastT||0)-0.2){
-    pl.setClip(wc); pl.seek(target); _wcExpPi=pi;
+  // Re-seek SEULEMENT si nécessaire : autre clip, retour en arrière, ou saut avant > 1 s.
+  // (Avant : reset du décodeur à CHAQUE changement de plan → avec des coupes très rapprochées, rafale de
+  //  reset/configure → décodeur en erreur → plus aucune image → plans figés dans l'export.)
+  const last=pl._lastT;
+  const needSeek = pl.clip!==wc || pl.err || last==null || target<last-0.05 || target>last+1.0;
+  if(needSeek){ pl.setClip(wc); if(pl.err) pl.recover(); pl.seek(target); }
+  _wcExpPi=pi; pl._lastT=target;
+  let f=await wcWaitFrame(pl, target, 2500);
+  if(!f||pl.err){
+    // récupération : décodeur neuf (logiciel) + re-seek, délai plus long
+    TEL.push('export_frame_recover',{plan:pi, err:pl.err?String(pl.err).slice(0,120):null});
+    pl.recover(); pl.seek(target);
+    f=await wcWaitFrame(pl, target, 6000);
+    if(!f) TEL.push('export_frame_missing',{plan:pi, t:Math.round(t*100)/100});
   }
-  pl._lastT=target;
+  wcExpFrame=f;
+}
+async function wcWaitFrame(pl, target, stallMs){
   const t0=performance.now(); let f=null; let lastSi=-1, lastProg=performance.now();
   while(true){
     pl.fill(); f=pl.frameAt(target);
@@ -4160,11 +4178,11 @@ async function wcExportSeek(pl, t){
     if(f && pl.si>=pl.clip.samples.length && !pl.frames.length) break;   // fin du flux
     if(pl.err) break;
     if(pl.si!==lastSi||pl.buffered()){ lastSi=pl.si; lastProg=performance.now(); }
-    if(performance.now()-lastProg>2500) break;   // décodeur calé → on garde la meilleure frame connue
+    if(performance.now()-lastProg>stallMs) break;   // décodeur calé → on garde la meilleure frame connue
     if(performance.now()-t0>12000) break;
     await new Promise(r=>setTimeout(r,5));
   }
-  wcExpFrame=f;
+  return f;
 }
 
 let offlineRender=false;
@@ -5437,19 +5455,11 @@ function hookDrawSubs(c, tHook, W, H){
 }
 /* Frame WebCodecs exacte d'un clip arbitraire (utilisé pour le hook à l'export) */
 async function wcSeekFrame(pl, wc, target){
-  if(pl.clip!==wc || target<(pl._lastT||0)-0.2){ pl.setClip(wc); pl.seek(target); }
+  const last=pl._lastT;
+  if(pl.clip!==wc || pl.err || last==null || target<last-0.05 || target>last+1.0){ pl.setClip(wc); if(pl.err) pl.recover(); pl.seek(target); }
   pl._lastT=target;
-  const t0=performance.now(); let f=null, lastSi=-1, lastProg=performance.now();
-  while(true){
-    pl.fill(); f=pl.frameAt(target);
-    if(f && pl.frames.length && pl.frames[0].timestamp>target*1e6) break;
-    if(f && pl.si>=pl.clip.samples.length && !pl.frames.length) break;
-    if(pl.err) break;
-    if(pl.si!==lastSi||pl.buffered()){ lastSi=pl.si; lastProg=performance.now(); }
-    if(performance.now()-lastProg>2500) break;
-    if(performance.now()-t0>12000) break;
-    await new Promise(r=>setTimeout(r,5));
-  }
+  let f=await wcWaitFrame(pl, target, 2500);
+  if(!f||pl.err){ pl.recover(); pl.seek(target); f=await wcWaitFrame(pl, target, 6000); }
   return f;
 }
 /* Prépare le préroll hook pour exportOffline : mix audio hors-ligne + dessin des frames (réutilisable pour une Série) */
