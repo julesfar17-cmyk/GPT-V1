@@ -1075,3 +1075,5 @@ Fix :
 - **Page Hook mobile façon studio** (≤700px, body.mob-hook) : barre haute (retour · titre + « Étape X/3 » · Exporter), aperçu plein écran au milieu (tap = lecture/stop, ferme les panneaux), barre Hook/DROP/Montage, barre basse 5 boutons (Morceau · Hook · ▶ · Réglages · Sous-titres) ; les cartes Morceau/Hook/Réglages deviennent des panneaux coulissants (`.hk-sheet`, un seul ouvert, `hookMobSheet`). Après choix du morceau → panneau Hook ouvert auto ; après import → panneaux fermés pour voir l'aperçu.
 
 - Aperçu Hook mobile centré (`hookFitStage` : canvas dimensionné au ratio du format dans la scène, recalcul au resize) ; bouton admin « Revoir tuto » déplacé dans un menu ⋯ de l'en-tête (`admin-menu-btn` → Revoir le tuto & questionnaire / Tableau de bord admin).
+
+- Curseur personnalisé (point + anneau) supprimé partout : studio.html (script + v3-skin.css) et React (index.js + index.css) → curseur système normal.

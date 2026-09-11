@@ -434,14 +434,4 @@ body.editing .v3-foot,body.mob-edit .v3-foot{display:none}
 #mtSpot{border-radius:0!important;box-shadow:0 0 0 9999px rgba(0,0,0,.82),0 0 0 1px var(--crimson)!important}
 #mtDots i{width:14px!important;height:2px!important;border-radius:0!important}
 
-/* ---------- Curseur point + anneau (desktop uniquement) ---------- */
-@media (hover:hover) and (pointer:fine){
-  body{cursor:none}
-  a,button,input,label,select,textarea,[data-hit]{cursor:none!important}
-  .cur,.cur-ring{position:fixed;top:0;left:0;z-index:9999;pointer-events:none;border-radius:var(--pill);mix-blend-mode:difference}
-  .cur{width:5px;height:5px;background:#fff;transform:translate(-50%,-50%)}
-  .cur-ring{width:20px;height:20px;border:1px solid #fff;transition:width .2s var(--ease),height .2s var(--ease),opacity .2s}
-  body.hit .cur-ring{width:32px;height:32px}
-  body.hit .cur{opacity:0}
-  body.down .cur-ring{width:14px;height:14px}
 }
