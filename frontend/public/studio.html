@@ -3962,8 +3962,8 @@ function planThumbImg(cl, target){
    AUCUNE balise <video> pendant la lecture : chaque mp4 est démuxé UNE fois
    (mp4box.js, échantillons conservés en ORDRE DE DÉCODAGE — jamais triés),
    puis décodé à la demande par VideoDecoder et dessiné dans le canvas.
-   - DOUBLE DÉCODEUR (wcA/wcB) : pendant qu'un plan joue, le suivant est
-     déjà pré-décodé → à la coupure la 1re frame est PRÊTE (latence ~0).
+   - POOL DE DÉCODEURS (wcA + wcPool) : pendant qu'un plan joue, les plans des 1,5 s
+     suivantes (≤ 5) sont déjà pré-décodés → à chaque coupure la 1re frame est PRÊTE (latence ~0).
    - Backpressure : ~10 frames max en file, frames consommées fermées.
    L'ancien moteur <video> ci-dessous ne sert plus que de repli navigateur. */
 /* MODE UNIQUE : pas de moteur de repli. Navigateur incompatible → écran bloquant à
@@ -4125,7 +4125,8 @@ class SegPlayer{
   fill(){
     if(!this.dec||this.dec.state!=='configured') return;
     const S=this.clip.samples;
-    while(this.frames.length<14 && this.dec.decodeQueueSize<18 && this.si<S.length){
+    const cap=this.idle?5:14;   // décodeur en attente : petit tampon (mémoire), actif : tampon plein
+    while(this.frames.length<cap && this.dec.decodeQueueSize<18 && this.si<S.length){
       const s=S[this.si++];
       try{ this.dec.decode(new EncodedVideoChunk({type:s.key?'key':'delta', timestamp:s.ts, duration:s.dur, data:s.data})); }
       catch(e){ this._telErr(e); break; }
@@ -4146,26 +4147,26 @@ class SegPlayer{
   buffered(){ return this.frames.length; }
   destroy(){ this.clearFrames(); if(this.dec){try{this.dec.close();}catch(e){}} this.dec=null; }
 }
-/* --- triple lecteur : plan actif + 2 plans pré-décodés (coupes rapides sans famine du décodeur) --- */
-let wcA=null, wcB=null, wcC=null, wcPtr=-1, wcPrepFor=-1, wcPrepFor2=-1;
+/* --- lecteur actif + POOL de décodeurs pré-calés sur les plans à venir (coupes rapides sans famine) --- */
+let wcA=null, wcPtr=-1, wcPool=[];   // wcPool : [{pl:SegPlayer, idx:indexPlan}] déjà calés sur les prochains plans
+const WC_POOL=(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))?4:8, WC_AHEAD_S=2;   // mobile : moins d'instances de décodeur matériel
 const wcPrev=cl=>cl? (cl.wcProxy||cl.wc||null) : null;   // la preview préfère le proxy léger ; l'export garde cl.wc (pleine résolution)
+const wcPlanSrc=p=>(p&&p.clip!==null&&clips[p.clip])? wcPrev(clips[p.clip]) : null;
 function wcSeekOf(p){
   const w=wcPrev(clips[p.clip]); const d=w? w.durationS:0; const s=p.seek||0;
   return d? s%Math.max(0.05,d) : s;
 }
-function wcReset(){ [wcA,wcB,wcC].forEach(pl=>{ if(pl) pl.destroy(); }); wcA=wcB=wcC=null; wcPtr=-1; wcPrepFor=-1; wcPrepFor2=-1; }
-/* ===== Cache de coupes (plans très courts) =====
-   Avec des coupes très rapprochées (≤ 340 ms), aucun décodeur ne peut se re-caler à temps → image figée.
-   Solution : pour chaque plan court, on garde UNE image (ImageBitmap ≤ 720 px) décodée en arrière-plan ;
-   à la lecture elle est affichée directement, et les 3 décodeurs live restent réservés aux plans longs. */
-const SHORT_PLAN=0.34;
+function wcReset(){ if(wcA) wcA.destroy(); wcA=null; wcPool.forEach(e=>e.pl.destroy()); wcPool=[]; wcPtr=-1; }
+/* ===== Cache de secours (plans courts) =====
+   UNE image (ImageBitmap ≤ 720 px) par plan court, décodée à l'arrêt en arrière-plan. À la lecture elle n'est
+   affichée QUE si le décodeur du plan n'a pas encore livré sa 1re frame — à la place d'un gel ou d'un noir. */
+const SHORT_PLAN=0.5;
 const cutCache=new Map(); let _cutBusy=false, _cutGen=0;
 const cutKey=p=>p.clip+':'+(+(p.seek||0)).toFixed(3);
 const isShort=p=>!!p&&(p.end-p.start)<SHORT_PLAN;
-const isShortCached=p=>isShort(p)&&p.clip!==null&&cutCache.has(cutKey(p));
 function cutCacheClear(){ cutCache.forEach(b=>{ try{b.close();}catch(e){} }); cutCache.clear(); _cutGen++; }
 async function cutCacheBuild(fromT){
-  if(_cutBusy||exporting) return; _cutBusy=true; const gen=++_cutGen;
+  if(_cutBusy||exporting||playing) return; _cutBusy=true; const gen=++_cutGen;
   const plans=((M&&M.plans)||[]).filter(p=>isShort(p)&&p.clip!==null&&clips[p.clip]&&wcPrev(clips[p.clip]));
   if(!plans.length){ _cutBusy=false; return; }
   const from=fromT!=null?fromT:(typeof curTime==='function'?curTime():0);
@@ -4173,7 +4174,7 @@ async function cutCacheBuild(fromT){
   const pl=new SegPlayer();
   try{
     for(const p of plans){
-      if(gen!==_cutGen||exporting) break;
+      if(gen!==_cutGen||exporting||playing) break;   // la lecture a la priorité sur les décodeurs
       const key=cutKey(p); if(cutCache.has(key)) continue;
       const w=wcPrev(clips[p.clip]); if(!w||!w.config) continue;
       const d=w.durationS||0; let t=p.seek||0; if(d) t%=Math.max(0.05,d);
@@ -4185,42 +4186,51 @@ async function cutCacheBuild(fromT){
         if(cutCache.size>=120){ const k0=cutCache.keys().next().value; try{cutCache.get(k0).close();}catch(e){} cutCache.delete(k0); }
         cutCache.set(key,bmp);
       }catch(e){}
-      await new Promise(r=>setTimeout(r, playing?24:4));   // laisse respirer les décodeurs live
+      await new Promise(r=>setTimeout(r,4));
     }
   }finally{ pl.destroy(); _cutBusy=false; }
 }
-function nextLongPlan(plans, from){ for(let k=from;k<plans.length;k++){ if(!isShortCached(plans[k])) return k; } return -1; }
-/* Pré-cale wcB / wcC sur les 2 prochains plans LONGS (les courts sont servis par le cache) */
-function wcPrepLong(from){
+/* Pré-cale les décodeurs libres sur les plans à venir (≤ WC_AHEAD_S s, ≤ WC_POOL). Les entrées dépassées
+   sont recyclées : un décodeur libéré est re-calé sur le plan suivant plutôt que détruit. */
+function wcPrepAhead(from, freed, fromStart){
   const plans=(M&&M.plans)||[];
-  const n1=nextLongPlan(plans, from);
-  if(n1<0){ wcPrepFor=-1; wcPrepFor2=-1; return; }
-  const p1=plans[n1]; const w1=p1.clip!==null&&clips[p1.clip]? wcPrev(clips[p1.clip]):null;
-  if(w1){ if(wcPrepFor!==n1||!wcB||wcB.clip!==w1){ if(!wcB) wcB=new SegPlayer(); wcB.setClip(w1); wcB.seek(wcSeekOf(p1)); wcPrepFor=n1; } }
-  else wcPrepFor=-1;
-  const n2=nextLongPlan(plans, n1+1);
-  if(n2<0){ wcPrepFor2=-1; return; }
-  const p2=plans[n2]; const w2=p2.clip!==null&&clips[p2.clip]? wcPrev(clips[p2.clip]):null;
-  if(w2){ if(wcPrepFor2!==n2||!wcC||wcC.clip!==w2){ if(!wcC) wcC=new SegPlayer(); wcC.setClip(w2); wcC.seek(wcSeekOf(p2)); wcPrepFor2=n2; } }
-  else wcPrepFor2=-1;
+  const free=freed?[freed]:[];
+  wcPool=wcPool.filter(e=>{
+    const p=plans[e.idx];
+    if(e.idx<from||!p||wcPlanSrc(p)!==e.pl.clip){ free.push(e.pl); return false; }
+    return true;
+  });
+  const t0=fromStart!=null?fromStart:(plans[from-1]?plans[from-1].start:0);
+  for(let k=from;k<plans.length&&wcPool.length<WC_POOL;k++){
+    const p=plans[k];
+    if(p.start-t0>WC_AHEAD_S) break;
+    if(wcPool.some(e=>e.idx===k)) continue;
+    const w=wcPlanSrc(p); if(!w||!w.config) continue;
+    const pl=free.pop()||new SegPlayer();
+    if(pl.err) pl.recover();
+    pl.idle=true; pl.setClip(w); pl.seek(wcSeekOf(p));
+    wcPool.push({pl, idx:k});
+  }
+  free.forEach(pl=>pl.destroy());
 }
 function wcActivate(i){
   const plans=(M&&M.plans)||[]; const p=plans[i]; wcPtr=i;
-  if(isShortCached(p)){ wcPrepLong(i+1); return; }   // plan court → image du cache, décodeurs intacts
-  const w=p&&p.clip!==null&&clips[p.clip]? wcPrev(clips[p.clip]):null;
+  const w=wcPlanSrc(p); let freed=null;
   if(w){
-    if(wcPrepFor===i&&wcB&&wcB.clip===w){
-      const spare=wcA; wcA=wcB; wcB=wcC; wcC=spare;   // rotation : le pré-décodé devient actif (latence ~0)
-      wcPrepFor=wcPrepFor2; wcPrepFor2=-1;
-    }else{
+    const k=wcPool.findIndex(e=>e.idx===i&&e.pl.clip===w);
+    if(k>=0){ freed=wcA; wcA=wcPool.splice(k,1)[0].pl; }   // pré-décodé → actif (latence ~0)
+    else{
       if(!wcA) wcA=new SegPlayer();
+      if(wcA.err) wcA.recover();
       wcA.setClip(w); wcA.seek(wcSeekOf(p));
-      wcPrepFor=-1;
+      _telLatePlan(i);
     }
-    wcA._lastTgt=wcSeekOf(p);
-  }else wcPrepFor=-1;
-  wcPrepLong(i+1);
+    wcA.idle=false; wcA._lastTgt=wcSeekOf(p);
+  }
+  wcPrepAhead(i+1, freed, p?p.start:null);
 }
+let _lateN=0, _lateSent=false;
+function _telLatePlan(i){ if(++_lateN>=8&&!_lateSent){ _lateSent=true; TEL.push('preview_pool_miss',{plan:i, plans:(M&&M.plans||[]).length, pool:wcPool.length}); } }
 /* --- scrub à l'arrêt : décodeur dédié, re-calé à la demande --- */
 let wcScrub=null, wcScrubClip=null, wcScrubT=-1;
 function wcScrubFrame(cl, target){
@@ -4321,8 +4331,7 @@ function warmUpPlans(fromT){
     let tgt=(p.seek||0)+Math.max(0,fromT-p.start); if(d) tgt%=Math.max(0.05,d);
     wcA=new SegPlayer(); wcA.setClip(w0); wcA.seek(tgt); wcA._lastTgt=tgt;
   }
-  wcPrepLong(i+1);
-  cutCacheBuild(fromT);   // images des plans courts, en arrière-plan
+  wcPrepAhead(i+1, null, p.start);
   // attendre la 1re frame décodée (max 2,5 s) — zéro frame noire au lancement
   return new Promise(res=>{
     const t0=performance.now();
@@ -4362,7 +4371,7 @@ async function play(from){
   startedAt=audioCtx.currentTime; startOff=from; playing=true; looping=false;
   // pompe de décodage indépendante de la rAF : le décodeur ne meurt plus de faim quand le thread est chargé
   if(wcPump) clearInterval(wcPump);
-  wcPump=setInterval(()=>{ if(!playing){clearInterval(wcPump);wcPump=null;return;} try{ if(wcA)wcA.fill(); if(wcB)wcB.fill(); if(wcC)wcC.fill(); }catch(e){} },15);
+  wcPump=setInterval(()=>{ if(!playing){clearInterval(wcPump);wcPump=null;return;} try{ if(wcA)wcA.fill(); for(const e of wcPool) e.pl.fill(); }catch(e){} },15);
   _fpsN=0; _fpsT0=performance.now(); _fpsSent=false;
   $('#playBtn').textContent='❚❚'; raf();
 }
@@ -4598,7 +4607,6 @@ function drawPreview(t, cvOverride){
     // moteur WebCodecs : frame décodée à la demande, jamais de <video>
     let f=null, bmp=null;
     if(offlineRender) f=wcExpFrame;
-    else if(playing&&!cvOverride&&isShortCached(plan)) bmp=cutCache.get(cutKey(plan));   // coupe rapide : image pré-décodée
     else if(playing&&pi===wcPtr&&wcA&&wcA.clip&&(wcA.clip===cl.wcProxy||wcA.clip===cl.wc)){
       const d=wcA.clip.durationS||0; let tt=target; if(d) tt%=Math.max(0.05,d);
       f=wcA.frameAt(tt);
