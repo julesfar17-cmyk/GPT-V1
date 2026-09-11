@@ -1073,3 +1073,5 @@ Fix :
 
 - **Fix export hook iPhone « image manquante à 0.0 s »** : cible 0 alors que la 1re image décodée est à t>0 (edit list / délai B-frames du fichier transcodé) → `frameAt` attendait 12 s puis null. Fix : `parseWC` normalise les cts (1re image à 0) + `frameAt` prend la 1re image disponible si la cible la précède. Vérifié (29 ms au lieu de 12 s + échec).
 - **Page Hook mobile façon studio** (≤700px, body.mob-hook) : barre haute (retour · titre + « Étape X/3 » · Exporter), aperçu plein écran au milieu (tap = lecture/stop, ferme les panneaux), barre Hook/DROP/Montage, barre basse 5 boutons (Morceau · Hook · ▶ · Réglages · Sous-titres) ; les cartes Morceau/Hook/Réglages deviennent des panneaux coulissants (`.hk-sheet`, un seul ouvert, `hookMobSheet`). Après choix du morceau → panneau Hook ouvert auto ; après import → panneaux fermés pour voir l'aperçu.
+
+- Aperçu Hook mobile centré (`hookFitStage` : canvas dimensionné au ratio du format dans la scène, recalcul au resize) ; bouton admin « Revoir tuto » déplacé dans un menu ⋯ de l'en-tête (`admin-menu-btn` → Revoir le tuto & questionnaire / Tableau de bord admin).
