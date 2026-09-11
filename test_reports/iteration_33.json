@@ -1,0 +1,66 @@
+{
+  "summary": "Executed policy2 backend proxy regression and real-browser long-preview checks. Backend policy2 behavior passed end-to-end (long 720 now proxied, reuse confirmed, short 720 still skipped, 401 enforced). Frontend long-preview regression script reached real import/proxy and decoder seek checks but failed on scrub catch-up assertions (no frame surfaced through drawPreview/wcScrub path in this run).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Long-video scrub catch-up (drawPreview/curTime after backward + small forward seeks, including post-pause)",
+        "issue": "Regression script consistently observed null wcScrub.cur/frameTs and unchanged preview pixels at targets ~89.4/89.5/90.45 (+post 3s pause), failing async scrub catch-up assertion.",
+        "affected_selectors": [
+          "drawPreview",
+          "wcScrubFrame",
+          "wcScrubRedraw",
+          "#preview"
+        ]
+      },
+      {
+        "flow": "Studio route targeting for true end-user path",
+        "issue": "Actual user flow runs editor inside iframe on /studio?project=... -> /studio.html?...#/edit/... . Direct /studio.html probing can diverge from top-level route behavior and should be included in final regression pass.",
+        "affected_selectors": [
+          "iframe[src*='studio.html']"
+        ]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Studio editor",
+        "issues": [
+          "Missing-clips modal can block regression interactions and should expose deterministic test hooks/state bypass for QA runs."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_long_proxy_policy2_iter33.py",
+    "/app/test_reports/pytest/iter33_long_proxy_policy2.xml",
+    "/app/frontend/tests/test_long_preview_regression_iter33.py"
+  ],
+  "action_items": [
+    "Fix/confirm scrub async catch-up path so drawPreview eventually yields fresh frame timestamps after backward/small-forward seeks and after >3s pause.",
+    "Run final frontend regression through real /studio?project=... iframe flow and assert proxy-call order + playback/scrub metrics there.",
+    "Add a deterministic QA mode for missing-clips overlay handling to avoid modal-related test nondeterminism."
+  ],
+  "critical_code_review_comments": [
+    "studio.html remains very large (~6k+ lines), making targeted media-pipeline regressions fragile and hard to isolate.",
+    "Regression logic spanning parse, playback, scrub, and proxy would benefit from smaller exported test harness functions instead of ad-hoc global state poking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_long_proxy_policy2_iter33.py",
+    "/app/frontend/tests/test_long_preview_regression_iter33.py",
+    "/app/test_reports/iteration_33.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "55%"
+  },
+  "test_credentials": "demo@beatcut.fr / Demo1234!",
+  "seed_data_creation": "Generated short regression asset /tmp/beatcut_long_assets/h264_short_1280x720_20s.mp4 for short-720 retention test.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend policy2 regression is green (6/6) with JUnit in iter33_long_proxy_policy2.xml. Frontend script /app/frontend/tests/test_long_preview_regression_iter33.py currently fails at scrub assertions (frameTs null). Avoid repeating the same scrub selector loop; pivot to iframe (/studio?project=...) execution context and validate drawPreview/wcScrub timing there. Firefox binary is unavailable in this container (which firefox -> not found).",
+  "rca of the issue": "Observed scrub failure suggests preview scrub pipeline did not surface decoded frame to wcScrub.cur in this execution path, despite source/proxy seek and EOF checks passing. Reproduction: run python /app/frontend/tests/test_long_preview_regression_iter33.py, failure at scrub assertion with targets around 90s and post-pause small forward seek. Mitigation: execute scrub validation in real iframe editor route, instrument wcScrub lifecycle (seek/frameAt/redraw timer) and verify active plan/time alignment before asserting canvas/frame timestamp changes."
+}

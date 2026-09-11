@@ -1,0 +1,36 @@
+{
+  "summary": "Long-video correction verified by main agent after correcting invalid historical test fixtures. Real Chrome iframe import, proxy, scrub, audio/rAF playback, retry UI, and full MP4 export passed. Backend HTTP/media 6/6 plus failure-state unit tests 2/2 passed.",
+  "build": "v13.25-long-video",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/test_reports/frontend_long_preview_regression_iter34.json",
+    "/app/test_reports/pytest/iter35_long_proxy_final.xml",
+    "/app/test_reports/pytest/iter35_proxy_retry.xml"
+  ],
+  "test_sources": [
+    "/app/frontend/tests/test_long_preview_regression_iter34.py",
+    "/app/backend/tests/test_long_proxy_policy2_iter33.py"
+  ],
+  "results": {
+    "source": "Real H264 185s, 4440 samples, 1280x720, B-frames, 10s GOP",
+    "proxy": "Real H264 185s, 0.5s keyframe interval",
+    "desktop_preview": {"ticks": 690, "missing": 0, "wrong": 0},
+    "mobile_chrome_emulation": {"ticks": 595, "missing": 0, "wrong": 0, "pool": 4},
+    "scrub": "5/5 correct within one source frame, changed canvas pixels, includes small forward seek after 3s pause",
+    "transport": "warmup cancellation, moving lookahead, loop, independent decode pump passed",
+    "resources": "frames+pending bounded, EOF drains, final source frame accessible, software recovery passed",
+    "readiness": "Long-source playback blocked while proxy pending, visible status, real retry request and subsequent ready state passed",
+    "export": {"real_mp4": true, "duration_s": 1.2, "frames": 36, "width": 1920, "height": 1080, "bytes": 1606498, "audio": "real server finalize", "source": "original"}
+  },
+  "limitations": [
+    "Physical Safari/iPhone and Firefox unavailable in this environment; mobile test uses Chrome with mobile UA.",
+    "Source-only long-GOP diagnostic still misses frames on rapid cuts; normal app now waits for proxy before playing long clips.",
+    "User's own footage and larger/HEVC/4K files not verified in this pass."
+  ],
+  "mocked_api": {"has_mocked_apis_in_app": false, "test_safety": "Project writes aborted in disposable browser fixture; no media/codec/API simulation. Two backend unit tests simulate stored proxy failure state only."},
+  "test_credentials": "Existing demo account; see /app/memory/test_credentials.md. No credentials created or changed.",
+  "retest_needed": false,
+  "action_items": ["User verification with own long files", "Physical Safari/iPhone validation"],
+  "rca": "Missing local-upload proxy activation, overbroad <=720p proxy skip, async decoder buffer overshoot and incomplete lookahead startup. Policy2, bounded decoder pipeline and long-source readiness gate prevent premature raw-GOP playback."
+}

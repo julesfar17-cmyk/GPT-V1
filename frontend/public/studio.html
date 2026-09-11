@@ -1595,7 +1595,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.24-pool';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.25-long-video';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -1603,24 +1603,31 @@ const loadOv=(()=>{const d=document.createElement('div');d.id='loadOverlay';d.se
 function showLoad(txt,frac,sub){loadOv.classList.add('show');$('#loadOvTxt').textContent=txt;$('#loadOvBar').style.width=Math.round(Math.max(0,Math.min(1,frac||0))*100)+'%';$('#loadOvSub').textContent=sub||'';}
 function hideLoad(){loadOv.classList.remove('show');}
 /* Proxy de preview serveur : H.264 ≤720p léger — lecture fluide, l'export garde la pleine résolution */
-async function ensureClipProxy(clip){
+async function ensureClipProxy(clip,retry=false){
   if(!clip.mediaId||clip._proxyTried) return;
   clip._proxyTried=true;
-  for(let n=0;n<100;n++){
+  clip._proxyState='loading'; renderClips();
+  const failed=()=>{ clip._proxyState='failed'; clip._proxyTried=false; renderClips(); };
+  for(let n=0;n<240;n++){   // un fichier long peut demander jusqu'à 10 min de transcodage serveur
     let d=null;
     try{
-      const r=await fetch('/api/media/proxy/'+clip.mediaId,{method:'POST',credentials:'include'});
+      const r=await fetch('/api/media/proxy/'+clip.mediaId+(retry&&n===0?'?retry=true':''),{method:'POST',credentials:'include',signal:AbortSignal.timeout(15000)});
       if(r.ok) d=await r.json();
-      else if(r.status!==502&&r.status!==503&&r.status!==429) return;   // 4xx : pas de proxy possible
+      else if(r.status!==502&&r.status!==503&&r.status!==429){failed();return;}
     }catch(e){}
-    if(d&&d.status==='failed') return;
+    if(d&&d.status==='failed'){failed();return;}
     if(d&&d.proxy_id){
-      if(d.proxy_id===clip.mediaId) return;   // média déjà léger : rien à télécharger
-      while(playing) await new Promise(r=>setTimeout(r,800));   // jamais de démuxage pendant la lecture (jank)
+      if(d.proxy_id===clip.mediaId){clip._proxyState='ready';renderClips();return;}   // média lui-même déjà optimisé
+      while(playing||exporting) await new Promise(r=>setTimeout(r,800));
       try{
-        const b=await (await fetch('/api/media/'+d.proxy_id,{credentials:'include'})).blob();
+        const response=await fetch('/api/media/'+d.proxy_id,{credentials:'include',signal:AbortSignal.timeout(120000)});
+        if(!response.ok) throw new Error('Téléchargement aperçu : '+response.status);
+        const b=await response.blob();
+        while(playing||exporting) await new Promise(r=>setTimeout(r,800));   // lecture lancée pendant le téléchargement
         const wc=await parseWC(b);
+        while(playing||exporting) await new Promise(r=>setTimeout(r,800));   // jamais de changement de source en cours de plan/export
         clip.wcProxy=wc;
+        clip._proxyState='ready';
         if(!clip._wcReady){   // clip indécodable localement → le proxy devient aussi la source principale
           clip.wc=wc; clip._wcReady=true; clip._wcFail=false; clip._playable=true;
           if(!clip.seeks||!clip.seeks.length){
@@ -1636,11 +1643,12 @@ async function ensureClipProxy(clip){
         const missT=(clip.seeks||[]).map((s,k)=>(s!=null&&!clip.thumbs[k])?k:-1).filter(k=>k>=0);
         if(missT.length) wcMakeThumbs(clip, missT).then(()=>{renderClips();drawTimeline();});
         renderClips(); drawTimeline();
-      }catch(e){ TEL.push('proxy_parse_fail',{n:clip.name,msg:String((e&&e.message)||e).slice(0,120)}); }
+      }catch(e){ failed(); TEL.push('proxy_parse_fail',{n:clip.name,msg:String((e&&e.message)||e).slice(0,120)}); }
       return;
     }
     await new Promise(r=>setTimeout(r,3000));
   }
+  failed();
 }
 /* Disclaimer mobile : après son + vidéo chargés, une fois par appareil */
 function maybePcHint(){
@@ -1659,7 +1667,14 @@ function maybePcHint(){
   d.querySelector('button').onclick=()=>d.remove();
   document.body.appendChild(d);
 }
-function clipsBlocking(){ return clips.some(c=>(c._optimizing && !c._playable) || (!c._wcReady && !c._wcFail)); }
+function longPreviewPending(c){ return !!(c.wc&&c.wc.durationS>=90&&!c.wcProxy&&c._proxyState!=='ready'); }
+function previewWaitMessage(){
+  const pending=clips.find(longPreviewPending);
+  if(!pending) return 'Ta vidéo n\u2019est pas encore lisible — optimisation en cours, un instant…';
+  return pending._proxyState==='failed'?'L\u2019aperçu n\u2019a pas pu être préparé — réessaie sur la vidéo.'
+    :'Préparation de l\u2019aperçu fluide pour cette vidéo longue…';
+}
+function clipsBlocking(){ return clips.some(c=>longPreviewPending(c)||(c._optimizing && !c._playable) || (!c._wcReady && !c._wcFail)); }
 /* L'export ne dépend QUE des clips UTILISÉS et décodables localement (WebCodecs) —
    l'upload/optimisation en arrière-plan ne doit JAMAIS bloquer un export. */
 function clipsExportBlocking(){
@@ -2679,17 +2694,17 @@ async function startLoop(){
   if(!buffer||exporting)return;
   if(clipsBlocking()){
     TEL.push('clip_not_ready',{optimizing:clips.filter(c=>c._optimizing).length, notReady:clips.filter(c=>!c._wcReady&&!c._wcFail).length});
-    toast('Ta vidéo n\u2019est pas encore lisible — optimisation en cours, un instant…'); return;
+    toast(previewWaitMessage()); return;
   }
   stopAll(); looping=true;
-  await warmUpPlans(ext.start);
+  if(!await warmUpPlans(ext.start)) return;
   if(exporting||!looping) return;
   if(audioCtx.state!=='running'){ try{ await audioCtx.resume(); }catch(e){} }
   srcNode=audioCtx.createBufferSource(); srcNode.buffer=buffer; srcNode.loop=true;
   srcNode.loopStart=ext.start; srcNode.loopEnd=ext.start+ext.dur;
   srcNode.connect(audioCtx.destination); srcNode.start(0,ext.start);
   startedAt=audioCtx.currentTime; startOff=ext.start;
-  $('#loopBtn').textContent='❚❚ Stop'; playing=true; raf();
+  $('#loopBtn').textContent='❚❚ Stop'; playing=true; startPreviewPump(); raf();
 }
 
 /* ---------- Plans ---------- */
@@ -2905,7 +2920,8 @@ function startClipUpload(clip, file){
       else if(s && s.failed) toast('Optimisation impossible pour cette vidéo — elle peut saccader à la lecture');
     }catch(e){}
     clip._optimizing=false; renderClips(); dirty();
-    if(ok) toast('✓ '+(clip.name||'Vidéo').slice(0,24)+' optimisée — prête à jouer');
+    ensureClipProxy(clip);   // les imports locaux doivent utiliser l'aperçu léger, pas seulement les projets rouverts
+    if(ok&&!longPreviewPending(clip)) toast('✓ '+(clip.name||'Vidéo').slice(0,24)+' optimisée — prête à jouer');
   }).catch(e=>{
     clip._optimizing=false;
     clip._saveFailed=(e&&e.message)||'upload impossible';
@@ -3044,9 +3060,22 @@ function renderClips(){
     cpanel.onclick=e=>e.stopPropagation();
     rcBtn.onclick=e=>{ e.stopPropagation(); cpanel.style.display=cpanel.style.display==='none'?'block':'none'; };
     box.append(cpanel);
-    if(clip._optimizing){
+    if(longPreviewPending(clip)){
+      const status=document.createElement('div'); status.className='hint';
+      status.style.cssText='padding:6px 10px';
+      status.setAttribute('data-testid','clip-preview-status-'+ci);
+      status.setAttribute('role','status');
+      status.textContent=T(clip._proxyState==='failed'?'Aperçu indisponible':'Préparation de l\u2019aperçu fluide…');
+      if(clip._proxyState==='failed'){
+        const retry=document.createElement('button'); retry.className='small'; retry.textContent=T('Réessayer');
+        retry.setAttribute('data-testid','clip-preview-retry-'+ci);
+        retry.onclick=()=>ensureClipProxy(clip,true); status.append(' ',retry);
+      }
+      box.append(status);
+    }
+    if(clip._optimizing||clip._proxyState==='loading'){
       const ov=document.createElement('div');
-      ov.setAttribute('data-testid','clip-optimizing-badge');
+      ov.setAttribute('data-testid','clip-optimizing-badge-'+ci);
       ov.className='clip-load';
       ov.title=clipOptLabel(clip);
       const f=document.createElement('i');
@@ -3962,9 +3991,8 @@ function planThumbImg(cl, target){
    AUCUNE balise <video> pendant la lecture : chaque mp4 est démuxé UNE fois
    (mp4box.js, échantillons conservés en ORDRE DE DÉCODAGE — jamais triés),
    puis décodé à la demande par VideoDecoder et dessiné dans le canvas.
-   - POOL DE DÉCODEURS (wcA + wcPool) : pendant qu'un plan joue, les plans des 1,5 s
-     suivantes (≤ 5) sont déjà pré-décodés → à chaque coupure la 1re frame est PRÊTE (latence ~0).
-   - Backpressure : ~10 frames max en file, frames consommées fermées.
+   - POOL DE DÉCODEURS (wcA + wcPool) : préchargement des 2 s à venir (8 plans, 4 mobile).
+   - Backpressure : compte aussi les frames soumises dont la sortie est asynchrone.
    L'ancien moteur <video> ci-dessous ne sert plus que de repli navigateur. */
 /* MODE UNIQUE : pas de moteur de repli. Navigateur incompatible → écran bloquant à
    l'ouverture de l'éditeur, chaque affichage est loggué côté serveur pour mesure. */
@@ -4022,7 +4050,7 @@ async function parseClipWC(clip, blob){
 /* Démuxe un mp4 en échantillons WebCodecs — sans toucher au clip (utilisé aussi pour les proxys) */
 async function parseWC(blob){
   const buf=await blob.arrayBuffer();
-  const wc={samples:[],config:null,durationS:0};
+  const wc={samples:[],config:null,durationS:0,reorderDepth:0};
   await new Promise((resolve,reject)=>{
     const mp4=MP4Box.createFile();
     let done=false, poll=null;
@@ -4056,6 +4084,7 @@ async function parseWC(blob){
       /* IMPORTANT : ne PAS trier par cts — mp4box livre en ordre de DÉCODAGE,
          exigé par le décodeur (B-frames : les références d'abord). */
       for(const s of samples){
+        if(s.duration>0) wc.reorderDepth=Math.max(wc.reorderDepth,Math.min(16,Math.ceil((s.cts-s.dts)/s.duration)||0));
         wc.samples.push({ key:!!s.is_sync, ts:Math.round(s.cts*1e6/s.timescale),
           dur:Math.round(s.duration*1e6/s.timescale), data:s.data });
       }
@@ -4074,6 +4103,7 @@ async function parseWC(blob){
       // normalisation : la 1re image doit être à t=0 (edit list / délai B-frames décalent les cts)
       if(wc.samples.length){ let mn=Infinity; for(const s of wc.samples){ if(s.ts<mn) mn=s.ts; } if(mn>0&&isFinite(mn)) for(const s of wc.samples) s.ts-=mn; }
       if(!wc.samples.length){ fail(new Error('aucune frame extraite')); return; }
+      wcIndexSamples(wc);
       // le codec est-il décodable sur CETTE machine ? (cas HEVC iPhone)
       try{
         const sup=await VideoDecoder.isConfigSupported(wc.config);
@@ -4085,9 +4115,26 @@ async function parseWC(blob){
   });
   return wc;
 }
-/* Lecteur de segment à double tampon — logique du prototype LYRC, à l'identique */
+/* Index des seules keyframes : ne JAMAIS trier les samples (ordre de décodage/B-frames).
+   Un seek dans un fichier long ne rescane plus toutes les images du fichier. */
+function wcIndexSamples(wc){
+  if(wc.keyframes) return;
+  wc.keyframes=[]; wc.lastTimestampUs=0;
+  wc.samples.forEach((s,i)=>{
+    if(s.key) wc.keyframes.push({ts:s.ts,idx:i});
+    wc.lastTimestampUs=Math.max(wc.lastTimestampUs,s.ts);
+  });
+  wc.keyframes.sort((a,b)=>a.ts-b.ts||a.idx-b.idx);
+}
+function wcKeyframeAt(wc,targetUs){
+  wcIndexSamples(wc);
+  const K=wc.keyframes; let lo=0,hi=K.length;
+  while(lo<hi){ const mid=(lo+hi)>>>1; if(K[mid].ts<=targetUs) lo=mid+1; else hi=mid; }
+  return lo?K[lo-1].idx:0;
+}
+/* Lecteur de segment : budget borné, y compris les sorties asynchrones du décodeur. */
 class SegPlayer{
-  constructor(){ this.clip=null; this.cfgFor=null; this.dec=null; this.frames=[]; this.cur=null; this.si=0; this.targetUs=0; this.err=null; this._telSent=false; }
+  constructor(){ this.clip=null; this.cfgFor=null; this.dec=null; this.frames=[]; this.cur=null; this.si=0; this.targetUs=0; this.err=null; this._telSent=false; this.pending=0; this.generation=0; this.drained=false; this.flushing=false; }
   setClip(wc){ this.clip=wc; }
   _telErr(e){
     this.err=(e&&e.message)||String(e);
@@ -4099,42 +4146,56 @@ class SegPlayer{
   }
   _newDecoder(){
     if(this.dec){ try{this.dec.close();}catch(e){} }
-    this.dec=new VideoDecoder({ output:f=>this._onFrame(f), error:e=>{this._telErr(e);} });
+    const decoder=new VideoDecoder({
+      output:f=>{ if(this.dec===decoder) this._onFrame(f); else f.close(); },
+      error:e=>{ if(this.dec===decoder) this._telErr(e); }
+    });
+    this.dec=decoder;
     // repli logiciel après une erreur matérielle (coupes très rapprochées = resets en rafale : certains décodeurs HW lâchent)
     const cfg=this.soft? Object.assign({}, this.clip.config, {hardwareAcceleration:'prefer-software'}) : this.clip.config;
     try{ this.dec.configure(cfg); }catch(e){ this.dec.configure(this.clip.config); }
     this.cfgFor=this.clip;
   }
-  recover(){ this.err=null; this.soft=true; this.clearFrames(); this._newDecoder(); }
+  recover(){ this.err=null; this.soft=true; this.generation++; this.pending=0; this.flushing=false; this.drained=false; this.clearFrames(); this._newDecoder(); }
   _onFrame(f){
-    if(f.timestamp < this.targetUs-40000){ f.close(); return; }   // frames d'avant la cible (décodées depuis la keyframe) : jetées
+    this.pending=Math.max(0,this.pending-1);
+    const dur=f.duration||(this.clip.samples[0]&&this.clip.samples[0].dur)||40000;
+    if(f.timestamp+dur<=this.targetUs){ f.close(); return; }   // conserve l'image qui couvre la cible (24 fps/VFR inclus)
     this.frames.push(f);
   }
   clearFrames(){ if(this.cur){try{this.cur.close();}catch(e){} this.cur=null;} this.frames.forEach(f=>{try{f.close();}catch(e){}}); this.frames=[]; }
   seek(tSec){
     if(!this.clip) return;
-    this.targetUs=Math.max(0, Math.min(tSec, this.clip.durationS-0.05))*1e6;
+    wcIndexSamples(this.clip);
+    this.targetUs=Math.max(0,Math.min(tSec*1e6,this.clip.lastTimestampUs));
+    this.generation++; this.pending=0; this.flushing=false; this.drained=false;
     this.clearFrames();
     if(!this.dec || this.cfgFor!==this.clip){ this._newDecoder(); }
-    else { try{ this.dec.reset(); this.dec.configure(this.clip.config); }catch(e){ this._newDecoder(); } }
-    const S=this.clip.samples; let k=0;
-    for(let i=0;i<S.length;i++){ if(S[i].key && S[i].ts<=this.targetUs) k=i; }   // cts non monotone (B-frames) : on scanne tout, seules les keyframes comptent
-    this.si=k;
+    else { try{ this.dec.reset(); this.dec.configure(this.soft?{...this.clip.config,hardwareAcceleration:'prefer-software'}:this.clip.config); }catch(e){ this._newDecoder(); } }
+    this.si=wcKeyframeAt(this.clip,this.targetUs);
     this.fill();
   }
   fill(){
     if(!this.dec||this.dec.state!=='configured') return;
     const S=this.clip.samples;
-    const cap=this.idle?5:14;   // décodeur en attente : petit tampon (mémoire), actif : tampon plein
-    while(this.frames.length<cap && this.dec.decodeQueueSize<18 && this.si<S.length){
+    const cap=this.idle?5:14;
+    // decodeQueueSize peut déjà être à zéro alors que les frames ne sont pas encore sorties.
+    // Une marge de réordonnancement permet les B-frames sans bloquer un petit tampon idle.
+    const budget=cap+Math.max(2,this.clip.reorderDepth||0);
+    while(this.frames.length<cap && this.frames.length+this.pending<budget && this.pending<18 && this.dec.decodeQueueSize<18 && this.si<S.length){
       const s=S[this.si++];
-      try{ this.dec.decode(new EncodedVideoChunk({type:s.key?'key':'delta', timestamp:s.ts, duration:s.dur, data:s.data})); }
-      catch(e){ this._telErr(e); break; }
+      try{ this.pending++; this.dec.decode(new EncodedVideoChunk({type:s.key?'key':'delta', timestamp:s.ts, duration:s.dur, data:s.data})); }
+      catch(e){ this.pending=Math.max(0,this.pending-1); this._telErr(e); break; }
     }
-    if(this.si>=S.length){ try{ this.dec.flush().catch(()=>{}); }catch(e){} }
+    if(this.si>=S.length&&!this.flushing&&!this.drained){
+      const gen=this.generation; this.flushing=true;
+      try{ this.dec.flush().then(()=>{ if(gen===this.generation){ this.drained=true; this.flushing=false; this.pending=0; } },e=>{ if(gen===this.generation){ this.flushing=false; this._telErr(e); } }); }
+      catch(e){ this.flushing=false; this._telErr(e); }
+    }
   }
   frameAt(tSec){
     const wantUs=tSec*1e6;
+    this.targetUs=Math.max(0,Math.min(wantUs,this.clip.lastTimestampUs));
     this.fill();
     while(this.frames.length && this.frames[0].timestamp<=wantUs){
       if(this.cur){ try{this.cur.close();}catch(e){} }
@@ -4145,10 +4206,10 @@ class SegPlayer{
     return this.cur;
   }
   buffered(){ return this.frames.length; }
-  destroy(){ this.clearFrames(); if(this.dec){try{this.dec.close();}catch(e){}} this.dec=null; }
+  destroy(){ this.generation++; this.clearFrames(); if(this.dec){try{this.dec.close();}catch(e){}} this.dec=null; this.pending=0; }
 }
 /* --- lecteur actif + POOL de décodeurs pré-calés sur les plans à venir (coupes rapides sans famine) --- */
-let wcA=null, wcPtr=-1, wcPool=[];   // wcPool : [{pl:SegPlayer, idx:indexPlan}] déjà calés sur les prochains plans
+let wcA=null, wcPtr=-1, wcPool=[], wcEpoch=0, playPreparing=false;   // wcPool : [{pl, idx:indexPlan}]
 const WC_POOL=(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))?4:8, WC_AHEAD_S=2;   // mobile : moins d'instances de décodeur matériel
 const wcPrev=cl=>cl? (cl.wcProxy||cl.wc||null) : null;   // la preview préfère le proxy léger ; l'export garde cl.wc (pleine résolution)
 const wcPlanSrc=p=>(p&&p.clip!==null&&clips[p.clip])? wcPrev(clips[p.clip]) : null;
@@ -4156,7 +4217,7 @@ function wcSeekOf(p){
   const w=wcPrev(clips[p.clip]); const d=w? w.durationS:0; const s=p.seek||0;
   return d? s%Math.max(0.05,d) : s;
 }
-function wcReset(){ if(wcA) wcA.destroy(); wcA=null; wcPool.forEach(e=>e.pl.destroy()); wcPool=[]; wcPtr=-1; }
+function wcReset(){ wcEpoch++; if(wcA) wcA.destroy(); wcA=null; wcPool.forEach(e=>e.pl.destroy()); wcPool=[]; wcPtr=-1; }
 /* ===== Cache de secours (plans courts) =====
    UNE image (ImageBitmap ≤ 720 px) par plan court, décodée à l'arrêt en arrière-plan. À la lecture elle n'est
    affichée QUE si le décodeur du plan n'a pas encore livré sa 1re frame — à la place d'un gel ou d'un noir. */
@@ -4238,6 +4299,7 @@ function wcScrubFrame(cl, target){
   if(!w||!w.config) return null;
   if(!wcScrub) wcScrub=new SegPlayer();
   const d=w.durationS||0; if(d) target%=Math.max(0.05,d);
+  const moved=wcScrubClip!==w||Math.abs(target-wcScrubT)>0.001;
   let sought=false;
   if(wcScrubClip!==w){ wcScrubClip=w; wcScrub.setClip(w); wcScrub.seek(target); wcScrubT=target; sought=true; }
   else if(Math.abs(target-wcScrubT)>0.06){
@@ -4245,18 +4307,19 @@ function wcScrubFrame(cl, target){
     wcScrubT=target;
   }
   const f=wcScrub.frameAt(target);
-  if(!f&&sought&&!playing) wcScrubRedraw();
+  if(sought||moved) _wcRedrawUntil=performance.now()+3000;
+  const stale=!f||f.timestamp+(f.duration||40000)<=target*1e6;
+  if(stale&&!playing&&performance.now()<_wcRedrawUntil) wcScrubRedraw();
   return f;
 }
-let _wcRedrawN=0;
+let _wcRedrawTimer=null, _wcRedrawUntil=0;
 function wcScrubRedraw(){
-  _wcRedrawN=0;
-  const tick=()=>{
-    if(playing) return;
+  if(_wcRedrawTimer!==null) return;
+  _wcRedrawTimer=setTimeout(()=>{
+    _wcRedrawTimer=null;
+    if(playing||exporting) return;
     drawPreview(curTime());
-    if(++_wcRedrawN<8 && !(wcScrub&&wcScrub.cur)) setTimeout(tick,70);
-  };
-  setTimeout(tick,60);
+  },60);
 }
 /* --- export : décodage séquentiel frame-accurate (zéro seek <video>) --- */
 let wcExpFrame=null, _wcExpPi=-1;
@@ -4290,7 +4353,7 @@ async function wcWaitFrame(pl, target, stallMs){
     pl.fill(); f=pl.frameAt(target);
     // exactitude : on sort quand la frame SUIVANTE dépasserait la cible → f est LA bonne frame
     if(f && pl.frames.length && pl.frames[0].timestamp>target*1e6) break;
-    if(f && pl.si>=pl.clip.samples.length && !pl.frames.length) break;   // fin du flux
+    if(f && pl.drained && !pl.frames.length) break;   // attend aussi la sortie des dernières B-frames
     if(pl.err) break;
     if(pl.si!==lastSi||pl.buffered()){ lastSi=pl.si; lastProg=performance.now(); }
     if(performance.now()-lastProg>stallMs) break;   // décodeur calé → on garde la meilleure frame connue
@@ -4302,6 +4365,15 @@ async function wcWaitFrame(pl, target, stallMs){
 
 let offlineRender=false;
 let wcPump=null, _fpsN=0, _fpsT0=0, _fpsSent=false;
+function startPreviewPump(){
+  if(wcPump) clearInterval(wcPump);
+  wcPump=setInterval(()=>{
+    if(!playing){clearInterval(wcPump);wcPump=null;return;}
+    for(const pl of [wcA,...wcPool.map(e=>e.pl)].filter(Boolean)){
+      try{pl.fill();}catch(e){pl._telErr(e);}
+    }
+  },15);
+}
 document.addEventListener('visibilitychange',()=>{ if(document.hidden&&playing){ startOff=curTime(); stopAll(); try{drawPlayhead(startOff);}catch(e){} } });
 function syncLivePlan(t){
   const plans=(M&&M.plans)||[];
@@ -4316,14 +4388,20 @@ function syncLivePlan(t){
       wcA._lastTgt=tgt;
     }
   }
+  // Un plan long peut approcher sa fin plusieurs secondes après son activation.
+  // Faire avancer l'horizon, sinon le plan suivant n'est jamais préchargé.
+  if(cur>=0) wcPrepAhead(cur+1,null,t);
 }
 /* Pré-cale les décodeurs des 2 premiers plans avant de démarrer (zéro frame floue au lancement) */
 function warmUpPlans(fromT){
   const plans=(M&&M.plans)||[];
   wcReset();
+  const epoch=wcEpoch;
+  if(wcScrub) wcScrub.destroy(); wcScrub=null; wcScrubClip=null; wcScrubT=-1;
+  clearTimeout(_wcRedrawTimer); _wcRedrawTimer=null;
   let i=plans.findIndex(p=>fromT>=p.start&&fromT<p.end);
   if(i<0) i=plans.findIndex(p=>p.end>fromT);
-  if(i<0) return Promise.resolve();
+  if(i<0) return Promise.resolve(true);
   const p=plans[i]; wcPtr=i;
   const w0=p.clip!==null&&clips[p.clip]? wcPrev(clips[p.clip]):null;
   if(w0){
@@ -4331,19 +4409,23 @@ function warmUpPlans(fromT){
     let tgt=(p.seek||0)+Math.max(0,fromT-p.start); if(d) tgt%=Math.max(0.05,d);
     wcA=new SegPlayer(); wcA.setClip(w0); wcA.seek(tgt); wcA._lastTgt=tgt;
   }
-  wcPrepAhead(i+1, null, p.start);
-  // attendre la 1re frame décodée (max 2,5 s) — zéro frame noire au lancement
+  wcPrepAhead(i+1, null, fromT);
+  // Amorcer AUSSI les prochains plans avant de lancer le son (GOP longs).
   return new Promise(res=>{
     const t0=performance.now();
     const tick=()=>{
-      if(!wcA||wcA.buffered()>0||wcA.cur||wcA.err||performance.now()-t0>2500){ res(); return; }
-      wcA.fill(); setTimeout(tick,30);
+      if(epoch!==wcEpoch){res(false);return;}
+      const players=[wcA,...wcPool.map(e=>e.pl)].filter(Boolean);
+      players.forEach(pl=>pl.fill());
+      if(players.every(pl=>pl.buffered()>0||pl.cur||pl.err)||performance.now()-t0>2500){ res(true); return; }
+      setTimeout(tick,15);
     };
     tick();
   });
 }
 function togglePlay(){
   if(exporting){toast('Export en cours — attends la fin');return;}
+  if(playPreparing){stopAll();return;}
   if(audioCtx&&audioCtx.state!=='running'){ try{audioCtx.resume();}catch(e){} }   // iOS : resume SYNCHRONE dans le geste utilisateur
   if(playing&&!looping){ startOff=curTime(); stopAll(); drawPlayhead(startOff); return; }
   let from=startOff;
@@ -4354,11 +4436,13 @@ async function play(from){
   if(!buffer||exporting)return;
   if(clipsBlocking()){
     TEL.push('clip_not_ready',{optimizing:clips.filter(c=>c._optimizing).length, notReady:clips.filter(c=>!c._wcReady&&!c._wcFail).length});
-    toast('Ta vidéo n\u2019est pas encore lisible — optimisation en cours, un instant…'); return;
+    toast(previewWaitMessage()); return;
   }
   exitCropMode();
   stopAll();
-  await warmUpPlans(from);   // la 1re frame est décodée AVANT le départ du son
+  playPreparing=true;
+  if(!await warmUpPlans(from)) return;   // annulable, son lancé après préparation des images
+  playPreparing=false;
   if(exporting) return;
   if(audioCtx.state!=='running'){                     // iOS : contexte suspendu → le son ne part pas et currentTime reste figé
     try{ await audioCtx.resume(); }catch(e){}
@@ -4370,12 +4454,12 @@ async function play(from){
   srcNode.onended=()=>{ if(playing&&!looping) stopAll(); };
   startedAt=audioCtx.currentTime; startOff=from; playing=true; looping=false;
   // pompe de décodage indépendante de la rAF : le décodeur ne meurt plus de faim quand le thread est chargé
-  if(wcPump) clearInterval(wcPump);
-  wcPump=setInterval(()=>{ if(!playing){clearInterval(wcPump);wcPump=null;return;} try{ if(wcA)wcA.fill(); for(const e of wcPool) e.pl.fill(); }catch(e){} },15);
+  startPreviewPump();
   _fpsN=0; _fpsT0=performance.now(); _fpsSent=false;
   $('#playBtn').textContent='❚❚'; raf();
 }
 function stopAll(){
+  playPreparing=false;
   if(srcNode){ srcNode.onended=null; try{srcNode.stop()}catch(e){} srcNode=null; }
   if(wcPump){ clearInterval(wcPump); wcPump=null; }
   playing=false; looping=false;
@@ -5851,18 +5935,20 @@ function seriePreviewToggle(i, cvs, btn){
   if(seriePlayingIdx===i){ serieStopPreview(); return; }
   serieStopPreview();
   if(!buffer||exporting) return;
+  if(clipsBlocking()){toast(previewWaitMessage());return;}
   try{ audioCtx.resume(); }catch(e){}
   const va=serieVariants[i];
   seriePlayingIdx=i; seriePlayBtn=btn; btn.textContent='…';
   // aperçu fluide : les décodeurs sont pré-chauffés avec les plans DE CETTE VERSION avant le son
   const ss=style, pp=M.plans; style=va.style; M.plans=va.plans;
-  Promise.resolve(warmUpPlans(ext.start)).finally(()=>{
+  Promise.resolve(warmUpPlans(ext.start)).then(ready=>{
     style=ss; M.plans=pp;
-    if(seriePlayingIdx!==i) return;
+    if(!ready||seriePlayingIdx!==i) return;
     srcNode=audioCtx.createBufferSource(); srcNode.buffer=buffer; srcNode.connect(audioCtx.destination);
     srcNode.start(0, ext.start, ext.dur);
     srcNode.onended=()=>serieStopPreview();
     startedAt=audioCtx.currentTime; startOff=ext.start; playing=true; looping=false;
+    startPreviewPump();
     btn.textContent='❚❚ Stop';
     const loop=()=>{
       if(seriePlayingIdx!==i) return;

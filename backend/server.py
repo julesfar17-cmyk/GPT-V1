@@ -2435,6 +2435,11 @@ async def _ffmpeg_proxy(src: str, dst: str) -> bool:
     return True
 
 
+# Versionne aussi les décisions « proxy inutile » : les anciens médias sont
+# réévalués à la demande, sans migration ni transcodage massif au démarrage.
+PREVIEW_PROXY_POLICY = 2
+
+
 async def _make_proxy(oid):
     """Génère (une fois) le proxy de preview d'un média et le range dans GridFS (metadata.proxy_of)."""
     async with TRANSCODE_SEM:
@@ -2452,11 +2457,17 @@ async def _make_proxy(oid):
                 dst = os.path.join(td, "out.mp4")
                 await _grid_to_file(oid, src)
                 probe = await _probe_video(src)
-                # déjà léger (H.264 ≤720p) → le média lui-même sert de proxy
-                if probe and probe["codec"] == "h264" and min(probe["w"], probe["h"]) <= 720:
+                # La résolution seule ne garantit pas des seeks rapides : les
+                # fichiers longs peuvent avoir plusieurs secondes entre les I-frames.
+                # Ils passent toujours par le proxy à GOP 0,5 s, même en 720p.
+                if (probe and probe["codec"] == "h264"
+                        and min(probe["w"], probe["h"]) <= 720
+                        and 0 < probe["duration"] < 90):
                     await db["media.files"].update_one(
                         {"_id": oid},
-                        {"$set": {"metadata.proxy_skipped": True}, "$unset": {"metadata.proxy_processing": ""}})
+                        {"$set": {"metadata.proxy_skipped": True,
+                                  "metadata.proxy_policy": PREVIEW_PROXY_POLICY},
+                         "$unset": {"metadata.proxy_processing": ""}})
                     return
                 if await _ffmpeg_proxy(src, dst):
                     fname = os.path.splitext(doc.get("filename") or "media")[0] + ".proxy.mp4"
@@ -2467,7 +2478,9 @@ async def _make_proxy(oid):
                                       "content_type": "video/mp4", "created_at": iso(now_utc())})
                     await db["media.files"].update_one(
                         {"_id": oid},
-                        {"$set": {"metadata.proxy_id": str(proxy_id)}, "$unset": {"metadata.proxy_processing": ""}})
+                        {"$set": {"metadata.proxy_id": str(proxy_id),
+                                  "metadata.proxy_policy": PREVIEW_PROXY_POLICY},
+                         "$unset": {"metadata.proxy_processing": "", "metadata.proxy_skipped": ""}})
                     logger.info("Proxy preview OK %s → %s (%d → %d octets)",
                                 oid, proxy_id, os.path.getsize(src), os.path.getsize(dst))
                     return
@@ -2484,7 +2497,8 @@ async def _auto_proxy(oid):
         {"_id": oid, "metadata.is_proxy": {"$ne": True},
          "metadata.processing": {"$ne": True},
          "metadata.proxy_processing": {"$ne": True},
-         "metadata.proxy_skipped": {"$ne": True},
+         "$or": [{"metadata.proxy_skipped": {"$ne": True}},
+                 {"metadata.proxy_policy": {"$ne": PREVIEW_PROXY_POLICY}}],
          "metadata.proxy_failed": {"$ne": True},
          "metadata.proxy_id": {"$exists": False}},
         {"$set": {"metadata.proxy_processing": True}})
@@ -2835,7 +2849,7 @@ async def media_download(media_id: str, user: dict = Depends(get_current_user)):
 
 
 @api_router.post("/media/proxy/{media_id}")
-async def media_proxy(media_id: str, user: dict = Depends(get_current_user)):
+async def media_proxy(media_id: str, retry: bool = False, user: dict = Depends(get_current_user)):
     """Proxy de preview H.264 ≤720p : renvoie proxy_id si prêt, sinon lance la génération (idempotent)."""
     try:
         oid = ObjectId(media_id)
@@ -2854,10 +2868,14 @@ async def media_proxy(media_id: str, user: dict = Depends(get_current_user)):
     existing = await db["media.files"].find_one({"metadata.proxy_of": media_id}, {"_id": 1})
     if existing:
         return {"proxy_id": str(existing["_id"])}
-    if meta.get("proxy_skipped"):
+    if meta.get("proxy_skipped") and meta.get("proxy_policy") == PREVIEW_PROXY_POLICY:
         return {"proxy_id": media_id}
     if meta.get("proxy_failed"):
-        return {"status": "failed"}
+        if not retry:
+            return {"status": "failed"}
+        await db["media.files"].update_one(
+            {"_id": oid, "metadata.user_id": user["user_id"]},
+            {"$unset": {"metadata.proxy_failed": ""}})
     asyncio.create_task(_auto_proxy(oid))
     return {"status": "processing"}
 

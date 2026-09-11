@@ -1,0 +1,69 @@
+{
+  "summary": "Completed baseline reproduction for recurring long-video preview freeze context (no app fixes). Added reusable long-GOP media generator, backend proxy baseline pytest, and real-Chrome studio harness. Backend confirms <=720p H264 always skips proxy even on 185s long-GOP source; >720p triggers proxy generation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/media/proxy/{media_id}",
+        "issue": "Proxy decision skips all H264 where min(width,height)<=720 regardless of GOP structure or duration; long-GOP 185s 1280x720 returned proxy_id==media_id (no proxy transcode)."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "addClip/startClipUpload -> ensureClipProxy",
+        "issue": "Code-path probe shows startClipUpload has no ensureClipProxy call after mediaId assignment/completion (staticHasEnsure=false).",
+        "affected_selectors": [
+          "startClipUpload (studio.html lines 2874+)",
+          "ensureClipProxy (studio.html lines 1606+)"
+        ]
+      },
+      {
+        "flow": "Long clip scrub micro-seeks (backward and <=0.8s forward)",
+        "issue": "wcScrubFrame immediate calls at [90, 89.4, 89.9, 90.45, 90.95, 90.2] returned no frame in baseline probe (all gotFrame=false), consistent with temporary preview stalls during scrub.",
+        "affected_selectors": [
+          "wcScrubFrame",
+          "drawPreview"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/tests/generate_long_gop_assets.py",
+    "/app/frontend/tests/test_long_preview_baseline_chrome.py",
+    "/app/backend/tests/test_long_proxy_baseline_iter32.py",
+    "/app/test_reports/pytest/iter32_long_proxy_backend.xml",
+    "/app/test_reports/frontend_long_preview_baseline_iter32.json",
+    "/app/test_reports/iter32_backend_media_ids.json"
+  ],
+  "action_items": [
+    "Wire ensureClipProxy invocation in normal upload flow once mediaId is assigned in startClipUpload (not only pre-existing mediaId branch).",
+    "Revisit proxy skip rule to include GOP/seekability heuristics, not only codec+<=720p resolution.",
+    "Investigate scrub path for fast backward/small-forward seeks where immediate frame availability is frequently null.",
+    "After fixes, rerun /app/frontend/tests/test_long_preview_baseline_chrome.py and /app/backend/tests/test_long_proxy_baseline_iter32.py for regression."
+  ],
+  "critical_code_review_comments": [
+    "SegPlayer.fill() caps by frames.length and decodeQueueSize but not by pending-to-output backlog; baseline idle probe reached maxBuffered=30 despite cap logic, indicating queue overshoot risk after asynchronous decoder output.",
+    "Near EOF repeated seeks converged to same timestamp frameTsSec=184.875 with repeated flush cycles; behavior is deterministic but can manifest as apparent freeze near clip end in repeated seek loops.",
+    "studio.html remains very large (>6k lines), making targeted media pipeline regression harder and increasing risk of cross-feature coupling."
+  ],
+  "updated_files": [
+    "/app/frontend/tests/generate_long_gop_assets.py",
+    "/app/frontend/tests/test_long_preview_baseline_chrome.py",
+    "/app/backend/tests/test_long_proxy_baseline_iter32.py",
+    "/app/test_reports/iteration_32.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "75%"
+  },
+  "test_credentials": "demo@beatcut.fr / Demo1234!",
+  "seed_data_creation": "Generated local test media in /tmp/beatcut_long_assets (185s H264 long-GOP 1280x720 and 1280x800). Backend uploads created media IDs 6aa436ffbdb0f4a753cb499f and 6aa436ffbdb0f4a753cb49fe for this run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use existing assets via python /app/frontend/tests/generate_long_gop_assets.py. Backend regression already saved JUnit at /app/test_reports/pytest/iter32_long_proxy_backend.xml. Frontend baseline metrics are in /app/test_reports/frontend_long_preview_baseline_iter32.json (duration=185s, sampleCount=4440, seek metrics at 10/90/170/179, idle queue growth, EOF repeats, rapid-cut timings). Chrome binary verified at /usr/bin/google-chrome (Chromium 151).",
+  "rca of the issue": "RCA baseline evidence: (1) upload path integration gap: startClipUpload does not call ensureClipProxy post-mediaId, so long clips rely on transcode swap and may never trigger preview proxy path automatically. (2) backend proxy policy skips all <=720p H264 regardless of long-GOP seek complexity, so difficult 720p long clips are kept as-is. (3) decoder pipeline: repeated EOF seeks return same terminal frame and fill/queue behavior can build sizeable buffered frame counts while decodeQueueSize appears capped, matching user perception of occasional stalls/freeze on long clips. Note: one integration probe used **MOCKED** API wiring only to validate call-path presence; core parse/seek metrics and backend proxy behavior used real media and real endpoints."
+}

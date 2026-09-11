@@ -1,0 +1,291 @@
+{
+  "base_url": "https://pro-mailer-2.preview.emergentagent.com",
+  "chrome_binary": "/usr/bin/google-chrome",
+  "steps": [
+    {
+      "name": "login",
+      "ok": true
+    },
+    {
+      "name": "open_studio",
+      "ok": true
+    }
+  ],
+  "decoder_support": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "avc1_main": true,
+    "avc1_high": true
+  },
+  "parse_pass_wc_ready": true,
+  "parse_decode_metrics": {
+    "clipName": "baseline_from_api.mp4",
+    "mediaId": "6aa436ffbdb0f4a753cb499f",
+    "durationS": 185,
+    "sampleCount": 4440,
+    "firstTsSec": 0,
+    "lastTsSec": 184.958,
+    "tailGapSec": 0.042,
+    "seekResults": [
+      {
+        "target": 10,
+        "elapsedMs": 6,
+        "gotFrame": true,
+        "frameTsSec": 10,
+        "decodeQueueSize": 18,
+        "buffered": 0,
+        "sampleIndex": 263
+      },
+      {
+        "target": 90,
+        "elapsedMs": 11,
+        "gotFrame": true,
+        "frameTsSec": 90,
+        "decodeQueueSize": 18,
+        "buffered": 4,
+        "sampleIndex": 2187
+      },
+      {
+        "target": 170,
+        "elapsedMs": 6,
+        "gotFrame": true,
+        "frameTsSec": 170,
+        "decodeQueueSize": 18,
+        "buffered": 0,
+        "sampleIndex": 4103
+      },
+      {
+        "target": 179,
+        "elapsedMs": 187,
+        "gotFrame": true,
+        "frameTsSec": 179,
+        "decodeQueueSize": 18,
+        "buffered": 0,
+        "sampleIndex": 4319
+      }
+    ],
+    "scrub": [
+      {
+        "target": 90,
+        "elapsedMs": 1,
+        "gotFrame": false,
+        "frameTsSec": null,
+        "buffered": null
+      },
+      {
+        "target": 89.4,
+        "elapsedMs": 1,
+        "gotFrame": false,
+        "frameTsSec": null,
+        "buffered": null
+      },
+      {
+        "target": 89.9,
+        "elapsedMs": 0,
+        "gotFrame": false,
+        "frameTsSec": null,
+        "buffered": null
+      },
+      {
+        "target": 90.45,
+        "elapsedMs": 0,
+        "gotFrame": false,
+        "frameTsSec": null,
+        "buffered": null
+      },
+      {
+        "target": 90.95,
+        "elapsedMs": 0,
+        "gotFrame": false,
+        "frameTsSec": null,
+        "buffered": null
+      },
+      {
+        "target": 90.2,
+        "elapsedMs": 1,
+        "gotFrame": false,
+        "frameTsSec": null,
+        "buffered": null
+      }
+    ],
+    "idleProbe": {
+      "maxBuffered": 30,
+      "maxDecodeQueue": 18,
+      "decodeSubmittedSamples": 2193
+    },
+    "eofRepeats": [
+      {
+        "i": 0,
+        "elapsedMs": 88,
+        "gotFrame": true,
+        "frameTsSec": 184.875,
+        "decodeQueueSize": 0,
+        "buffered": 2,
+        "sampleIndex": 4440
+      },
+      {
+        "i": 1,
+        "elapsedMs": 117,
+        "gotFrame": true,
+        "frameTsSec": 184.875,
+        "decodeQueueSize": 0,
+        "buffered": 2,
+        "sampleIndex": 4440
+      },
+      {
+        "i": 2,
+        "elapsedMs": 108,
+        "gotFrame": true,
+        "frameTsSec": 184.875,
+        "decodeQueueSize": 0,
+        "buffered": 2,
+        "sampleIndex": 4440
+      },
+      {
+        "i": 3,
+        "elapsedMs": 106,
+        "gotFrame": true,
+        "frameTsSec": 184.875,
+        "decodeQueueSize": 0,
+        "buffered": 2,
+        "sampleIndex": 4440
+      },
+      {
+        "i": 4,
+        "elapsedMs": 105,
+        "gotFrame": true,
+        "frameTsSec": 184.875,
+        "decodeQueueSize": 0,
+        "buffered": 2,
+        "sampleIndex": 4440
+      },
+      {
+        "i": 5,
+        "elapsedMs": 105,
+        "gotFrame": true,
+        "frameTsSec": 184.875,
+        "decodeQueueSize": 0,
+        "buffered": 2,
+        "sampleIndex": 4440
+      }
+    ],
+    "rapid": [
+      {
+        "target": 0.1,
+        "elapsedMs": 11,
+        "gotFrame": true,
+        "frameTsSec": 0.083
+      },
+      {
+        "target": 0.22,
+        "elapsedMs": 11,
+        "gotFrame": true,
+        "frameTsSec": 0.208
+      },
+      {
+        "target": 0.34,
+        "elapsedMs": 16,
+        "gotFrame": true,
+        "frameTsSec": 0.333
+      },
+      {
+        "target": 0.46,
+        "elapsedMs": 35,
+        "gotFrame": true,
+        "frameTsSec": 0.458
+      },
+      {
+        "target": 0.58,
+        "elapsedMs": 16,
+        "gotFrame": true,
+        "frameTsSec": 0.542
+      },
+      {
+        "target": 0.7,
+        "elapsedMs": 21,
+        "gotFrame": true,
+        "frameTsSec": 0.667
+      },
+      {
+        "target": 92.5,
+        "elapsedMs": 68,
+        "gotFrame": true,
+        "frameTsSec": 92.5
+      },
+      {
+        "target": 92.65,
+        "elapsedMs": 53,
+        "gotFrame": true,
+        "frameTsSec": 92.625
+      },
+      {
+        "target": 92.8,
+        "elapsedMs": 78,
+        "gotFrame": true,
+        "frameTsSec": 92.792
+      },
+      {
+        "target": 92.95,
+        "elapsedMs": 75,
+        "gotFrame": true,
+        "frameTsSec": 92.917
+      },
+      {
+        "target": 93.1,
+        "elapsedMs": 57,
+        "gotFrame": true,
+        "frameTsSec": 93.083
+      },
+      {
+        "target": 93.25,
+        "elapsedMs": 89,
+        "gotFrame": true,
+        "frameTsSec": 93.25
+      },
+      {
+        "target": 183.4,
+        "elapsedMs": 83,
+        "gotFrame": true,
+        "frameTsSec": 183.375
+      },
+      {
+        "target": 183.6,
+        "elapsedMs": 93,
+        "gotFrame": true,
+        "frameTsSec": 183.583
+      },
+      {
+        "target": 183.8,
+        "elapsedMs": 93,
+        "gotFrame": true,
+        "frameTsSec": 183.792
+      },
+      {
+        "target": 184,
+        "elapsedMs": 100,
+        "gotFrame": true,
+        "frameTsSec": 184
+      },
+      {
+        "target": 184.2,
+        "elapsedMs": 104,
+        "gotFrame": true,
+        "frameTsSec": 184.167
+      },
+      {
+        "target": 184.4,
+        "elapsedMs": 101,
+        "gotFrame": true,
+        "frameTsSec": 184.375
+      }
+    ]
+  },
+  "start_clip_upload_proxy_integration": {
+    "staticHasEnsure": false,
+    "ensureCalls": 0,
+    "mediaStatusCalls": 0,
+    "clipMediaId": null,
+    "clipOptimizing": true,
+    "probeUsesMockedAPI": true
+  },
+  "page_error_text": ""
+}
