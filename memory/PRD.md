@@ -29,7 +29,34 @@ BeatCut transforme un morceau et des vidéos en montages synchronisés sur le be
 - `/api/telemetry/preview`, `/api/telemetry/export`, `/api/proxy/transcribe`.
 - Comptes de test et précautions Stripe LIVE : `/app/memory/test_credentials.md`. Ne jamais effectuer de paiement réel ni d'envoi collectif pendant les tests.
 
-## Dernière demande approuvée — 11 septembre 2026
+## Dernière demande approuvée — 13 septembre 2026
+Utilisateur : « On vas ajouter une fonctionnalité similaire à tap for cut. Ce seras une fonction qui permettra de caler ses paroles en appuyant sur l’écran avec la même possibilité de ralentir l’extrait pour être plus précis. Aussi sur le compte à rebours avant que ça commence joue la musique juste avant la l’extrait (à volume réduit) pour ce soit plus facile d’attaquer. »
+Choix confirmé : « Oui mot par mot ! » ; vitesses 100/75/50 %, préparation musicale aussi sur Tap for cut, recommencer et valider avant remplacement.
+
+### Implémenté — `v13.26-tap-lyrics`
+- **Tap paroles** dans le panneau Paroles et Plus sur mobile : paroles existantes de l'extrait préremplies, ou collage/édition directe sans transcription ni appel IA.
+- Un appui tactile, clic, Entrée sur la zone ou Espace cale le mot suivant sur le temps source. Pas de quantification au beat ; compteur, mot à venir et contexte visibles, ralenti 100/75/50 %.
+- Prise isolée de `M.words` jusqu'à validation ; prise incomplète non applicable, réessai, réécoute à vitesse normale avec surlignage ; Annuler conserve le projet.
+- Application : temps absolus dans l'extrait, fins positives et `hardEnd`, mots hors extrait conservés, métadonnées des mots identiques conservées ; historique Undo existant, sauvegarde serveur normale. Protection si le projet/extrait/paroles change pendant une prise.
+- **Pré-écoute commune** Tap paroles/Tap for cut : 3 secondes de décompte, passage précédent à gain 0,25, même vitesse de lecture, rampe 20 ms vers gain 1 au départ. Une seule source audio traverse la jonction, horloge WebAudio et compensation de latence ; si l'extrait commence au début du morceau, la partie antérieure inexistante reste silencieuse.
+- Annulation arrête source, gain, callbacks et animations ; fermeture lors de navigation/arrière-plan, protection contre touches maintenues/doubles événements.
+- Modules : `/app/frontend/public/tap-audio.js` (horloge/pré-écoute), `tap-lyrics.js` (prise/relecture/validation), `tap-lyrics.css` (UI V3 responsive). Chargés par `studio.html` ; moteur vidéo/proxy et export inchangés.
+- Adaptateur explicite `window.BeatCutTapHost` défini dans `studio.html` : getters sur l'état courant (`M`, buffer, extrait, contexte audio) et actions de validation/rafraîchissement. Les modules n'accèdent pas à des variables globales lexicales implicites ; contrôle `no-undef` réussi sur les deux fichiers JS.
+- Paroles affichées sans traduction automatique ni capitalisation forcée ; nouveau modal gère lui-même FR/EN, attribut `translate="no"` respecté par le traducteur local existant.
+- Aucun nouveau service externe, aucun changement d'authentification/prix/quotas et aucune API simulée dans l'application.
+
+### Tests de cette fonctionnalité
+- Smoke réel `/studio` iframe : 75 %, premier mot calé, annulation sans erreur.
+- Serveur : 3/3 tests de création/lecture/mise à jour/suppression de projets jetables, préservation des timings/`hardEnd`/métadonnées (`test_iter36_taplyrics_persistence.py`). Aucun projet utilisateur existant modifié.
+- Base frontend validée : ouverture desktop et mobile, préremplissage, texte vide, Unicode, pointer+Space, prise incomplète, application/métadonnées/Undo, annulation Tap for cut, aucun débordement à320/768/1024/1440.
+- Mesures audio réelles avec AnalyserNode à100/75/50 : amplitude multipliée par ~4 au départ, offset pré-écoute exact, continuité mathématique sans écart, bornes début0/0,5s correctes.
+- Le premier harnais signalait à tort l'entrée mobile : le tutoriel d'accueil était encore ouvert et le test cliquait derrière. Harnais corrigé pour passer le tutoriel normalement et ouvrir le panneau mobile via ses boutons. Aucune modification du tutoriel dans le produit.
+- **Extension finale réussie** : temps source à100/75/50 %, réécoute à100 % et arrêt, toucher via API tactile Chrome, fin naturelle, conflit de brouillon refusé, annulation sans reprise différée, Tap for cut ralenti/quantification/touche maintenue, sauvegarde serveur du calage réellement appliqué et métadonnées exactes. Aucun runtime error. Résultats : `/app/test_reports/frontend_taplyrics_iter36.json`, synthèse `/app/test_reports/iteration_37.json`.
+- Mesures capture : ~0,75 s réelles donnent respectivement ~0,749 / 0,562 / 0,374 s source. Décompte et changement de volume indépendants des timers visuels. Texte utilisateur préservé en interface anglaise, casse incluse.
+- Tests de syntaxe JS réussis. Validation physique Safari/iPhone et latence d'un casque Bluetooth non effectuées ; Chrome tactile/viewport mobile n'est pas Safari iOS.
+- Redo n'existe pas dans le studio et n'a pas été ajouté : hors demande utilisateur. Undo existant utilisé.
+
+## Correction précédente — 11 septembre 2026
 Utilisateur : « J'ai limpression qu'il y a parfois des bugs quand le vidéo importée est longue genre 2 OU 3 ;inutes ou pluis ».
 Plan approuvé (« bien ») : reproduire avec sources ≥2–3 minutes, corriger le lecteur et vérifier les coupes rapprochées ; Safari/iPhone ensuite.
 

@@ -1,5 +1,17 @@
 # Historique — BEATCUT
 
+## 13 septembre 2026 — Tap paroles et pré-écoute, `v13.26-tap-lyrics`
+- Demande explicite : calage manuel des paroles mot par mot, ralentissement comme Tap for cut, musique avant extrait pendant le décompte à volume réduit ; fonctionnement confirmé par l'utilisateur.
+- Tap paroles accessible depuis Paroles / Plus mobile : texte existant ou collé, trois vitesses, mot suivant, capture tactile/clavier, prise brouillon, réécoute, validation explicite, réessai/annulation, mots hors extrait préservés, Undo et sauvegarde existante.
+- Nouveau moteur audio partagé `tap-audio.js` : une seule source traverse 3s de pré-écoute et l'extrait, gain0,25 puis rampe20ms vers1, temps source et latence ; arrêt propre même en décompte ou reprise audio asynchrone.
+- `tap-lyrics.js` et `tap-lyrics.css` isolent la nouvelle interface/prise ; `studio.html` charge ces modules et raccorde le moteur au Tap for cut existant. Moteur vidéo/export/proxy conservé.
+- Adaptateur `BeatCutTapHost` avec getters/action de remplacement explicites pour relier le module au studio sans globales lexicales implicites. Contrôle de syntaxe et `no-undef` réussi.
+- Respect littéral des paroles dans le nouveau modal (pas de traduction automatique/capitalisation CSS), contrôle des prises incomplètes et refus d'appliquer un brouillon si le morceau/paroles ont changé.
+- Tests réussis : 3 backend CRUD/projets +11 groupes frontend réels (dont tactile Chrome, largeurs320/768/1024/1440, source-clock3vitesses, amplitudepré-écoute×4 audiodépart, réécoute, Undo exact, fin naturelle, calage cuts, persistence réelle du calage capturé).
+- Fausse alerte initiale d'accès mobile corrigée dans le harnais : tutoriel non passé + clic forcé derrière. Parcours normal via Plus testé ; aucun changement au tutoriel produit. Redo non ajouté (hors demande, seul Undo existe).
+- Aucune API simulée dans l'application, aucun service externe/authentification ajouté, aucun compte de test créé/modifié. Projets QA jetables supprimés ; projets utilisateur existants non modifiés.
+- Validation Safari/iPhone physique à suivre. Synthèse finale : `test_reports/iteration_37.json` ; détails `frontend_taplyrics_iter36.json`.
+
 ## 11 septembre 2026 — Vidéos longues, `v13.25-long-video`
 - Cause reproduite avec H.264 185 s / GOP10 s : uploads locaux n'activaient pas le proxy, long720 était considéré à tort comme déjà léger, tampon asynchrone dépassait le plafond.
 - Proxy désormais chargé pour les imports locaux ; policy2 régénère les anciennes décisions de skip à la demande, vidéo ≥90 s optimisée même en720p ; retry explicite d'un proxy échoué.

@@ -1,0 +1,65 @@
+{
+  "summary": "Iteration 36 targeted testing completed for Tap Lyrics/Tap for Cut and project persistence. Backend persistence regression passed (3/3). Frontend desktop core flows passed, but mobile Tap Lyrics open via More menu is not reliable in real run and needs fix/retest.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Mobile Studio > More menu",
+        "issue": "Tap Lyrics action from mobile More button did not consistently open Tap Lyrics overlay in automated real run (timeout waiting taplyrics-overlay after mob-taplyrics-btn click).",
+        "selector": "[data-testid='mob-taplyrics-btn']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Frontend runnable script for full Tap Lyrics suite",
+        "issue": "Frontend script stops on mobile Tap Lyrics open timeout, so full scripted run cannot complete end-to-end in one pass.",
+        "affected_selectors": [
+          "[data-testid='mob-taplyrics-btn']",
+          "[data-testid='taplyrics-overlay']"
+        ]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Studio editor first load",
+        "issues": [
+          "Onboarding modal overlay frequently blocks interaction layers during testing; can mask tap tool actions until explicitly closed."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter36_taplyrics_persistence.py",
+    "/app/frontend/tests/test_tap_lyrics_iter36.py",
+    "/app/test_reports/pytest/iter36_taplyrics_backend.xml",
+    "/app/test_reports/frontend_taplyrics_iter36.json"
+  ],
+  "action_items": [
+    "Fix mobile Tap Lyrics open path from More menu so click reliably opens #tapLyricsOverlay on 390px viewport.",
+    "Harden/stabilize onboarding overlay dismissal so it does not block tool entry flows.",
+    "Re-run full frontend iteration36 script after mobile fix.",
+    "Optional: add explicit redo support for lyrics timing history if redo is expected in acceptance criteria (only undo is present)."
+  ],
+  "critical_code_review_comments": [
+    "No redo pathway found in studio runtime despite undo support and requirement mention of undo/redo for timing replacement flows.",
+    "Tap tool entrypoints depend on layered overlays/sheets with weak deterministic state hooks, causing mobile interaction fragility."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter36_taplyrics_persistence.py",
+    "/app/frontend/tests/test_tap_lyrics_iter36.py",
+    "/app/test_reports/iteration_36.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "68%"
+  },
+  "seed_data_creation": "Created disposable QA projects via /api/projects during backend and browser checks; all were deleted in-test.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Desktop validations confirmed: tap-lyrics-open works, prefill from excerpt words works, empty disables start, special chars accepted, capture increments exactly +1 per tap/Space, complete take enables Apply, partial take disables Apply, cancel keeps M.words unchanged, Tap for cut count cancel clears TAP.session, BeatTapAudio pre-roll ratio measured ~3.99 and playbackRate/offset looked correct, persistence create/get/delete passed. Blocker remains mobile More -> Tap Lyrics open reliability.",
+  "rca of the issue": "Mobile Tap Lyrics entry likely impacted by sheet/overlay interaction state (mobSheet layer + onboarding or viewport constraints). Reproduction: set mobile viewport, open Studio More sheet, click mob-taplyrics-btn, then wait for [data-testid='taplyrics-overlay']; overlay may fail to appear or button is out of viewport. Mitigation: ensure mobile sheet keeps action button in viewport and TapLyrics.open is called after sheet transition completion with deterministic state checks."
+}

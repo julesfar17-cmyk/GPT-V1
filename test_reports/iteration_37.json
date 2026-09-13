@@ -1,0 +1,43 @@
+{
+  "summary": "Tap paroles and shared musical pre-roll verified. Main agent corrected invalid mobile test setup, then extended and reran real browser tests successfully. All scoped functionality passes; physical Safari/iPhone remains untested.",
+  "build": "v13.26-tap-lyrics",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/test_reports/frontend_taplyrics_iter36.json",
+    "/app/test_reports/pytest/iter36_taplyrics_backend.xml"
+  ],
+  "test_sources": [
+    "/app/frontend/tests/test_tap_lyrics_iter36.py",
+    "/app/backend/tests/test_iter36_taplyrics_persistence.py"
+  ],
+  "results": {
+    "backend": "3/3 CRUD and timing/metadata persistence tests passed; disposable projects deleted",
+    "frontend": "11 assertion groups passed on real Chrome with WebAudio, pointer/keyboard/touch events",
+    "responsive": "No horizontal overflow at320/768/1024/1440; mobile More and Paroles buttons open tool normally",
+    "word_capture": "No double increment, incomplete Apply disabled, exact outside-word/metadata preservation, Undo restores original words, case and literal lyrics preserved in English UI",
+    "rate_mapping": "~0.75s wall time =>0.749/0.562/0.374s source at100/75/50%",
+    "audio": "Real AnalyserNode pre-roll/run amplitude ratios3.986/4.000/4.000; one-source join continuity error0; start0 and0.5 clamp correctly",
+    "review_and_safety": "Normal-speed listen and stop, natural end, stale-draft guard, cancellation with no delayed restart, touchscreen capture passed",
+    "tap_cut_regression": "Countdown cancellation, slowed absolute source cuts, grid quantization, repeat-key guard and apply without word changes passed",
+    "persistence": "Actual frontend-applied words/timings/metadata round-tripped through real project API and matched exactly; disposable project deleted",
+    "syntax": "node --check all new JS and inline studio scripts passed; ESLint no-undef passed on both modules using explicit BeatCutTapHost adapter",
+    "runtime_errors": []
+  },
+  "previous_report_corrections": [
+    "Iteration36 mobile failure was test clicking behind the un-dismissed tutorial. Corrected normal tutorial dismissal and mobile panel navigation, then verified using non-forced clicks. No tutorial/product bypass added.",
+    "The test used frame.screenshot (not a Playwright Frame API); removed redundant screenshot. Main smoke screenshot already verified UI.",
+    "Redo is absent in the existing studio, not requested by user; no new requirement inferred. Undo is verified."
+  ],
+  "mocked_api": {
+    "has_mocked_apis_in_app": false,
+    "test_safety": "Generated sine AudioBuffer is test audio, real WebAudio nodes and gain measurements. In-memory fixture project writes aborted; separate authenticated real persistence context used for disposable project. No paid API calls/payments/emails."
+  },
+  "limitations": [
+    "No physical Safari/iPhone or Bluetooth/headphone latency measurements.",
+    "At track start, missing pre-roll audio cannot exist: countdown uses silence for unavailable preceding seconds."
+  ],
+  "test_credentials": "Existing demo account from /app/memory/test_credentials.md, no credentials created or changed",
+  "retest_needed": false,
+  "action_items": ["User verification on own song", "Physical Safari/iPhone validation"]
+}

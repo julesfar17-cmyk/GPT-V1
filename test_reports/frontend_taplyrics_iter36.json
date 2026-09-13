@@ -1,0 +1,102 @@
+{
+  "status": "passed",
+  "checks": [
+    "console:info:%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+    "console:error:Failed to load resource: the server responded with a status of 401 ()",
+    "console:verbose:[DOM] Input elements should have autocomplete attributes (suggested: \"current-password\"): (More info: https://goo.gl/9p2vKq) %o",
+    "console:error:Failed to load resource: the server responded with a status of 401 ()",
+    "console:log:[BeatCut studio] v13.26-tap-lyrics",
+    "console:info:%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+    "console:log:[BeatCut studio] v13.26-tap-lyrics",
+    "desktop_open_prefill_ok",
+    "mobile_open_ok",
+    "empty_disable_special_chars_ok",
+    "capture_space_pointer_review_ok",
+    "partial_apply_disabled_and_cancel_safe_ok",
+    "apply_preservation_and_undo_ok",
+    "source_timing_all_rates_review_and_literal_words_ok",
+    "touch_natural_end_stale_guard_cancel_cleanup_ok",
+    "tapcut_count_cancel_cleanup_ok",
+    "tapcut_slow_quantization_repeat_guard_apply_ok",
+    "webaudio_preroll_rate_offset_ok"
+  ],
+  "overflow": {
+    "320": false,
+    "768": false,
+    "1024": false,
+    "1440": false
+  },
+  "redo_available": false,
+  "capture_rates": [
+    {
+      "rate": 100,
+      "wall_s": 0.7501999999880791,
+      "source_delta_s": 0.751746031746034
+    },
+    {
+      "rate": 75,
+      "wall_s": 0.7498000000119209,
+      "source_delta_s": 0.561632653061225
+    },
+    {
+      "rate": 50,
+      "wall_s": 0.7506999999880791,
+      "source_delta_s": 0.37442176870748156
+    }
+  ],
+  "audio_diag": {
+    "rates": [
+      {
+        "rate": 1,
+        "playbackRate": 1,
+        "sourceOffset": 1,
+        "sourceWhen": 44.02149659863945,
+        "t0": 47.02149659863945,
+        "pre": 0.14118999272434854,
+        "run": 0.5638741800152369,
+        "ratio": 3.993726248829217,
+        "continuityErr": 0
+      },
+      {
+        "rate": 0.75,
+        "playbackRate": 0.75,
+        "sourceOffset": 1.75,
+        "sourceWhen": 47.510294784580495,
+        "t0": 50.510294784580495,
+        "pre": 0.1414345314250845,
+        "run": 0.5657383111975579,
+        "ratio": 4.000001311541235,
+        "continuityErr": 0
+      },
+      {
+        "rate": 0.5,
+        "playbackRate": 0.5,
+        "sourceOffset": 2.5,
+        "sourceWhen": 51.001995464852605,
+        "t0": 54.001995464852605,
+        "pre": 0.14264811616355552,
+        "run": 0.570521511151176,
+        "ratio": 3.99950259768615,
+        "continuityErr": 0
+      }
+    ],
+    "clamp": {
+      "start0": {
+        "sourceOffset": 0,
+        "sourceWhen": 57.49079365079365,
+        "t0": 57.49079365079365
+      },
+      "start05": {
+        "sourceOffset": 0,
+        "sourceWhen": 57.00240362811791,
+        "t0": 57.50240362811791
+      }
+    }
+  },
+  "page_errors": "",
+  "persistence": {
+    "project_id": "404cd36ed17b43",
+    "created": true,
+    "deleted": true
+  }
+}

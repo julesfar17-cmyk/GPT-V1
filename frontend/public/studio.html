@@ -632,6 +632,7 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
 }
 </style>
 <link rel="stylesheet" href="/v3-skin.css?v=13.19">
+<link rel="stylesheet" href="/tap-lyrics.css">
 <meta name="theme-color" id="metaTheme" content="#000000">
 <script>
 /* Thème V3 : partagé avec la landing via bc_theme */
@@ -885,6 +886,7 @@ document.addEventListener('DOMContentLoaded',function(){
           </div>
         </div>
         <div id="lyricsList"></div>
+        <button class="small" style="width:100%;margin-top:10px" onclick="TapLyrics.open()" data-testid="tap-lyrics-open">Tap paroles — calage manuel</button>
         <div id="lyricsTools" style="display:none;margin-top:8px">
           <button class="small" onclick="retime()">Recaler les paroles</button>
           <button class="small" onclick="resetLyrics()">Repartir de zéro</button>
@@ -1293,6 +1295,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <button class="small" onclick="undo()">↶ Annuler la dernière action</button>
     <button class="small" onclick="mobSheet('more');openBackups()">Versions du morceau</button>
     <button class="small" onclick="mobSheet('more');openTapCut()" data-testid="mob-tapcut-btn">Tap for cut — taper mes coupures</button>
+    <button class="small" onclick="mobSheet('more');TapLyrics.open()" data-testid="mob-taplyrics-btn">Tap paroles — calage manuel</button>
     <button class="small" onclick="mobSheet('more');go('serie')" data-testid="mob-serie-btn">Série de vidéos</button>
     <button class="small" onclick="mobSheet('more');go('hook')" data-testid="mob-hook-btn">Vidéo hook</button>
     <button class="small" onclick="mobSheet('more');restartMobTuto()" data-testid="mob-restart-tuto">Revoir le tutoriel</button>
@@ -1310,6 +1313,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 <script src="/vendor/mp4-muxer.min.js"></script>
 <script src="/vendor/mp4box.all.min.js"></script>
+<script src="/tap-audio.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -1595,7 +1599,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.25-long-video';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.26-tap-lyrics';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -1796,6 +1800,7 @@ function dlGo(i){
    réversible, ré-appliqué automatiquement quand l'interface se redessine. */
 let LANG=localStorage.getItem('bc_lang')||(((navigator.language||'').toLowerCase().startsWith('fr'))?'fr':'en');
 const EN={
+"Tap paroles — calage manuel":"Tap lyrics — manual timing",
 "Accueil":"Home","Mes morceaux":"My tracks","Série de vidéos":"Video batch","Ton son.":"Your sound.","Un mois de vidéos.":"A month of videos.",
 "Dépose ton morceau une fois : BeatCut trouve le tempo, cale les plans sur le beat et écrit tes paroles à l'écran. Ensuite, tu crées des vidéos à volonté.":"Drop your track once: BeatCut finds the tempo, snaps shots to the beat and writes your lyrics on screen. Then create as many videos as you want.",
 "＋ Créer une vidéo":"＋ Create a video","Série de vidéos →":"Video batch →","vidéos créées":"videos created","de montage économisées":"of editing saved","exports restants ce mois":"exports left this month","Tout voir":"See all","Bien démarrer":"Getting started","Dépose ton premier morceau":"Drop your first track","Ajoute tes paroles":"Add your lyrics","Choisis un style":"Pick a style","Exporte et poste ta vidéo":"Export and post your video","＋ Nouveau morceau":"＋ New track",
@@ -1878,7 +1883,7 @@ function applyLang(){
     document.title=LANG==='en'?'BeatCut — Your sound. A month of videos.':'BeatCut — Ton son. Un mois de vidéos.';
     const b=document.getElementById('langBtn'); if(b) b.textContent=LANG==='fr'?'EN':'FR';
     const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode(n){
-      const p=n.parentNode&&n.parentNode.nodeName; return (p==='SCRIPT'||p==='STYLE')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT; }});
+      const p=n.parentNode&&n.parentNode.nodeName; return (p==='SCRIPT'||p==='STYLE'||n.parentElement?.closest('[translate="no"]'))?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT; }});
     let n;
     while(n=w.nextNode()){
       const raw=n.nodeValue, k=raw.trim(); if(!k) continue;
@@ -5221,12 +5226,13 @@ async function exportOffline(nameSuffix, mode='full', sink, batch, hook){
    L'extrait joue (après un 3-2-1), l'utilisateur tape le rythme de ses coupures (écran / Espace),
    éventuellement au ralenti ; les taps sont quantifiés sur la grille (1, ½, ¼, ⅛ temps)
    et REMPLACENT toutes les coupures. Les plans verrouillés restent verrouillés (timing recalé). */
-const TAP={ov:null,phase:'idle',taps:[],q:[],rate:1,grid:4,src:null,t0:0,raf:0,lat:0,timer:0};
+const TAP={ov:null,phase:'idle',taps:[],q:[],rate:1,grid:4,src:null,t0:0,raf:0,lat:0,timer:0,session:null};
 const GRID_LBL={1:'1 temps',2:'½ temps',4:'¼ temps',8:'⅛ temps'};
 function openTapCut(){
   if(!buffer){toast('Dépose d\u2019abord ton morceau');return;}
   if(!bpm||!beats.length){toast('Règle d\u2019abord le tempo (BPM)');return;}
   if(exporting){toast('Export en cours — attends la fin');return;}
+  if(window.TapLyrics) TapLyrics.close(); tapClose();
   stopAll(); exitCropMode&&exitCropMode();
   TAP.taps=[]; TAP.q=[]; TAP.phase='idle';
   if(TAP.ov) TAP.ov.remove();
@@ -5252,7 +5258,7 @@ function tapRender(){
     return;
   }
   if(TAP.phase==='count'){
-    d.innerHTML='<div class="onb-prog"><i style="width:50%"></i></div><div class="tap-zone"><div><div class="onb-eyebrow">Prépare-toi</div><div class="big" id="tapCount" data-testid="tapcut-count">3</div></div></div>';
+    d.innerHTML='<div class="onb-prog"><i style="width:50%"></i></div><div class="tap-zone"><div><div class="onb-eyebrow" data-testid="tapcut-preroll">Pré-écoute · volume 25 %</div><div class="big" id="tapCount" data-testid="tapcut-count">3</div></div></div><button class="onb-skip" data-testid="tapcut-count-cancel" onclick="tapClose()">Annuler</button>';
     return;
   }
   if(TAP.phase==='run'){
@@ -5263,7 +5269,7 @@ function tapRender(){
       +'<div class="tap-ticks" id="tapTicks">'+inB.map(b=>'<b style="left:'+((b-ext.start)/ext.dur*100)+'%"></b>').join('')+'</div></div>'
       +'<div style="padding:18px 22px 28px;text-align:center"><button class="onb-cta" style="width:100%;background:transparent;border:1px solid var(--hair-2,#3a3a3e);color:var(--frost,#fff)" data-testid="tapcut-stop" onclick="tapFinish()">Stop — j\u2019ai fini</button></div>';
     const z=d.querySelector('#tapZone');
-    z.addEventListener('pointerdown',e=>{ e.preventDefault(); tapHit(); });
+    z.addEventListener('pointerdown',e=>{ if(!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;e.preventDefault(); tapHit(); });
     return;
   }
   if(TAP.phase==='done'){
@@ -5280,28 +5286,28 @@ function tapRender(){
 }
 function tapKey(e){
   if(!TAP.ov) return;
+  if(e.repeat){e.preventDefault();e.stopImmediatePropagation();return;}
   if(e.code==='Space'){ e.preventDefault(); e.stopImmediatePropagation(); if(TAP.phase==='run') tapHit(); else if(TAP.phase==='idle') tapStart(); else if(TAP.phase==='done'&&TAP.q.length) tapApply(); }
   else if(e.key==='Escape'){ e.stopImmediatePropagation(); tapClose(); }
 }
 async function tapStart(){
   if(TAP.phase!=='idle') return;
-  try{ await audioCtx.resume(); }catch(e){}
   TAP.taps=[]; TAP.phase='count'; tapRender();
-  let n=3;
-  const tick=()=>{ if(TAP.phase!=='count') return; n--; if(n<=0){ tapRun(); return; } const el=document.getElementById('tapCount'); if(el) el.textContent=n; TAP.timer=setTimeout(tick,1000); };
-  TAP.timer=setTimeout(tick,1000);
+  const session=new BeatTapAudio({context:audioCtx,buffer,start:ext.start,duration:ext.dur,rate:TAP.rate,
+    onCount:n=>{const el=document.getElementById('tapCount');if(el)el.textContent=n;},
+    onRun:()=>{if(TAP.session===session&&TAP.phase==='count')tapRun();},
+    onTick:t=>{const b=document.getElementById('tapBar');if(b)b.style.width=(Math.min(1,t/ext.dur)*100)+'%';},
+    onEnd:()=>{if(TAP.session===session&&TAP.phase==='run')tapFinish();}});
+  TAP.session=session;
+  try{
+    await session.start();
+    if(TAP.session===session){TAP.src=session.src;TAP.t0=session.t0;TAP.lat=session.latency;}
+  }catch(e){session.stop();if(TAP.session!==session)return;TAP.phase='idle';tapRender();toast(e.message);}
 }
 function tapRun(){
   TAP.phase='run'; tapRender();
-  const src=audioCtx.createBufferSource(); src.buffer=buffer; src.playbackRate.value=TAP.rate;
-  src.connect(audioCtx.destination);
-  src.start(0, ext.start, ext.dur);
-  TAP.src=src; TAP.t0=audioCtx.currentTime; TAP.lat=audioCtx.outputLatency||audioCtx.baseLatency||0;
-  src.onended=()=>{ if(TAP.phase==='run') tapFinish(); };
-  const loop=()=>{ if(TAP.phase!=='run') return; const f=Math.min(1,tapElapsed()/ext.dur); const b=document.getElementById('tapBar'); if(b) b.style.width=(f*100)+'%'; TAP.raf=requestAnimationFrame(loop); };
-  TAP.raf=requestAnimationFrame(loop);
 }
-function tapElapsed(){ return Math.max(0,(audioCtx.currentTime-TAP.t0-TAP.lat))*TAP.rate; }
+function tapElapsed(){ return TAP.session?TAP.session.elapsed():0; }
 function tapHit(){
   if(TAP.phase!=='run') return;
   const t=ext.start+tapElapsed();
@@ -5320,7 +5326,7 @@ function tapQuantize(taps){
 }
 function tapFinish(){
   if(TAP.phase!=='run') return;
-  if(TAP.src){ TAP.src.onended=null; try{TAP.src.stop();}catch(e){} TAP.src=null; }
+  if(TAP.session) TAP.session.stop(); TAP.src=null;
   cancelAnimationFrame(TAP.raf);
   TAP.q=tapQuantize(TAP.taps); TAP.phase='done'; tapRender();
 }
@@ -5346,7 +5352,7 @@ function tapApply(){
 }
 function tapClose(){
   clearTimeout(TAP.timer); cancelAnimationFrame(TAP.raf);
-  if(TAP.src){ TAP.src.onended=null; try{TAP.src.stop();}catch(e){} TAP.src=null; }
+  if(TAP.session) TAP.session.stop(); TAP.session=null;TAP.src=null;
   TAP.phase='idle';
   window.removeEventListener('keydown', tapKey, true);
   if(TAP.ov){ TAP.ov.remove(); TAP.ov=null; }
@@ -6702,8 +6708,22 @@ window.addEventListener('beforeunload', e=>{
   else if(exporting || dlPendingCount()>0){ e.preventDefault(); e.returnValue='Une vidéo est en cours ou pas encore téléchargée…'; }
 });
 // Exposé pour les tests E2E
+// Adaptateur explicite pour les modules externes ; les getters suivent l'état
+// courant du studio, sans copier ses variables lexicales sur window.
+window.BeatCutTapHost={
+  get language(){return LANG;}, get project(){return M;},
+  get buffer(){return buffer;}, get context(){return audioCtx;},
+  get excerpt(){return ext;}, get exporting(){return exporting;},
+  toast, stop:stopAll, exitCropMode, closeCuts:tapClose,
+  replaceWords(words,from){
+    pushHistory();M.words=words;selWord=-1;selWords=new Set();startOff=from;
+    $('#pasteZone').style.display='none';
+  },
+  refreshWords(){renderLyrics();drawTimeline();drawPreview(startOff);dirty();}
+};
 window.API=API; window.DBref=()=>DB;
 </script>
+<script src="/tap-lyrics.js"></script>
 </body>
 </html>
 
