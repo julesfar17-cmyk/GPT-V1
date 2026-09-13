@@ -796,7 +796,8 @@ document.addEventListener('DOMContentLoaded',function(){
           <b style="font-size:13px">Ton extrait</b>
           <span class="mono" id="extDur" style="color:var(--accent)">30,0 s</span>
           <span class="hint" id="extLoopTag"></span>
-          <button class="small" id="loopBtn" onclick="toggleLoop()">▶ Écouter l'extrait</button>
+          <button class="small" id="loopBtn" onclick="toggleLoop()" data-testid="listen-excerpt-button">▶ Écouter l'extrait</button>
+          <span id="previewModeStatus" data-testid="preview-mode-status" role="status" class="hint"></span>
           <span style="flex:1"></span>
           <button class="small" id="extToggle" onclick="toggleExtract()">▲ Réduire</button>
         </div>
@@ -823,7 +824,7 @@ document.addEventListener('DOMContentLoaded',function(){
       </div>
 
       <div class="transport">
-        <button class="play-btn" id="playBtn" onclick="togglePlay()" aria-label="Lecture">▶</button>
+        <button class="play-btn" id="playBtn" onclick="togglePlay()" aria-label="Lecture" data-testid="studio-play-button">▶</button>
         <span class="timecode"><span id="tcNow">0:00.0</span> / <span id="tcEnd">0:00.0</span></span>
         <div class="seg" id="fmtSeg" title="Format de la vidéo">
           <button data-f="916" class="on">9:16</button><button data-f="11">1:1</button><button data-f="45">4:5</button><button data-f="169">16:9</button>
@@ -1314,6 +1315,8 @@ document.addEventListener('DOMContentLoaded',function(){
 <script src="/vendor/mp4-muxer.min.js"></script>
 <script src="/vendor/mp4box.all.min.js"></script>
 <script src="/tap-audio.js"></script>
+<script src="/media-upload.js"></script>
+<script src="/preview-readiness.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -1458,11 +1461,12 @@ const API = {
   /* Médias : stockage GridFS serveur — cross-device.
      Les vidéos sont TRANSCODÉES côté serveur (H.264 1080p, keyframes 0.5s) :
      on attend la fin de l'optimisation avant de rendre le média « prêt ». */
-  async uploadMedia(file, onProgress){
-    const j=await new Promise((resolve,reject)=>{
+  async uploadMedia(file, onProgress, waitForProcessing=true){
+    const j=file.size>=4*1024*1024?await window.BeatCutUpload.send(file,onProgress,this.user.user_id):await new Promise((resolve,reject)=>{
       const xhr=new XMLHttpRequest();
       xhr.open('POST','/api/media/upload');
       xhr.withCredentials=true;
+      xhr.timeout=90000;
       xhr.upload.onprogress=e=>{ if(onProgress&&e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
       xhr.onload=()=>{
         let d={}; try{ d=JSON.parse(xhr.responseText); }catch(err){}
@@ -1470,11 +1474,13 @@ const API = {
         else reject(new Error(d.detail||'Upload impossible'));
       };
       xhr.onerror=()=>reject(new Error('Upload impossible'));
+      xhr.ontimeout=()=>reject(new Error('Envoi interrompu : délai réseau dépassé'));
       const fd=new FormData(); fd.append('file', file);
       xhr.send(fd);
     });
     if(onProgress) onProgress(null);
-    return this._pollMedia(j);
+    if(!j.media_id) throw new Error('Envoi incomplet — aucun média reçu');
+    return waitForProcessing?this._pollMedia(j):j.media_id;
   },
   /* Import serveur d'un clip Pexels : le serveur télécharge + transcode (zéro re-upload client) */
   async importMedia(url, name){
@@ -1485,7 +1491,8 @@ const API = {
   },
   async _pollMedia(j){
     if(j.processing){
-      for(let i=0;i<150;i++){
+      const until=Date.now()+300000;
+      while(Date.now()<until){
         await new Promise(rs=>setTimeout(rs,2000));
         const s=await this.mediaStatus(j.media_id);
         if(s && !s.processing) break;
@@ -1495,7 +1502,7 @@ const API = {
   },
   async mediaStatus(mediaId){
     try{
-      const r=await fetch('/api/media/'+mediaId+'/status',{credentials:'include'});
+      const r=await this._fetchT('/api/media/'+mediaId+'/status',{credentials:'include'},10000);
       return r.ok? await r.json() : null;
     }catch(e){ return null; }
   },
@@ -1599,7 +1606,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.26-tap-lyrics';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.27-upload-recovery';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -1610,26 +1617,36 @@ function hideLoad(){loadOv.classList.remove('show');}
 async function ensureClipProxy(clip,retry=false){
   if(!clip.mediaId||clip._proxyTried) return;
   clip._proxyTried=true;
-  clip._proxyState='loading'; renderClips();
-  const failed=()=>{ clip._proxyState='failed'; clip._proxyTried=false; renderClips(); };
-  for(let n=0;n<240;n++){   // un fichier long peut demander jusqu'à 10 min de transcodage serveur
+  clip._proxyState='loading'; clip._proxyError=null;clip._proxyStartedAt=Date.now();renderClips();
+  const failed=(message='La préparation de l’aperçu a échoué.')=>{ clip._proxyState='failed';clip._proxyError=message;clip._proxyTried=false;renderClips(); };
+  const deadline=Date.now()+600000;
+  for(let n=0;Date.now()<deadline;n++){
+    if(clip._removed)return;
     let d=null;
     try{
       const r=await fetch('/api/media/proxy/'+clip.mediaId+(retry&&n===0?'?retry=true':''),{method:'POST',credentials:'include',signal:AbortSignal.timeout(15000)});
       if(r.ok) d=await r.json();
-      else if(r.status!==502&&r.status!==503&&r.status!==429){failed();return;}
+      else if(r.status!==502&&r.status!==503&&r.status!==429){const err=await r.json().catch(()=>({}));failed(typeof err.detail==='string'?err.detail:'Aperçu indisponible (HTTP '+r.status+')');return;}
     }catch(e){}
     if(d&&d.status==='failed'){failed();return;}
+    if(d&&d.status==='transcoding'){clip._proxyState='transcoding';renderClips();}
+    else if(clip._proxyState==='transcoding'){clip._proxyState='loading';renderClips();}
     if(d&&d.proxy_id){
       if(d.proxy_id===clip.mediaId){clip._proxyState='ready';renderClips();return;}   // média lui-même déjà optimisé
-      while(playing||exporting) await new Promise(r=>setTimeout(r,800));
+      while(((playing&&!audioOnlyPreview)||exporting)&&Date.now()<deadline&&!clip._removed) await new Promise(r=>setTimeout(r,300));
+      if(clip._removed)return;
+      if(Date.now()>=deadline){failed('Préparation trop longue — réessaie ou utilise la lecture locale.');return;}
       try{
         const response=await fetch('/api/media/'+d.proxy_id,{credentials:'include',signal:AbortSignal.timeout(120000)});
         if(!response.ok) throw new Error('Téléchargement aperçu : '+response.status);
         const b=await response.blob();
-        while(playing||exporting) await new Promise(r=>setTimeout(r,800));   // lecture lancée pendant le téléchargement
+        while(((playing&&!audioOnlyPreview)||exporting)&&Date.now()<deadline&&!clip._removed) await new Promise(r=>setTimeout(r,300));
+        if(clip._removed)return;
+        if(Date.now()>=deadline)throw new Error('Préparation trop longue — réessaie ou utilise la lecture locale.');
         const wc=await parseWC(b);
-        while(playing||exporting) await new Promise(r=>setTimeout(r,800));   // jamais de changement de source en cours de plan/export
+        while(((playing&&!audioOnlyPreview)||exporting)&&Date.now()<deadline&&!clip._removed) await new Promise(r=>setTimeout(r,300));
+        if(clip._removed)return;
+        if(Date.now()>=deadline)throw new Error('Préparation trop longue — réessaie ou utilise la lecture locale.');
         clip.wcProxy=wc;
         clip._proxyState='ready';
         if(!clip._wcReady){   // clip indécodable localement → le proxy devient aussi la source principale
@@ -1647,12 +1664,12 @@ async function ensureClipProxy(clip,retry=false){
         const missT=(clip.seeks||[]).map((s,k)=>(s!=null&&!clip.thumbs[k])?k:-1).filter(k=>k>=0);
         if(missT.length) wcMakeThumbs(clip, missT).then(()=>{renderClips();drawTimeline();});
         renderClips(); drawTimeline();
-      }catch(e){ failed(); TEL.push('proxy_parse_fail',{n:clip.name,msg:String((e&&e.message)||e).slice(0,120)}); }
+      }catch(e){ failed(e.message); TEL.push('proxy_parse_fail',{n:clip.name,msg:String((e&&e.message)||e).slice(0,120)}); }
       return;
     }
     await new Promise(r=>setTimeout(r,3000));
   }
-  failed();
+  failed('Préparation trop longue — réessaie ou utilise la lecture locale.');
 }
 /* Disclaimer mobile : après son + vidéo chargés, une fois par appareil */
 function maybePcHint(){
@@ -1673,12 +1690,18 @@ function maybePcHint(){
 }
 function longPreviewPending(c){ return !!(c.wc&&c.wc.durationS>=90&&!c.wcProxy&&c._proxyState!=='ready'); }
 function previewWaitMessage(){
+  const blocked=window.PreviewReadiness?.blockers();
+  if(blocked&&blocked.length)return blocked[0].message;
   const pending=clips.find(longPreviewPending);
   if(!pending) return 'Ta vidéo n\u2019est pas encore lisible — optimisation en cours, un instant…';
   return pending._proxyState==='failed'?'L\u2019aperçu n\u2019a pas pu être préparé — réessaie sur la vidéo.'
     :'Préparation de l\u2019aperçu fluide pour cette vidéo longue…';
 }
-function clipsBlocking(){ return clips.some(c=>longPreviewPending(c)||(c._optimizing && !c._playable) || (!c._wcReady && !c._wcFail)); }
+function clipsBlocking(from){
+  if(window.PreviewReadiness)return window.PreviewReadiness.blockers(from).length>0;
+  const used=new Set(((M&&M.plans)||[]).map(p=>p.clip).filter(i=>i!=null));
+  return [...used].some(i=>clips[i]&&(longPreviewPending(clips[i])||!clips[i]._wcReady));
+}
 /* L'export ne dépend QUE des clips UTILISÉS et décodables localement (WebCodecs) —
    l'upload/optimisation en arrière-plan ne doit JAMAIS bloquer un export. */
 function clipsExportBlocking(){
@@ -2275,7 +2298,7 @@ function mobImportFlow(startStep){
    ÉDITEUR
 ===================================================================== */
 let M=null;
-let audioCtx=null, buffer=null, playing=false, srcNode=null, startedAt=0, startOff=0, looping=false;
+let audioCtx=null, buffer=null, playing=false, srcNode=null, startedAt=0, startOff=0, looping=false, audioOnlyPreview=false;
 let ext={start:0,dur:30};
 let beats=[], bpm=0;
 let style={preset:'impact',font:'Anton',size:1.5,color:'#FFFFFF',pos:0.5,textCase:'up',anim:'pop',hold:true,emph:false,emphEvery:2,emphScale:1.45,emphColor:'#FF453A',emphFont:'',
@@ -2695,21 +2718,21 @@ function toggleExtract(){
   fitSoon();
 }
 function toggleLoop(){ if(audioCtx&&audioCtx.state!=='running'){ try{audioCtx.resume();}catch(e){} } looping?stopAll():startLoop(); }
-async function startLoop(){
+async function startLoop(audioOnly=false){
   if(!buffer||exporting)return;
-  if(clipsBlocking()){
-    TEL.push('clip_not_ready',{optimizing:clips.filter(c=>c._optimizing).length, notReady:clips.filter(c=>!c._wcReady&&!c._wcFail).length});
-    toast(previewWaitMessage()); return;
-  }
+  audioOnly=audioOnly||clipsBlocking();   // écouter le morceau ne dépend jamais de l'envoi vidéo
   stopAll(); looping=true;
-  if(!await warmUpPlans(ext.start)) return;
+  audioOnlyPreview=audioOnly;
+  if(!audioOnly&&!await warmUpPlans(ext.start)) return;
   if(exporting||!looping) return;
   if(audioCtx.state!=='running'){ try{ await audioCtx.resume(); }catch(e){} }
   srcNode=audioCtx.createBufferSource(); srcNode.buffer=buffer; srcNode.loop=true;
   srcNode.loopStart=ext.start; srcNode.loopEnd=ext.start+ext.dur;
   srcNode.connect(audioCtx.destination); srcNode.start(0,ext.start);
   startedAt=audioCtx.currentTime; startOff=ext.start;
-  $('#loopBtn').textContent='❚❚ Stop'; playing=true; startPreviewPump(); raf();
+  $('#loopBtn').textContent='❚❚ Stop'; playing=true;
+  $('#previewModeStatus').textContent=audioOnly?'Lecture audio uniquement':window.PreviewReadiness?.localInUse(ext.start)?'Lecture locale · aperçu non optimisé':'';
+  if(!audioOnly)startPreviewPump();raf();
 }
 
 /* ---------- Plans ---------- */
@@ -2850,7 +2873,7 @@ function addClip(file, meta={}){
     try{ srcBlob=new Blob([file],{type:mm[ext]||'video/mp4'}); }catch(e){}
   }
   const url=URL.createObjectURL(srcBlob);
-  const clip={url,el:null,els:[],thumbs:[],seeks:[],name:file.name,mediaId:meta.mediaId||null,pexelsUrl:meta.pexelsUrl||null,crop:meta.crop||null};
+  const clip={url,el:null,els:[],thumbs:[],seeks:[],name:file.name,mediaId:meta.mediaId||null,pexelsUrl:meta.pexelsUrl||null,crop:meta.crop||null,_sourceFile:file};
   clips.push(clip);
   const onMeta=D=>{
     const auto=Math.min(8, Math.max(2, Math.floor(D/2)));   // auto : jusqu'à 8 plans (~2 s chacun)
@@ -2892,6 +2915,8 @@ function addClip(file, meta={}){
 }
 const MAX_UPLOAD_MO=300;
 function startClipUpload(clip, file){
+  if(clip._optimizing||clip._removed)return;
+  clip._sourceFile=file;
   if(file.size>MAX_UPLOAD_MO*1e6){
     clip._saveFailed='Vidéo trop lourde ('+Math.round(file.size/1e6)+' Mo, max '+MAX_UPLOAD_MO+' Mo)';
     renderClips();
@@ -2899,16 +2924,19 @@ function startClipUpload(clip, file){
     return;
   }
   clip._saveFailed=null; clip._optimizing=true; clip._upPct=0; renderClips();
-  API.uploadMedia(file, pct=>{ clip._upPct=pct; updateClipChip(clip); }).then(async id=>{
+  API.uploadMedia(file, pct=>{ if(pct!==null)clip._upPct=pct;updateClipChip(clip); },false).then(async id=>{
+    if(clip._removed||!clips.includes(clip))return;
     clip.mediaId=id;
+    clip._proxyState='transcoding';clip._saveFailed=null;dirty();
     serverThumbs(clip);   // la bande de vignettes FFmpeg arrive dès que le serveur a fini (~2-5 s)
     let ok=false;
     try{
       const s=await API.mediaStatus(id);
       if(s && s.transcoded && s.skipped){ ok=true; }   // déjà propre : rien à re-télécharger
-      else if(s && s.transcoded){
+      else if(s && s.transcoded && !clip._wcReady){
         const f=await API.fetchMedia(id, clip.name);
-        while(playing||looping){ await new Promise(r=>setTimeout(r,800)); }   // pas de swap en pleine lecture
+        while((playing&&!audioOnlyPreview)||exporting){ await new Promise(r=>setTimeout(r,300)); }
+        if(clip._removed||!clips.includes(clip))return;
         swapClipMedia(clip, f); ok=true;
         // régénère plans proposés + vignettes depuis la version optimisée (l'original HEVC peut être indécodable → seeks jamais créés)
         clip._wcParse.then(()=>{
@@ -2929,6 +2957,8 @@ function startClipUpload(clip, file){
     if(ok&&!longPreviewPending(clip)) toast('✓ '+(clip.name||'Vidéo').slice(0,24)+' optimisée — prête à jouer');
   }).catch(e=>{
     clip._optimizing=false;
+    if(clip._removed)return;
+    clip._proxyState='upload-failed';
     clip._saveFailed=(e&&e.message)||'upload impossible';
     renderClips();
     toast(''+(clip.name||'Vidéo').slice(0,20)+' NON sauvegardée ('+clip._saveFailed+') — clique le badge rouge pour réessayer');
@@ -2937,8 +2967,9 @@ function startClipUpload(clip, file){
 async function retryClipUpload(ci){
   const clip=clips[ci]; if(!clip||clip._optimizing) return;
   try{
-    const b=await fetch(clip.url).then(r=>r.blob());
-    startClipUpload(clip, new File([b], clip.name||'video.mp4', {type:b.type||'video/mp4'}));
+    if(clip._sourceFile){startClipUpload(clip,clip._sourceFile);return;}
+    const b=await fetch(clip.url).then(r=>{if(!r.ok)throw new Error();return r.blob();});
+    startClipUpload(clip,new File([b],clip.name||'video.mp4',{type:b.type||'video/mp4'}));
   }catch(e){ toast('Réessai impossible — re-dépose la vidéo'); }
 }
 /* Import serveur d'un clip Pexels en arrière-plan (le serveur télécharge + optimise, zéro re-upload) */
@@ -3014,6 +3045,8 @@ async function openBackups(){
 }
 /* Libellé + mise à jour légère du badge d'optimisation (sans re-render complet) */
 function clipOptLabel(clip){
+  if(clip._proxyState==='loading')return 'Création de l’aperçu optimisé…';
+  if(clip._proxyState==='transcoding')return 'Optimisation du fichier sur le serveur…';
   if(typeof clip._upPct==='number' && clip._upPct<100) return 'Envoi '+clip._upPct+' %';
   return 'Optimisation en arrière-plan…';
 }
@@ -3070,7 +3103,9 @@ function renderClips(){
       status.style.cssText='padding:6px 10px';
       status.setAttribute('data-testid','clip-preview-status-'+ci);
       status.setAttribute('role','status');
-      status.textContent=T(clip._proxyState==='failed'?'Aperçu indisponible':'Préparation de l\u2019aperçu fluide…');
+      status.textContent=clip._saveFailed&&!clip.mediaId?'Envoi échoué : '+clip._saveFailed
+        :!clip.mediaId?(clip._optimizing?'Envoi en cours — '+(clip._upPct||0)+' %':'Vidéo locale non envoyée')
+        :clip._proxyState==='failed'?(clip._proxyError||'Aperçu indisponible'):clipOptLabel(clip);
       if(clip._proxyState==='failed'){
         const retry=document.createElement('button'); retry.className='small'; retry.textContent=T('Réessayer');
         retry.setAttribute('data-testid','clip-preview-retry-'+ci);
@@ -3078,7 +3113,7 @@ function renderClips(){
       }
       box.append(status);
     }
-    if(clip._optimizing||clip._proxyState==='loading'){
+    if(clip._optimizing||clip._proxyState==='loading'||clip._proxyState==='transcoding'){
       const ov=document.createElement('div');
       ov.setAttribute('data-testid','clip-optimizing-badge-'+ci);
       ov.className='clip-load';
@@ -3090,9 +3125,9 @@ function renderClips(){
       box.append(ov);
     }
     else if(clip._saveFailed && !clip.mediaId && !clip.pexelsUrl){
-      const ov=document.createElement('div');
+      const ov=document.createElement('button');ov.type='button';
       ov.className='clip-opt-chip clip-fail';
-      ov.setAttribute('data-testid','clip-save-failed-badge');
+      ov.setAttribute('data-testid','clip-save-failed-badge-'+ci);
       ov.textContent='Non sauvegardée — réessayer';
       ov.title=clip._saveFailed;
       ov.onclick=e=>{ e.stopPropagation(); retryClipUpload(ci); };
@@ -3123,6 +3158,7 @@ function renderClips(){
   });
 }
 function removeClip(ci){
+  if(clips[ci])clips[ci]._removed=true;
   cutCacheClear();
   clips.splice(ci,1);
   M.plans.forEach(p=>{
@@ -4430,6 +4466,7 @@ function warmUpPlans(fromT){
 }
 function togglePlay(){
   if(exporting){toast('Export en cours — attends la fin');return;}
+  if(window.PreviewReadiness?.pending){window.PreviewReadiness.cancel();return;}
   if(playPreparing){stopAll();return;}
   if(audioCtx&&audioCtx.state!=='running'){ try{audioCtx.resume();}catch(e){} }   // iOS : resume SYNCHRONE dans le geste utilisateur
   if(playing&&!looping){ startOff=curTime(); stopAll(); drawPlayhead(startOff); return; }
@@ -4437,11 +4474,12 @@ function togglePlay(){
   if(!(from>=ext.start&&from<ext.start+ext.dur-0.05)) from=ext.start;
   play(from);
 }
-async function play(from){
+async function play(from=ext.start){
   if(!buffer||exporting)return;
-  if(clipsBlocking()){
+  if(clipsBlocking(from)){
     TEL.push('clip_not_ready',{optimizing:clips.filter(c=>c._optimizing).length, notReady:clips.filter(c=>!c._wcReady&&!c._wcFail).length});
-    toast(previewWaitMessage()); return;
+    if(window.PreviewReadiness)window.PreviewReadiness.request(from);else toast(previewWaitMessage());
+    return;
   }
   exitCropMode();
   stopAll();
@@ -4458,12 +4496,16 @@ async function play(from){
   srcNode.start(0, from, ext.start+ext.dur-from);
   srcNode.onended=()=>{ if(playing&&!looping) stopAll(); };
   startedAt=audioCtx.currentTime; startOff=from; playing=true; looping=false;
+  $('#previewModeStatus').textContent=window.PreviewReadiness?.localInUse(from)?'Lecture locale · aperçu non optimisé':'';
   // pompe de décodage indépendante de la rAF : le décodeur ne meurt plus de faim quand le thread est chargé
   startPreviewPump();
   _fpsN=0; _fpsT0=performance.now(); _fpsSent=false;
   $('#playBtn').textContent='❚❚'; raf();
 }
 function stopAll(){
+  if(window.PreviewReadiness)window.PreviewReadiness.cancel();
+  audioOnlyPreview=false;
+  if($('#previewModeStatus'))$('#previewModeStatus').textContent='';
   playPreparing=false;
   if(srcNode){ srcNode.onended=null; try{srcNode.stop()}catch(e){} srcNode=null; }
   if(wcPump){ clearInterval(wcPump); wcPump=null; }
@@ -4477,11 +4519,11 @@ function stopAll(){
 }
 function raf(){
   const t=curTime();
-  if(playing) syncLivePlan(t);
-  try{ drawPreview(t); }catch(e){ if(!window._rafErrSent){ window._rafErrSent=true; TEL.push('raf_error',{msg:String((e&&e.message)||e).slice(0,200)}); } }
+  if(playing&&!audioOnlyPreview) syncLivePlan(t);
+  if(!audioOnlyPreview)try{ drawPreview(t); }catch(e){ if(!window._rafErrSent){ window._rafErrSent=true; TEL.push('raf_error',{msg:String((e&&e.message)||e).slice(0,200)}); } }
   drawPlayhead(t);
   // télémétrie FPS : fenêtre de 5 s, envoyée une fois par lecture si <20 img/s
-  if(playing){
+  if(playing&&!audioOnlyPreview){
     _fpsN++;
     const el=performance.now()-_fpsT0;
     if(el>=2000){
@@ -6721,6 +6763,15 @@ window.BeatCutTapHost={
   },
   refreshWords(){renderLyrics();drawTimeline();drawPreview(startOff);dirty();}
 };
+window.PreviewReadiness=window.createPreviewReadiness({
+  get project(){return M;}, get range(){return {start:ext.start,dur:ext.dur};},
+  used(from=ext.start){
+    const used=new Set(((M&&M.plans)||[]).filter(p=>p.end>from&&p.start<ext.start+ext.dur&&p.clip!=null).map(p=>p.clip));
+    return [...used].map(index=>({index,clip:clips[index]}));
+  },
+  stop:stopAll,play:from=>play(from),audio:()=>startLoop(true),prepare:ensureClipProxy,
+  retry(c){if(c.mediaId)ensureClipProxy(c,true);else if(c.pexelsUrl)startPexelsImport(c);else retryClipUpload(clips.indexOf(c));}
+});
 window.API=API; window.DBref=()=>DB;
 </script>
 <script src="/tap-lyrics.js"></script>

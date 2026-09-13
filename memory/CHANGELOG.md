@@ -1,5 +1,14 @@
 # Historique — BEATCUT
 
+## 13 septembre 2026 — Envoi vidéo longue et reprise de lecture, `v13.27-upload-recovery`
+- Régression reconnue : l'attente du proxy v13.25 bloquait sans issue quand l'envoi avait échoué (`mediaId` absent), y compris pour écouter simplement le morceau.
+- Modules `resumable_media.py`, `media-upload.js`, `preview-readiness.js` : stockage propriétaire/temporaire avec TTL, transferts4MiB reprenables, vérification des blocs/finalisation idempotente, état précis et intention Play annulable/borne5min.
+- Les clips inutilisés/passés ne bloquent plus. Audio seul immédiat si vidéo non prête ; téléchargement du proxy autorisé pendant cette écoute. Lecture vidéo locale explicitement choisie/avertie, réessai restant visible même dans ce mode ; aucune simulation d'images animées via cache fixe.
+- ID média rendu après stockage plutôt qu'après long transcodage, progression/erreurs distinguées, proxy borné à10min réelles, limite300Mo conservée/texte corrigé. Aucune modification des paroles/plans/projets utilisateur.
+- Tests réels :110Mo/185s,3 coupures surbloc1, mêmeUUID de reprise, bloc0 non renvoyé, intégritéSHA256 ; 9 transferts +8 proxy testsAPI passent. Auto-Play sur vrai proxy, annulation, audio-only sans interblocage,452ticks cutsrapides sans frame manquante, MP4 réel36images/1,2s,11 groupes Tap paroles repassés.
+- Test38 contient des états injectés, complété par test39 avec proxy téléchargé/décodé réellement. Aucun API mock dans l'application ; fault injection réseau uniquement test.
+- Artefacts de tests déplacés de `/tmp` vers `/root/beatcut-test-assets`, scripts actualisés ; logs/rapports persistants `/app/test_reports`. User-file/Safari physique à valider.
+
 ## 13 septembre 2026 — Tap paroles et pré-écoute, `v13.26-tap-lyrics`
 - Demande explicite : calage manuel des paroles mot par mot, ralentissement comme Tap for cut, musique avant extrait pendant le décompte à volume réduit ; fonctionnement confirmé par l'utilisateur.
 - Tap paroles accessible depuis Paroles / Plus mobile : texte existant ou collé, trois vitesses, mot suivant, capture tactile/clavier, prise brouillon, réécoute, validation explicite, réessai/annulation, mots hors extrait préservés, Undo et sauvegarde existante.

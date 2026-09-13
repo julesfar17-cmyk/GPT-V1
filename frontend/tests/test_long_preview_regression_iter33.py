@@ -18,7 +18,7 @@ load_dotenv(Path("/app/frontend/.env"))
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 EMAIL = "demo@beatcut.fr"
 PASSWORD = "Demo1234!"
-ASSET_720 = Path("/tmp/beatcut_long_assets/h264_longgop_1280x720_185s.mp4")
+ASSET_720 = Path("/root/beatcut-test-assets/h264_longgop_1280x720_185s.mp4")
 OUT = Path("/app/test_reports/frontend_long_preview_regression_iter33.json")
 
 

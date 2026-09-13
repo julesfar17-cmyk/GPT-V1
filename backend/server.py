@@ -2225,6 +2225,7 @@ async def _ffmpeg_transcode(src: str, dst: str) -> bool:
         _, err = await asyncio.wait_for(proc.communicate(), timeout=900)
     except asyncio.TimeoutError:
         proc.kill()
+        await proc.wait()
         return False
     if proc.returncode != 0 or not os.path.exists(dst) or os.path.getsize(dst) == 0:
         logger.warning("FFmpeg échec: %s", (err or b"")[-300:])
@@ -2501,7 +2502,7 @@ async def _auto_proxy(oid):
                  {"metadata.proxy_policy": {"$ne": PREVIEW_PROXY_POLICY}}],
          "metadata.proxy_failed": {"$ne": True},
          "metadata.proxy_id": {"$exists": False}},
-        {"$set": {"metadata.proxy_processing": True}})
+        {"$set": {"metadata.proxy_processing": True, "metadata.proxy_started_at": iso(now_utc())}})
     if claimed:
         await _make_proxy(oid)
 
@@ -2614,7 +2615,7 @@ async def _store_media_file(user: dict, path: str, filename: str, content_type: 
     """Range un fichier disque dans GridFS (hash + upload en flux — jamais le fichier entier en RAM)."""
     size = os.path.getsize(path)
     if size > MAX_MEDIA_SIZE:
-        raise HTTPException(status_code=413, detail="Fichier trop lourd (max 80 Mo)")
+        raise HTTPException(status_code=413, detail="Fichier trop lourd (max 300 Mo)")
     info = sub_info(user)
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -2678,7 +2679,7 @@ async def media_upload(file: UploadFile = File(...), user: dict = Depends(get_cu
                     break
                 size += len(chunk)
                 if size > MAX_MEDIA_SIZE:
-                    raise HTTPException(status_code=413, detail="Fichier trop lourd (max 80 Mo)")
+                    raise HTTPException(status_code=413, detail="Fichier trop lourd (max 300 Mo)")
                 f.write(chunk)
         return await _store_media_file(user, path, file.filename or "media", file.content_type or "")
     finally:
@@ -2870,6 +2871,8 @@ async def media_proxy(media_id: str, retry: bool = False, user: dict = Depends(g
         return {"proxy_id": str(existing["_id"])}
     if meta.get("proxy_skipped") and meta.get("proxy_policy") == PREVIEW_PROXY_POLICY:
         return {"proxy_id": media_id}
+    if meta.get("processing"):
+        return {"status": "transcoding"}
     if meta.get("proxy_failed"):
         if not retry:
             return {"status": "failed"}
@@ -4343,6 +4346,7 @@ async def seed_user(email: str, password: str, name: str, role: str):
 
 @app.on_event("startup")
 async def startup():
+    await setup_upload_indexes(db)
     # verrous de transcodage orphelins (process tué en plein travail : redémarrage/déploiement) → libérés
     await db["media.files"].update_many({"metadata.proxy_processing": True}, {"$unset": {"metadata.proxy_processing": ""}})
     await db["media.files"].update_many({"metadata.processing": True}, {"$unset": {"metadata.processing": ""}})
@@ -4407,6 +4411,10 @@ async def startup():
     asyncio.create_task(_lifecycle_relance_loop())
 
 
+from resumable_media import create_upload_router, setup_upload_indexes
+
+api_router.include_router(create_upload_router(
+    db, get_current_user, _store_media_file, MAX_MEDIA_SIZE, sub_info, _storage_used, STORAGE_QUOTAS))
 app.include_router(api_router)
 
 # CORS : chaque origine listée est complétée par sa jumelle www/apex (www.beat-cut.com ↔ beat-cut.com)

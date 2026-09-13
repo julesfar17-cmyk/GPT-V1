@@ -8,7 +8,7 @@ from pathlib import Path
 import imageio_ffmpeg
 
 
-OUT_DIR = Path("/tmp/beatcut_long_assets")
+OUT_DIR = Path("/root/beatcut-test-assets")
 MANIFEST = OUT_DIR / "manifest.json"
 
 

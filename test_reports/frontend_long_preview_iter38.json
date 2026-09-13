@@ -1,0 +1,150 @@
+{
+  "status": "passed",
+  "checks": [
+    "login_ok",
+    "tutorial_dismissed",
+    "studio_fixture_ready",
+    "failed_badge_visible_after_fault",
+    "retry_clicked",
+    "clip_ready_after_retry",
+    "resumable_chunk_resume_verified",
+    "local_playback_from_failed_modal",
+    "audio_only_immediate_and_no_wcpump",
+    "cancel_blocks_late_autoplay_manual_resume_ok",
+    "deadline_manual_launch_ok",
+    "responsive_wait_overlay_ok"
+  ],
+  "fault_injection": {
+    "enabled": true,
+    "scope": "PUT /api/media/uploads/{id}/chunks/1 first 3 attempts"
+  },
+  "chunk_stats": {
+    "init_upload_ids": [
+      "4ae1a326-399c-49a1-b5f9-e49f7d5fb1d0",
+      "4ae1a326-399c-49a1-b5f9-e49f7d5fb1d0"
+    ],
+    "fault_count": 3,
+    "fault_done": true,
+    "max_chunk_size": 4194304,
+    "min_chunk_size": 948096,
+    "chunk0_count": {
+      "4ae1a326-399c-49a1-b5f9-e49f7d5fb1d0": 1
+    },
+    "media_upload_calls": 0
+  },
+  "responsive": {
+    "320": {
+      "rootOverflow": false,
+      "ovOverflow": false,
+      "minBtnH": 44,
+      "buttons": [
+        {
+          "h": 44,
+          "t": "Lire la vid\u00e9o locale"
+        },
+        {
+          "h": 44,
+          "t": "\u00c9couter l\u2019audio seul"
+        },
+        {
+          "h": 44,
+          "t": "Annuler la lecture"
+        }
+      ]
+    },
+    "768": {
+      "rootOverflow": false,
+      "ovOverflow": false,
+      "minBtnH": 44,
+      "buttons": [
+        {
+          "h": 44,
+          "t": "Lire la vid\u00e9o locale"
+        },
+        {
+          "h": 44,
+          "t": "\u00c9couter l\u2019audio seul"
+        },
+        {
+          "h": 44,
+          "t": "Annuler la lecture"
+        }
+      ]
+    },
+    "1024": {
+      "rootOverflow": false,
+      "ovOverflow": false,
+      "minBtnH": 44,
+      "buttons": [
+        {
+          "h": 44,
+          "t": "Lire la vid\u00e9o locale"
+        },
+        {
+          "h": 44,
+          "t": "\u00c9couter l\u2019audio seul"
+        },
+        {
+          "h": 44,
+          "t": "Annuler la lecture"
+        }
+      ]
+    },
+    "1440": {
+      "rootOverflow": false,
+      "ovOverflow": false,
+      "minBtnH": 44,
+      "buttons": [
+        {
+          "h": 44,
+          "t": "Lire la vid\u00e9o locale"
+        },
+        {
+          "h": 44,
+          "t": "\u00c9couter l\u2019audio seul"
+        },
+        {
+          "h": 44,
+          "t": "Annuler la lecture"
+        }
+      ]
+    }
+  },
+  "notes": [
+    "Project writes aborted in test context",
+    "Real app APIs used except explicit chunk fault injection"
+  ],
+  "asset": {
+    "source": "/tmp/beatcut_long_assets/h264_longgop_1280x720_185s.mp4",
+    "source_size": 24523281,
+    "source_sha256": "704287ece6740adc079c65fe94d91487eb13ac621fa3a14abb04c7b6562ff656",
+    "padded": "/tmp/beatcut_long_assets/h264_longgop_1280x720_185s_110mb.mp4",
+    "padded_size": 110000000,
+    "padded_sha256": "8789904a8741121f167fdcebd28e583f0f0860c83ba5a522cc19e7cbe4d4a5d6",
+    "generated": false
+  },
+  "console": [
+    "info:%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+    "error:Failed to load resource: the server responded with a status of 401 ()",
+    "verbose:[DOM] Input elements should have autocomplete attributes (suggested: \"current-password\"): (More info: https://goo.gl/9p2vKq) %o",
+    "error:Failed to load resource: the server responded with a status of 401 ()",
+    "log:[BeatCut studio] v13.27-upload-recovery",
+    "info:%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+    "log:[BeatCut studio] v13.27-upload-recovery",
+    "error:Failed to load resource: net::ERR_FAILED",
+    "error:Failed to load resource: net::ERR_FAILED",
+    "error:Failed to load resource: net::ERR_FAILED"
+  ],
+  "media_id": "6aa70fada924f5fb4136c9e6",
+  "download": {
+    "status": 200,
+    "size": 110000000,
+    "sha256": "8789904a8741121f167fdcebd28e583f0f0860c83ba5a522cc19e7cbe4d4a5d6",
+    "matches_local_padded": true
+  },
+  "proxy": {
+    "first_status": 200,
+    "proxy_id": "6aa70fcda924f5fb4136cb8f",
+    "status": null
+  }
+}

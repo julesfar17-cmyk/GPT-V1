@@ -29,7 +29,38 @@ BeatCut transforme un morceau et des vidéos en montages synchronisés sur le be
 - `/api/telemetry/preview`, `/api/telemetry/export`, `/api/proxy/transcribe`.
 - Comptes de test et précautions Stripe LIVE : `/app/memory/test_credentials.md`. Ne jamais effectuer de paiement réel ni d'envoi collectif pendant les tests.
 
-## Dernière demande approuvée — 13 septembre 2026
+## Dernière correction approuvée — 13 septembre 2026 — `v13.27-upload-recovery`
+Utilisateur : « lorsque je clique sur “Play” ou sur “Écouter l’extrait”, le message “Préparation de l’aperçu fluide pour cette vidéo longue…” apparaît, puis plus rien ne se passe. Cela fait maintenant plus de 30 minutes que j’essaie de lancer la vidéo sans succès. » Capture : « Non sauvegardée — réessayer ». Accord : « Oui corrige le traitement des vidéos longues stp ».
+
+### Cause et changement de comportement
+- Défaut confirmé : le garde-fou v13.25 attendait un proxy même avec `_saveFailed` et sans `mediaId`. Aucun proxy ne pouvait donc démarrer. Il examinait aussi les clips non utilisés et n'avait pas de véritable reprise de l'intention Play.
+- L'envoi monolithique des gros fichiers était fragile ; le code HTTP de l'échec utilisateur n'est PAS connu. Ne pas affirmer que Cloudflare/413 était la cause certaine sur son appareil.
+- Aperçu optimisé toujours préféré par défaut, mais **plus d'attente sans issue**. Erreur réelle visible, reprise d'envoi / d'aperçu, annulation et lecture locale explicitement choisie avec avertissement de saccades et de sauvegarde non confirmée.
+- `longPreviewPending` reste un diagnostic (affichage des erreurs/réessais même pendant la lecture locale). Le blocage réel est calculé par `PreviewReadiness` sur les plans utilisés à partir du point demandé ; les clips inutilisés/passés ne bloquent pas.
+- Play en attente est annulable, limité à5min et démarre automatiquement si l'aperçu arrive dans ce délai. Après expiration, lancement manuel explicite. Un changement de projet/extrait, annulation ou arrière-plan empêche une reprise tardive.
+- « Écouter l'extrait » lit immédiatement l'audio si la vidéo est indisponible, avec indicateur « Lecture audio uniquement ». Le proxy peut être téléchargé/démuxé pendant cette écoute ; la pompe vidéo n'est pas lancée inutilement.
+
+### Transfert et fichiers
+- `/app/frontend/public/media-upload.js` : fichiers ≥4MiB transférés par blocs4MiB, trois tentatives bornées par bloc ; identifiant/fingerprint utilisateur dans localStorage, reprise sans renvoi des blocs déjà reçus. Pas de service externe ajouté.
+- `/app/backend/resumable_media.py` : sessions propriétaires MongoDB + fragments temporaires, validations taille/index/hash/quotas, finalisation sous verrou temporaire vers `_store_media_file` existant ; déduplication conservée, sessions et parties avec TTL24h. Réponses Pydantic sans BSON exposé.
+- Nouvelles routes authentifiées : `POST /api/media/uploads` (UUID, filename, content_type, size), `GET /api/media/uploads/{uuid}`, `PUT /api/media/uploads/{uuid}/chunks/{index}` (corps brut), `POST .../complete`, `DELETE .../{uuid}`.
+- Maximum inchangé : **300 000 000 octets par fichier** ; message backend corrigé (ancien texte80Mo). Au-delà, erreur claire, pas de fausse préparation ; lecture locale seulement si le navigateur sait décoder la source.
+- `API.uploadMedia` peut rendre l'identifiant immédiatement après stockage pour les clips, sans bloquer sur le transcodage ; états d'envoi, transcodage et proxy distingués. `_sourceFile` conservé pour la reprise, flags d'erreur nettoyés au succès, clips retirés ignorés par les callbacks.
+- Polling proxy limité par une vraie échéance10min, requêtes et téléchargements avec délais ; expiration visible et réessai possible. Le garde-fou ne remplace jamais les cuts par des images fixes.
+- Moteur vidéo/WebCodecs, export sur source originale, paroles/coupes/recadrages du projet utilisateur non modifiés.
+
+### Vérification finale
+- **9/9** tests API des transferts reprenables : ordre libre, doublon identique, conflit, blocs manquants/invalides, taille max, expiration/TTL, authentification/isolation propriétaire, finalisation concurrente/idempotente et intégrité du téléchargement.
+- Envoi réel **110 000 000 octets**, vidéo H.264185s avec B-frames/GOP10s : trois coupures réseau injectées uniquement dans le test sur le bloc1, reprise sur le même UUID, bloc0 envoyé une seule fois, aucun envoi monolithique, hash final identique. Proxy réel obtenu.
+- Vérification complémentaire avec **vrais téléchargements/décodage de proxy** : Play se relance, proxy termine pendant écoute audio, annulation/changement d'extrait empêchent l'autoplay, clips inutilisés/passés ignorés ; lecture locale montre des frames animées et garde un réessai visible.
+- Cuts100/200/250ms : 452 ticks / zéro frame manquante ou erronée sur l'aperçu optimisé. Export MP4 réel1,2s/36images avec audio, source originale conservée. **8/8** régressions API proxy passent. **11 groupes Tap paroles** repassés sans erreur.
+- UI sans débordement à320/768/1024/1440, actions ≥44px ; syntaxe Python/JS et contrôle `no-undef` réussis.
+- Rapports : `test_reports/iteration_38.json`, `frontend_long_preview_iter38.json`, `frontend_preview_final_iter39.json`, `iteration_39.json`, `pytest/iter38_resumable_uploads.xml`, `pytest/iter39_proxy_regression.xml`.
+- Aucun mock dans l'application. **TEST-ONLY FAULT INJECTION (MOCKED)** : interruption de requêtes de blocs dans le test ; requêtes normales, stockage, médias, décodeurs et exports réels. Les scénarios d'état isolés d'iteration38 sont complétés par les vrais téléchargements d'iteration39.
+- Fixtures persistantes : `/root/beatcut-test-assets/` (générateur `/app/frontend/tests/generate_long_gop_assets.py`), rapports/logs dans `/app/test_reports/`. Des médias QA restent sur le compte démo pour les régressions ; aucun projet utilisateur existant modifié, aucun compte créé ni credential changé.
+- Limites : vidéo locale originale peut saccader sur cuts rapides ; Safari/iPhone physique, HEVC/4K et fichier exact de l'utilisateur non validés dans ce passage.
+
+## Fonction précédente — 13 septembre 2026 — Tap paroles
 Utilisateur : « On vas ajouter une fonctionnalité similaire à tap for cut. Ce seras une fonction qui permettra de caler ses paroles en appuyant sur l’écran avec la même possibilité de ralentir l’extrait pour être plus précis. Aussi sur le compte à rebours avant que ça commence joue la musique juste avant la l’extrait (à volume réduit) pour ce soit plus facile d’attaquer. »
 Choix confirmé : « Oui mot par mot ! » ; vitesses 100/75/50 %, préparation musicale aussi sur Tap for cut, recommencer et valider avant remplacement.
 

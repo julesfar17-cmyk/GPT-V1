@@ -16,7 +16,7 @@ from playwright.async_api import async_playwright
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 EMAIL = "demo@beatcut.fr"
 PASSWORD = "Demo1234!"
-ASSET_MANIFEST = Path("/tmp/beatcut_long_assets/manifest.json")
+ASSET_MANIFEST = Path("/root/beatcut-test-assets/manifest.json")
 RESULT_FILE = Path("/app/test_reports/frontend_long_preview_baseline_iter32.json")
 SCREENSHOT = Path("/app/test_reports/frontend_long_preview_iter32.jpeg")
 STUDIO_PROJECT_ID = "032e4762018d45"

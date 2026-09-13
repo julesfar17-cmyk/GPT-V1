@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "checks": [
+    "login_ok"
+  ],
+  "runtime_errors": [],
+  "results": {
+    "pendingInitially": true,
+    "autoResumeUsesRealProxy": true,
+    "proxyProgressUs": 875000,
+    "pendingCleared": true,
+    "audioImmediate": true,
+    "proxyLoadedDuringAudio": true,
+    "unusedIgnored": true,
+    "pastPlanIgnored": true,
+    "noLateAutoplay": true,
+    "rangeChangeCancelled": true,
+    "fastCuts": {
+      "ticks": 452,
+      "missing": 0,
+      "wrong": 0,
+      "maxLag": 0.04163265306121389
+    },
+    "export": {
+      "ok": true,
+      "bytes": 1603441,
+      "originalRetained": true,
+      "frames": 36,
+      "duration": 1.2
+    },
+    "localProgressUs": 916667,
+    "proxyRetryVisibleDuringLocal": true,
+    "localLabel": "Lecture locale \u00b7 aper\u00e7u non optimis\u00e9"
+  }
+}

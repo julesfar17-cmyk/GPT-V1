@@ -1,0 +1,39 @@
+{
+  "summary": "Resumed interrupted iteration38 and completed backend+frontend long-video recovery verification on build v13.27-upload-recovery using real external URL and real media uploads.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_resumable_uploads_iter38.py",
+    "/app/test_reports/pytest/iter38_resumable_uploads.xml",
+    "/app/frontend/tests/test_long_preview_iter38.py",
+    "/app/test_reports/frontend_long_preview_iter38.json"
+  ],
+  "action_items": [
+    "Optional follow-up only: rerun legacy long smooth proxy regression and tap-lyrics regression in same session if extra confidence is needed (not required for this bug gate)."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/public/studio.html is ~6.7k lines; split into focused modules to reduce regression risk and improve testability.",
+    "/app/backend/server.py is very large (>700 lines guideline); continue modular extraction to reduce coupling and RCA time."
+  ],
+  "updated_files": [
+    "/app/frontend/tests/test_long_preview_iter38.py",
+    "/app/test_reports/frontend_long_preview_iter38.json",
+    "/app/test_reports/iteration_38.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "92%"
+  },
+  "seed_data_creation": "Generated long-GOP source assets under /tmp/beatcut_long_assets and padded valid MP4 test file h264_longgop_1280x720_185s_110mb.mp4 (110000000 bytes).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend iter38 suite passed 9/9. Frontend iter38 script passed with real >100MB upload, resumable fault injection and overlay flow checks. TEST-ONLY FAULT INJECTION (MOCKED) was used only on chunk index 1 first 3 attempts via Playwright route interception; all ordinary upload/proxy APIs remained real. Existing user projects were not modified (unsaved in-memory fixture, project writes aborted).",
+  "rca of the issue": "Original user symptom (wait message with no progress) was targeted via new readiness/upload-recovery checks. Verified that failed upload now surfaces explicit failed badge + retry, retry reuses same upload_id and skips already-acknowledged chunk0, and play intent is bounded/cancellable with manual relaunch after timeout. Audio-only path starts immediately without wcPump and does not deadlock while proxy becomes ready."
+}

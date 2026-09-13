@@ -29,9 +29,9 @@ load_dotenv(Path("/app/frontend/.env"))
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 DEMO_EMAIL = "demo@beatcut.fr"
 DEMO_PASSWORD = "Demo1234!"
-ASSET_MANIFEST = Path("/tmp/beatcut_long_assets/manifest.json")
+ASSET_MANIFEST = Path("/root/beatcut-test-assets/manifest.json")
 ITER32_MEDIA = Path("/app/test_reports/iter32_backend_media_ids.json")
-SHORT_720 = Path("/tmp/beatcut_long_assets/h264_short_1280x720_20s.mp4")
+SHORT_720 = Path("/root/beatcut-test-assets/h264_short_1280x720_20s.mp4")
 
 
 def _run(cmd: list[str], timeout: int = 180) -> subprocess.CompletedProcess:
@@ -169,7 +169,7 @@ def demo_session() -> requests.Session:
 
 @pytest.fixture(scope="module")
 def manifest() -> dict:
-    assert ASSET_MANIFEST.exists(), "Missing /tmp/beatcut_long_assets/manifest.json"
+    assert ASSET_MANIFEST.exists(), "Missing /root/beatcut-test-assets/manifest.json"
     return json.loads(ASSET_MANIFEST.read_text(encoding="utf-8"))
 
 

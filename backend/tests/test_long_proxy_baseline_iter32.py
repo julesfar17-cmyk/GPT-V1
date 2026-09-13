@@ -18,7 +18,7 @@ pytestmark = pytest.mark.skip(reason="Baseline avant correction ; régression ac
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 DEMO_EMAIL = "demo@beatcut.fr"
 DEMO_PASSWORD = "Demo1234!"
-ASSET_MANIFEST = Path("/tmp/beatcut_long_assets/manifest.json")
+ASSET_MANIFEST = Path("/root/beatcut-test-assets/manifest.json")
 RESULT_SNAPSHOT = Path("/app/test_reports/iter32_backend_media_ids.json")
 
 
@@ -51,7 +51,7 @@ def _poll_proxy(session: requests.Session, media_id: str, timeout_s: int = 210) 
 @pytest.fixture(scope="module")
 def media_manifest() -> dict:
     assert ASSET_MANIFEST.exists(), (
-        "Missing /tmp/beatcut_long_assets/manifest.json. "
+        "Missing /root/beatcut-test-assets/manifest.json. "
         "Run /app/frontend/tests/generate_long_gop_assets.py before pytest."
     )
     return json.loads(ASSET_MANIFEST.read_text(encoding="utf-8"))

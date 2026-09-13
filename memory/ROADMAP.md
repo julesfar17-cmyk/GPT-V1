@@ -1,8 +1,9 @@
 # BEATCUT — Priorités
 
 ## P0 — Validation utilisateur
+- Blocage Play/écoute sur envoi long échoué corrigé (`v13.27-upload-recovery`) : reprise4MiB, vraie erreur/action, Play différé annulable, audio autonome, lecture locale explicite. Vérifié sur110Mo avec coupure réseau et reprise,17 tests API et régressions vidéo/paroles.
 - Tap paroles + pré-écoute commune (`v13.26-tap-lyrics`) vérifiés : 11 groupes de contrôles frontend, 3 tests serveur, timings réellement capturés sauvegardés/rechargés. Validation sur le morceau de l'utilisateur en attente.
-- Correction `v13.25-long-video` vérifiée : serveur 6/6 + réessai 2/2, navigateur réel Chrome desktop et Chrome mobile simulé, source 185 s, cuts 100/200/250 ms, scrub et export MP4 réel.
+- Correction v13.25 du moteur conservée, mais son garde-fou bloquant l'envoi échoué est remplacé par la récupération v13.27. Vérification utilisateur avec son propre fichier toujours nécessaire.
 - Faire valider sur les propres fichiers longs de l'utilisateur. Aucun défaut bloquant restant dans les scénarios testés ; ne pas déclarer tous les appareils corrigés sur la seule base de Chrome Linux.
 
 ## P1 — Ensuite
@@ -14,6 +15,7 @@
 - Choisir manuellement une image de vignette par plan.
 - Suivre les vignettes manquantes par navigateur dans l'administration.
 - Extraire progressivement le moteur de `studio.html`, avec tests de régression avant refactor.
+- Tableau récapitulatif des envois/optimisations avec progression et reprise centralisée (les actions par clip et le panneau de lecture existent).
 
 ## Suggestion produit
 - Tap paroles : reprendre une prise à partir du mot raté plutôt que recommencer l'extrait entier.

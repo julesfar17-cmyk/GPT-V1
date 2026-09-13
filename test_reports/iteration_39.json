@@ -1,0 +1,39 @@
+{
+  "summary": "Critical long-video failed-upload recovery verified. Completes iteration38 with REAL proxy fetch/demux during audio-only playback, auto-resume, source selection, decoded frame progression, fast-cut playback and MP4 export. Tap lyrics and legacy proxy suites rerun successfully.",
+  "build": "v13.27-upload-recovery",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/test_reports/frontend_long_preview_iter38.json",
+    "/app/test_reports/frontend_preview_final_iter39.json",
+    "/app/test_reports/frontend_taplyrics_iter36.json",
+    "/app/test_reports/pytest/iter38_resumable_uploads.xml",
+    "/app/test_reports/pytest/iter39_proxy_regression.xml",
+    "/app/test_reports/iter39_final_playback.log",
+    "/app/test_reports/final_recovery_regressions.log"
+  ],
+  "results": {
+    "resumable_backend": "9/9 passed",
+    "proxy_backend_regression": "8/8 passed",
+    "real_large_upload": "110000000 bytes, max4194304-byte chunks, same upload_id after3 injected chunk1 failures, chunk0 sentonce, download SHA256 identical, real proxy obtained",
+    "real_proxy_lifecycle": "Auto-resume once ready, cancellation and changed range prevent late autoplay; proxy actually downloads/parses during audio-only loop; unused and past clips ignored",
+    "playback": "452 sampled ticks on rapid cuts, zero missing/wrong frames; raw local source also shows advancing frames in simple plan and explicit local warning",
+    "fallback_recovery": "Proxy retry stays visible while local playback is selected; status label reflects only used sources",
+    "export": "Real MP4 with audio,1.2s/36frames, original source retained",
+    "tap_lyrics": "11 assertion groups passed after playback/transport changes",
+    "responsive": "No horizontal overflow at320/768/1024/1440; controls>=44px",
+    "syntax": "Python compile, JS node check and no-undef passed",
+    "runtime_errors": []
+  },
+  "mocked_api": {"has_mocked_apis_in_app": false, "test_only": "Intentional Playwright network abort on one upload chunk3attempts. Some iteration38 readiness states injected; iteration39 complements with real proxy I/O. In-memory project writes blocked to preserve user data."},
+  "persistent_test_assets": "/root/beatcut-test-assets; regeneration script in /app/frontend/tests/generate_long_gop_assets.py",
+  "credentials": "Existing demo and backup admin accounts from /app/memory/test_credentials.md, no new or modified credentials",
+  "limitations": [
+    "Original local video remains a warned degraded option for rapid long-GOP cuts, not a replacement for optimized preview.",
+    "300000000-byte per-file limit unchanged.",
+    "Physical Safari/iPhone, user's exact file and 4K/HEVC not verified."
+  ],
+  "retest_needed": false,
+  "action_items": ["User verification on own long file", "Physical Safari/iPhone follow-up"],
+  "rca": "Proxy gate waited even after upload failure/no media_id, scanned unrelated clips and lacked actionable/restartable playback intent. Resumable chunks address large request fragility; explicit state/recovery prevents false indefinite preparation. Actual original upload HTTP failure code is unknown, so Cloudflare413 is NOT asserted as proven root cause."
+}

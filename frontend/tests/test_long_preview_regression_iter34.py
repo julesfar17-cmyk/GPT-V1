@@ -14,7 +14,7 @@ from playwright.async_api import async_playwright
 
 load_dotenv('/app/frontend/.env')
 BASE = os.environ['REACT_APP_BACKEND_URL'].rstrip('/')
-ASSET = '/tmp/beatcut_long_assets/h264_longgop_1280x720_185s.mp4'
+ASSET = '/root/beatcut-test-assets/h264_longgop_1280x720_185s.mp4'
 OUT = Path('/app/test_reports/frontend_long_preview_regression_iter34.json')
 
 
