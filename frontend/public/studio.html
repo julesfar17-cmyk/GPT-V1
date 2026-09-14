@@ -1364,7 +1364,7 @@ const TEL={
 };
 setInterval(()=>TEL.flush(),20000);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') TEL.flush(true); });
-let _telLastTs=-2,_telSameSince=0,_telStallSent=false,_telLastMiss=0;
+let _telLastTs=-2,_telSameSince=0,_telStallSent=false,_telStallN=0,_telLastMiss=0,_fpsLast=null;
 
 const API = {
   user: null,
@@ -1608,7 +1608,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.28-safe-restore';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.29-ff-diag';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -4323,10 +4323,11 @@ async function parseWC(blob){
    Un seek dans un fichier long ne rescane plus toutes les images du fichier. */
 function wcIndexSamples(wc){
   if(wc.keyframes) return;
-  wc.keyframes=[]; wc.lastTimestampUs=0;
+  wc.keyframes=[]; wc.lastTimestampUs=0; wc.tsSet=new Set();
   wc.samples.forEach((s,i)=>{
     if(s.key) wc.keyframes.push({ts:s.ts,idx:i});
     wc.lastTimestampUs=Math.max(wc.lastTimestampUs,s.ts);
+    wc.tsSet.add(s.ts);
   });
   wc.keyframes.sort((a,b)=>a.ts-b.ts||a.idx-b.idx);
 }
@@ -4362,17 +4363,25 @@ class SegPlayer{
   }
   recover(){ this.err=null; this.soft=true; this.generation++; this.pending=0; this.flushing=false; this.drained=false; this.clearFrames(); this._newDecoder(); }
   _onFrame(f){
-    this.pending=Math.max(0,this.pending-1);
+    this.pending=Math.max(0,this.pending-1); this.lastOutAt=performance.now();
     const dur=f.duration||(this.clip.samples[0]&&this.clip.samples[0].dur)||40000;
+    // Diagnostic navigateur : sortie hors ordre de présentation, ou timestamp inconnu des échantillons envoyés
+    if(this.clip.tsSet&&!this.clip.tsSet.has(f.timestamp)){ this.tsMism=(this.tsMism||0)+1; if(this.tsMism===1) this.tsMismEx={out:f.timestamp,target:this.targetUs}; }
+    if(this.lastOutTs!=null&&f.timestamp<this.lastOutTs) this.ooo=(this.ooo||0)+1;
+    this.lastOutTs=f.timestamp;
+    if((this.tsMism===1||this.ooo===1)&&!window._telTsAnomaly){ window._telTsAnomaly=true;
+      TEL.push('decoder_ts_anomaly',{mism:this.tsMism||0, ooo:this.ooo||0, ex:this.tsMismEx||null, codec:this.clip.config&&this.clip.config.codec, soft:!!this.soft}); }
     if(f.timestamp+dur<=this.targetUs){ f.close(); return; }   // conserve l'image qui couvre la cible (24 fps/VFR inclus)
-    this.frames.push(f);
+    // insertion triée : si le navigateur sort les images en ordre de décodage (B-frames), frameAt reste exact
+    let i=this.frames.length; while(i>0&&this.frames[i-1].timestamp>f.timestamp) i--;
+    if(i===this.frames.length) this.frames.push(f); else this.frames.splice(i,0,f);
   }
   clearFrames(){ if(this.cur){try{this.cur.close();}catch(e){} this.cur=null;} this.frames.forEach(f=>{try{f.close();}catch(e){}}); this.frames=[]; }
   seek(tSec){
     if(!this.clip) return;
     wcIndexSamples(this.clip);
     this.targetUs=Math.max(0,Math.min(tSec*1e6,this.clip.lastTimestampUs));
-    this.generation++; this.pending=0; this.flushing=false; this.drained=false;
+    this.generation++; this.pending=0; this.flushing=false; this.drained=false; this.lastOutTs=null; this.stuckSince=0;
     this.clearFrames();
     if(!this.dec || this.cfgFor!==this.clip){ this._newDecoder(); }
     else { try{ this.dec.reset(); this.dec.configure(this.soft?{...this.clip.config,hardwareAcceleration:'prefer-software'}:this.clip.config); }catch(e){ this._newDecoder(); } }
@@ -4385,10 +4394,20 @@ class SegPlayer{
     const cap=this.idle?5:14;
     // decodeQueueSize peut déjà être à zéro alors que les frames ne sont pas encore sorties.
     // Une marge de réordonnancement permet les B-frames sans bloquer un petit tampon idle.
-    const budget=cap+Math.max(2,this.clip.reorderDepth||0);
-    while(this.frames.length<cap && this.frames.length+this.pending<budget && this.pending<18 && this.dec.decodeQueueSize<18 && this.si<S.length){
+    // Certains décodeurs (WMF/Firefox Windows) gardent jusqu'à 16+ images en interne avant la 1re sortie :
+    // si tout est « en attente », que la file d'entrée est vide et que rien ne sort, on apprend cette latence
+    // au lieu de rester bloqués (gel définitif : plus aucune image envoyée, plus aucune image reçue).
+    const now=performance.now();
+    if(this.latencyExtra==null) this.latencyExtra=SegPlayer.learnedExtra||0;
+    if(this.frames.length===0&&this.pending>0&&this.dec.decodeQueueSize===0&&this.si<S.length&&now-(this.lastOutAt||0)>400&&now-(this.lastFeedAt||0)>400&&this.latencyExtra<24){
+      this.latencyExtra+=4; SegPlayer.learnedExtra=Math.max(SegPlayer.learnedExtra||0,this.latencyExtra);
+      if(!window._telLatencyBump){ window._telLatencyBump=true; TEL.push('decoder_latency_bump',{pending:this.pending, extra:this.latencyExtra, codec:this.clip.config&&this.clip.config.codec, soft:!!this.soft}); }
+    }
+    const budget=cap+Math.max(2,this.clip.reorderDepth||0)+this.latencyExtra;
+    const maxPending=18+this.latencyExtra;
+    while(this.frames.length<cap && this.frames.length+this.pending<budget && this.pending<maxPending && this.dec.decodeQueueSize<18 && this.si<S.length){
       const s=S[this.si++];
-      try{ this.pending++; this.dec.decode(new EncodedVideoChunk({type:s.key?'key':'delta', timestamp:s.ts, duration:s.dur, data:s.data})); }
+      try{ this.pending++; this.lastFeedAt=now; this.dec.decode(new EncodedVideoChunk({type:s.key?'key':'delta', timestamp:s.ts, duration:s.dur, data:s.data})); }
       catch(e){ this.pending=Math.max(0,this.pending-1); this._telErr(e); break; }
     }
     if(this.si>=S.length&&!this.flushing&&!this.drained){
@@ -4401,12 +4420,20 @@ class SegPlayer{
     const wantUs=tSec*1e6;
     this.targetUs=Math.max(0,Math.min(wantUs,this.clip.lastTimestampUs));
     this.fill();
+    const before=this.cur;
     while(this.frames.length && this.frames[0].timestamp<=wantUs){
       if(this.cur){ try{this.cur.close();}catch(e){} }
       this.cur=this.frames.shift();
     }
     // cible AVANT la première image disponible (début de clip) : la première image est la bonne, on n'attend pas 12 s pour rien
     if(!this.cur && this.frames.length && this.frames[0].timestamp>wantUs) this.cur=this.frames.shift();
+    // Anti-gel : tampon plein d'images toutes « en avance » sur la cible alors que l'image affichée ne bouge plus
+    // depuis > 300 ms (timestamps décalés par le navigateur) → on avance d'une image pour garder du mouvement.
+    if(playing&&!exporting&&!offlineRender&&this.cur===before&&this.cur&&this.frames.length>=(this.idle?5:14)&&this.frames[0].timestamp>wantUs){
+      const now=performance.now();
+      if(!this.stuckSince) this.stuckSince=now;
+      else if(now-this.stuckSince>300){ this.stuckSince=now; this.stuckN=(this.stuckN||0)+1; try{this.cur.close();}catch(e){} this.cur=this.frames.shift(); }
+    } else this.stuckSince=0;
     return this.cur;
   }
   buffered(){ return this.frames.length; }
@@ -4690,7 +4717,7 @@ function raf(){
     _fpsN++;
     const el=performance.now()-_fpsT0;
     if(el>=2000){
-      const fps=Math.round(_fpsN*1000/el);
+      const fps=Math.round(_fpsN*1000/el); _fpsLast=fps;
       if(fps<20&&!_fpsSent){ _fpsSent=true;
         TEL.push('low_fps',{fps, sat:!!((M&&M.fx)||{}).sat, plans:(M&&M.plans||[]).length,
           w:wcA&&wcA.clip?wcA.clip.config&&wcA.clip.config.codedWidth:null, buffered:wcA?wcA.buffered():null}); }
@@ -4922,14 +4949,20 @@ function drawPreview(t, cvOverride){
     if(playing&&!offlineRender&&!cvOverride){
       const ts=f?f.timestamp:-1, nowp=performance.now();
       if(ts===_telLastTs){
-        if(_telSameSince&&nowp-_telSameSince>500&&!_telStallSent){
-          _telStallSent=true;
+        if(_telSameSince&&nowp-_telSameSince>500&&!_telStallSent&&_telStallN<6){
+          _telStallSent=true; _telStallN++;
+          const A=(wcA&&wcA.clip===wp)?wcA:null;
           TEL.push('preview_stall',{plan:pi, clip:plan.clip,
             codec:cl.wc&&cl.wc.config?cl.wc.config.codec:null,
             wcReady:!!cl._wcReady, optimizing:!!cl._optimizing,
-            wcAReady:!!(wcA&&wp&&wcA.clip===wp),
-            queue:(wcA&&wcA.dec)?wcA.dec.decodeQueueSize:null,
-            buffered:wcA?wcA.buffered():null,
+            wcAReady:!!A, ptrOk:pi===wcPtr,
+            queue:(wcA&&wcA.dec)?wcA.dec.decodeQueueSize:null, decState:(wcA&&wcA.dec)?wcA.dec.state:null,
+            buffered:wcA?wcA.buffered():null, pending:wcA?wcA.pending:null, si:wcA?wcA.si:null, n:(wcA&&wcA.clip)?wcA.clip.samples.length:null,
+            target:Math.round(target*1000), buf0:(wcA&&wcA.frames[0])?Math.round(wcA.frames[0].timestamp/1000):null,
+            bufN:(wcA&&wcA.frames.length)?Math.round(wcA.frames[wcA.frames.length-1].timestamp/1000):null,
+            curTs:(wcA&&wcA.cur)?Math.round(wcA.cur.timestamp/1000):null, err:wcA&&wcA.err?String(wcA.err).slice(0,80):null,
+            soft:!!(wcA&&wcA.soft), ooo:wcA?(wcA.ooo||0):null, mism:wcA?(wcA.tsMism||0):null, stuckN:wcA?(wcA.stuckN||0):null,
+            pool:wcPool.length, proxy:!!cl.wcProxy, fps:_fpsLast,
             stallMs:Math.round(nowp-_telSameSince)});
         }
       } else { _telLastTs=ts; _telSameSince=nowp; _telStallSent=false; }

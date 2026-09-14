@@ -7,7 +7,7 @@
   "results": {
     "pendingInitially": true,
     "autoResumeUsesRealProxy": true,
-    "proxyProgressUs": 875000,
+    "proxyProgressUs": 916667,
     "pendingCleared": true,
     "audioImmediate": true,
     "proxyLoadedDuringAudio": true,
@@ -16,10 +16,10 @@
     "noLateAutoplay": true,
     "rangeChangeCancelled": true,
     "fastCuts": {
-      "ticks": 452,
+      "ticks": 439,
       "missing": 0,
       "wrong": 0,
-      "maxLag": 0.04163265306121389
+      "maxLag": 0.04162064852607816
     },
     "export": {
       "ok": true,

@@ -911,7 +911,10 @@ async def admin_webview_logs(user: dict = Depends(get_current_user)):
 
 _PREVIEW_EVENT_KEYS = ("type", "t", "plan", "clip", "codec", "wcReady", "wcAReady",
                        "queue", "buffered", "stallMs", "msg", "w", "h", "dur",
-                       "optimizing", "notReady")
+                       "optimizing", "notReady", "ptrOk", "decState", "pending", "si", "n",
+                       "target", "buf0", "bufN", "curTs", "err", "soft", "ooo", "mism",
+                       "stuckN", "pool", "proxy", "fps", "ex", "plans", "state", "fails",
+                       "total", "local", "server", "sat", "optimizing", "local", "hw")
 
 
 @api_router.post("/telemetry/preview")
