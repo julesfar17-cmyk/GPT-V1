@@ -2054,7 +2054,7 @@ function canPersist(){
   if(!API.user||!M) return false;
   if(M._remote && !M._loaded){refreshRestoreState(false);return false;}   // aucun état vide avant le chargement complet
   if(refreshRestoreState(false)){
-    if(!PROJECT_RESTORE.get(M))setSaveState('Sauvegarde désactivée (chargement incomplet)',false);
+    if(!PROJECT_RESTORE.get(M))setSaveState('Sauvegarde suspendue — projet à récupérer',false);
     return false;
   }
   return true;
