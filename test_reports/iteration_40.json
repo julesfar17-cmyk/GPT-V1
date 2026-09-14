@@ -1,0 +1,59 @@
+{
+  "summary": "Executed backend + frontend regression for v13.28-safe-restore using real authenticated APIs, real uploaded audio/videos, and TEST-ONLY fault injection on clip download. Core restore blocking/unblocking and persistence-on-recovery behavior validated; one critical UI confirm-flow check remains unresolved.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Missing clip removal confirm flow",
+        "issue": "Could not observe expected confirm dialog on missing reference remove (cancel phase) in automated run; flow remains unverified/possibly bypassed in this path.",
+        "selector": "[data-testid^='missing-clip-remove-']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Safe restore with one clip fetch failure",
+        "issue": "Initial restore stayed blocked with slot placeholder and no project write while incomplete; after real retry and recovery, save resumed and persisted correctly. Confirm-remove branch failed verification and needs manual/agent retest.",
+        "affected_selectors": [
+          "[data-testid='missing-clip-0']",
+          "[data-testid='missing-clip-retry-0']",
+          "[data-testid='restore-retry-button']",
+          "[data-testid='save-state']"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/tests/test_restore_safe_iter40.py",
+    "/app/test_reports/frontend_restore_safe_iter40.json",
+    "/app/backend/tests/test_save_reliability_iter31.py",
+    "/app/test_reports/pytest/iter40_backend_save_reliability.xml"
+  ],
+  "action_items": [
+    "Investigate/verify missing-reference remove confirm behavior for cancel/accept paths in real UI interaction (automation did not receive dialog event).",
+    "Re-run full iter40 frontend script after confirm-flow fix to complete remaining assertions (remove/cancel/accept index update branch).",
+    "Optionally add dedicated data-testid/state hook for confirm-open on missing-reference remove to make this branch deterministic under automation."
+  ],
+  "critical_code_review_comments": [
+    "backend/tests/backend_test.py currently hardcodes fallback BASE_URL/MONGO defaults; this violates strict env-only fail-fast guideline and can hide misconfiguration during CI.",
+    "Restore-safety critical paths in studio.html are tightly coupled in one very large file; high regression risk around async loading/save race paths suggests splitting restore/save modules for maintainability and safer future changes."
+  ],
+  "updated_files": [
+    "/app/frontend/tests/gen_iter40_tone.py",
+    "/app/frontend/tests/test_restore_safe_iter40.py",
+    "/app/test_reports/iteration_40.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "80%"
+  },
+  "seed_data_creation": "Created disposable authenticated projects only: QA_DISPOSABLE_ITER40_RESTORE_1 and QA_DISPOSABLE_ITER40_RESTORE_2; both deleted in cleanup. Uploaded temporary test media via real API; no existing user projects/accounts modified.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "frontend_restore_safe_iter40.json contains completed checks: blocked save on incomplete restore, no POST while blocked, retry recovery unblocks + autosaves, fresh-context reopen exact state, partial retry/unrelated import still blocked. Remaining failed branch: confirm dialog detection on missing remove cancel/accept.",
+  "rca of the issue": "Reproduction: open project with missing reference (no mediaId/url) and trigger missing-slot remove action from missing card. Expected native confirm event was not observed by Playwright page dialog listener in this run, so cancel/accept branch assertions could not complete. Likely causes: confirm path not firing in this DOM state, or dialog handling differs under iframe/event context. Mitigation: instrument removeClip path with a test-visible state flag or custom modal data-testid and retest cancel/accept semantics."
+}

@@ -8,7 +8,8 @@ window.createPreviewReadiness = host => {
       if(!clip)return [{clip,index,kind:'missing',message:'Vidéo manquante — réimporte ce fichier.'}];
       if(clip._wcReady&&clip.wc&&(clip.wc.durationS<90||clip.wcProxy||clip._proxyState==='ready'||allows(clip)))return [];
       let kind,message;
-      if(clip._saveFailed&&!clip.mediaId){kind='upload-failed';message='Envoi échoué : '+clip._saveFailed;}
+      if(clip._missing){kind='missing';message='Fichier à récupérer — son emplacement est conservé dans le montage.';}
+      else if(clip._saveFailed&&!clip.mediaId){kind='upload-failed';message='Envoi échoué : '+clip._saveFailed;}
       else if(!clip.mediaId){kind=clip._optimizing?'uploading':'not-uploaded';message=clip._optimizing?'Envoi en cours'+(Number.isFinite(clip._upPct)?' — '+clip._upPct+' %':''):'Vidéo locale non envoyée — aucun aperçu serveur n’est en préparation.';}
       else if(clip._proxyState==='failed'){kind='proxy-failed';message=clip._proxyError||'La préparation de l’aperçu a échoué.';}
       else if(clip._proxyState==='transcoding'){kind='processing';message='Optimisation du fichier sur le serveur…';}

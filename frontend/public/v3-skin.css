@@ -1,3 +1,8 @@
+#restoreRetry{flex-shrink:0;max-width:240px}
+@media(max-width:900px){
+  #restoreRetry{width:44px;height:44px;min-width:44px;padding:0;font-size:0}
+  #restoreRetry::before{content:'↻';font-size:20px}
+}
 /* ============================================================
    BEATCUT V3 — Monument obsidienne, signal cramoisi.
    Skin appliqué PAR-DESSUS le design system V2 du studio :
@@ -155,7 +160,7 @@ nav a.active::after{right:0}
 body.editing header{display:none}
 @media (min-width:901px){
   body.editing #pageEdit{height:100dvh}
-  body.editing #pageEdit.show{grid-template-rows:58px 1fr 185px}
+  body.editing #pageEdit.show{grid-template-rows:58px 1fr 199px}
 }
 .edit-top{height:58px;border-bottom:1px solid var(--hair);background:var(--void);gap:12px}
 .edit-top .logo{font-weight:700;letter-spacing:-.045em}

@@ -1,0 +1,65 @@
+{
+  "status": "failed",
+  "checks": [
+    "login_ok",
+    "missing_slot_persists_and_plan_indices_preserved",
+    "no_project_write_during_incomplete_restore",
+    "edit_while_missing_kept_blocked",
+    "retry_recovers_exact_slot_and_autosave_runs",
+    "fresh_context_reopen_exact_state_ok",
+    "login_ok",
+    "partial_retry_and_unrelated_import_do_not_unlock"
+  ],
+  "created_projects": [
+    "e6a6eb0b041a46",
+    "3555efa538ce45"
+  ],
+  "fault_injection": {
+    "enabled": true,
+    "type": "first GET /api/media/{videoA}",
+    "failed_count": 3,
+    "media_get_urls": [
+      "https://pro-mailer-2.preview.emergentagent.com/api/media/6aa72d2b9c35d0c2007029ee",
+      "https://pro-mailer-2.preview.emergentagent.com/api/media/6aa72d2b9c35d0c2007029f2",
+      "https://pro-mailer-2.preview.emergentagent.com/api/media/6aa72d2b9c35d0c2007029f2",
+      "https://pro-mailer-2.preview.emergentagent.com/api/media/6aa72d2b9c35d0c2007029f2",
+      "https://pro-mailer-2.preview.emergentagent.com/api/media/6aa72d2b9c35d0c2007029f6",
+      "https://pro-mailer-2.preview.emergentagent.com/api/media/6aa72d2b9c35d0c2007029f6/thumbs"
+    ]
+  },
+  "media_ids": {
+    "audio": "6aa72d2b9c35d0c2007029ee",
+    "clip_a": "6aa72d2b9c35d0c2007029f2",
+    "clip_b": "6aa72d2b9c35d0c2007029f6"
+  },
+  "baseline_updated_at": "2026-09-13T23:09:31.438185+00:00",
+  "blocked_diag": {
+    "restoreIncomplete": true,
+    "canPersist": false,
+    "saveState": "Sauvegarde suspendue \u2014 1 vid\u00e9o \u00e0 r\u00e9cup\u00e9rer",
+    "plans": [
+      0,
+      1
+    ],
+    "words": [
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "clip0Missing": true,
+    "clip1Missing": false,
+    "clip1Crop": {
+      "x": -0.15,
+      "y": 0.05
+    },
+    "clipMediaIds": [
+      "6aa72d2b9c35d0c2007029f2",
+      "6aa72d2b9c35d0c2007029f6"
+    ]
+  },
+  "failure": "Expected confirm dialog on missing reference remove (cancel phase)",
+  "cleanup": {
+    "3555efa538ce45": 200,
+    "e6a6eb0b041a46": 200
+  }
+}

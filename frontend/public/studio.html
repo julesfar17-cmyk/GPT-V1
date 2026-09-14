@@ -740,7 +740,8 @@ document.addEventListener('DOMContentLoaded',function(){
     <div class="logo" onclick="go('accueil')" style="font-size:16px"><span>BEAT<b>CUT</b></span></div>
     <button class="small mob-tgl" onclick="mobCol('left')" title="Clips vidéo">Clips</button>
     <div class="crumb"><input class="title" id="editTitle" value="Sans titre"></div>
-    <div class="savestate ok" id="saveState">Enregistré</div>
+    <div class="savestate ok" id="saveState" data-testid="save-state" role="status">Enregistré</div>
+    <button class="small" id="restoreRetry" data-testid="restore-retry-button" aria-label="Réessayer la récupération" title="Réessayer la récupération" style="display:none;white-space:normal" onclick="recoverMedia(true)">Réessayer la récupération</button>
     <div style="flex:1"></div>
     <button class="small" id="editThemeBtn" onclick="swapTheme()" title="Changer de thème"></button>
     <button class="small ghost" id="undoBtn" onclick="undo()" disabled title="Annuler (Ctrl+Z)">↶ Annuler</button>
@@ -1317,6 +1318,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <script src="/tap-audio.js"></script>
 <script src="/media-upload.js"></script>
 <script src="/preview-readiness.js"></script>
+<script src="/project-restore.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -1606,7 +1608,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.27-upload-recovery';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.28-safe-restore';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -1654,11 +1656,12 @@ async function ensureClipProxy(clip,retry=false){
           if(!clip.seeks||!clip.seeks.length){
             const D=wc.durationS||6, nn=Math.min(8,Math.max(2,Math.floor(D/2)));
             clip.seeks=Array.from({length:nn},(_,i)=>(i+0.15)*(D/nn));
-            autoAssign();
+            if(!Number.isInteger(clip._restoreKey))autoAssign();
           }
           if(!clip.thumbs||!clip.thumbs.length) makeThumbs(clip,()=>{renderClips();drawTimeline();});
           toast('Clip optimisé pour la lecture ✓');
         }
+        clip._missing=false;refreshRestoreState();
         TEL.push('proxy_ok',{n:clip.name});
         // toutes les vignettes manquantes sont régénérées depuis le proxy (fiable et léger)
         const missT=(clip.seeks||[]).map((s,k)=>(s!=null&&!clip.thumbs[k])?k:-1).filter(k=>k>=0);
@@ -1709,6 +1712,27 @@ function clipsExportBlocking(){
   return [...used].some(i=>{ const c=clips[i]; return c && !c._wcReady && (c._optimizing || !c._wcFail); });
 }
 let restoreIncomplete=false;   // chargement partiel → sauvegarde DÉSACTIVÉE (anti-écrasement de projet)
+const PROJECT_RESTORE=window.createProjectRestoreTracker();
+function refreshRestoreState(queue=true){
+  const state=PROJECT_RESTORE.status(M,clips,buffer);
+  if(!state)return restoreIncomplete;
+  const was=restoreIncomplete;restoreIncomplete=state.blocked;
+  const retry=$('#restoreRetry');
+  if(retry){retry.style.display=state.blocked&&!state.loading?'inline-flex':'none';retry.disabled=!!M._recovering;}
+  if(state.blocked){
+    const count=state.missing.length;
+    setSaveState(state.loading?'Chargement du projet…':state.stateUnavailable?'Projet non chargé — réessaie la récupération':'Sauvegarde suspendue — '+(state.audio?'audio à récupérer':count+' vidéo'+(count>1?'s':'')+' à récupérer'),false);
+  }else if(was){
+    const modal=document.getElementById('missPop');if(modal)modal.remove();
+    setSaveState('Enregistrement…',false);
+    if(queue)persist();
+  }
+  return restoreIncomplete;
+}
+function missingClip(ref,key){
+  return {mediaId:ref.mediaId||null,pexelsUrl:ref.pexelsUrl||null,name:ref.name||'Vidéo',crop:ref.crop||null,
+    url:null,el:null,els:[],thumbs:[],seeks:[],_missing:true,_wcReady:false,_wcFail:true,_restoreKey:key};
+}
 /* Barre de progression des actions IA (haut de page) */
 const aiBar={
   _t:null,_pct:0,
@@ -2028,15 +2052,18 @@ function saveFailTel(reason,status,detail){
 }
 function canPersist(){
   if(!API.user||!M) return false;
-  if(M._remote && !M._loaded) return false;   // projet distant pas encore chargé : un état vide ne doit JAMAIS partir
-  if(restoreIncomplete){ setSaveState('Sauvegarde désactivée (chargement incomplet)',false); return false; }
+  if(M._remote && !M._loaded){refreshRestoreState(false);return false;}   // aucun état vide avant le chargement complet
+  if(refreshRestoreState(false)){
+    if(!PROJECT_RESTORE.get(M))setSaveState('Sauvegarde désactivée (chargement incomplet)',false);
+    return false;
+  }
   return true;
 }
 async function persistRemote(){
   if(!canPersist()) return;
   if(saveInflight){ saveAgain=true; return; }
   saveInflight=true; saveAgain=false;
-  const stateDoc=buildStateDoc();
+  const stateDoc=JSON.parse(JSON.stringify(buildStateDoc()));
   const seq=++saveSeq;
   const payload={title:M.title||'Sans titre', state:stateDoc, client_id:SAVE_CLIENT, seq};
   if(M._remote) payload.project_id=M.id;
@@ -2057,9 +2084,13 @@ async function persistRemote(){
       const d=await r.json();
       if(!savedFor._remote){ const localId=savedFor.id; savedFor.id=d.project_id; savedFor._remote=true; savedFor._loaded=true; DRAFT.del(localId); if(M===savedFor&&location.hash.startsWith('#/edit/')) history.replaceState(null,'','#/edit/'+savedFor.id); }
       savedFor.updated_at=d.updated_at||savedFor.updated_at;
-      saveFails=0; saveNeeded=false; hideSaveBlock();
       DRAFT.put(savedFor.id,{state:stateDoc,title:payload.title,savedAt:Date.now(),remote:true,synced:true});
-      setSaveState(d.stale?'Enregistré':'Enregistré',true);
+      if(M===savedFor&&seq===saveSeq&&!refreshRestoreState(false)){
+        saveFails=0;saveNeeded=saveAgain||!!persistTimer;hideSaveBlock();
+        setSaveState(saveNeeded?'Enregistrement…':'Enregistré',!saveNeeded);
+      }
+    }else if(M!==savedFor){
+      return;   // une ancienne requête ne doit pas modifier l'état du nouveau projet
     }else if(r.status===401){
       saveNeeded=true; setSaveState('NON sauvegardé — session expirée',false);
       saveFailTel('auth_401',401,''); showSaveBlock('auth');
@@ -2069,13 +2100,13 @@ async function persistRemote(){
       saveFailTel('project_quota',429,j.detail); showSaveBlock('quota',j.detail);
     }else if(r.status===409){
       // état vide refusé par le serveur (course à l'ouverture) : on ne réessaie pas, le montage serveur est intact
-      saveFailTel('empty_overwrite',409,''); setSaveState('Enregistré',true);
+      saveFailTel('empty_overwrite',409,'');setSaveState('Sauvegarde refusée — version serveur protégée',false);
     }else{
       const j=await r.json().catch(()=>({}));
       scheduleSaveRetry('server_'+r.status, r.status, j.detail);
     }
   }catch(e){
-    scheduleSaveRetry('network',0,(e&&e.message)||'');
+    if(M===savedFor)scheduleSaveRetry('network',0,(e&&e.message)||'');
   }finally{
     saveInflight=false;
     if(saveAgain) persistRemote();
@@ -2089,10 +2120,10 @@ function scheduleSaveRetry(reason,status,detail){
   if(saveFails>=3) showSaveBlock(reason==='network'?'offline':'server', detail);
   clearTimeout(saveRetryTimer); saveRetryTimer=setTimeout(persistRemote, wait);
 }
-function persist(){ store.saveStyles(DB.styles); saveNeeded=true; clearTimeout(persistTimer); persistTimer=setTimeout(persistRemote, 800); }
+function persist(){ store.saveStyles(DB.styles); saveNeeded=true; clearTimeout(persistTimer); persistTimer=setTimeout(()=>{persistTimer=null;persistRemote();},800); }
 let _cutTimer=null;
 function scheduleCutCache(){ clearTimeout(_cutTimer); _cutTimer=setTimeout(()=>{ if(!playing&&!exporting&&typeof cutCacheBuild==='function') cutCacheBuild(); },1200); }
-function dirty(){ setSaveState('Enregistrement…',false); persist(); scheduleCutCache(); }
+function dirty(){ if(!refreshRestoreState(false))setSaveState('Enregistrement…',false);persist();scheduleCutCache(); }
 /* Fermeture / mise en arrière-plan : on envoie tout de suite ce qui attend (keepalive survit à l'onglet) */
 function flushSaveNow(){
   if(!saveNeeded && !persistTimer) return;
@@ -2105,7 +2136,8 @@ function flushSaveNow(){
   DRAFT.put(M.id,{state:stateDoc,title:payload.title,savedAt:Date.now(),remote:!!M._remote});
   const body=JSON.stringify(payload);
   if(body.length>60000){ persistRemote(); return; }   // keepalive limité à 64 Ko : on passe par la voie normale
-  try{ fetch('/api/projects',{method:'POST',credentials:'include',keepalive:true,headers:{'Content-Type':'application/json'},body}).then(r=>{ if(r.ok){ saveNeeded=false; setSaveState('Enregistré',true); } }).catch(()=>{}); }catch(e){}
+  const savedFor=M;
+  try{ fetch('/api/projects',{method:'POST',credentials:'include',keepalive:true,headers:{'Content-Type':'application/json'},body}).then(r=>{ if(r.ok&&M===savedFor&&seq===saveSeq&&!refreshRestoreState(false)){saveNeeded=!!persistTimer;setSaveState(saveNeeded?'Enregistrement…':'Enregistré',!saveNeeded);} }).catch(()=>{}); }catch(e){}
 }
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushSaveNow(); });
 window.addEventListener('pagehide',flushSaveNow);
@@ -2351,6 +2383,9 @@ let loadedFor=null;
 function resetAudioState(){
   cutCacheClear();
   stopAll();
+  clips.forEach(c=>{c._removed=true;});
+  restoreIncomplete=false;
+  if($('#restoreRetry'))$('#restoreRetry').style.display='none';
   buffer=null; env=[]; beats=[]; bpm=0; ext={start:0,dur:30};
   clips.length=0; $('#clipGrid').innerHTML=''; loopBars=0;
   selWord=-1; hist.length=0; updateUndoBtn();
@@ -2383,9 +2418,18 @@ function openEditor(id){
 async function fetchRemoteMorceau(m){
   // Verrou posé AVANT la requête : aucune sauvegarde (même différée) ne peut partir avec un état vide
   restoreIncomplete=true;
-  const r=await fetch('/api/projects/'+m.id,{credentials:'include'});
-  if(!r.ok) throw new Error('morceau introuvable');
-  const doc=await r.json();
+  const recovery=PROJECT_RESTORE.begin(m), current=()=>M===m&&PROJECT_RESTORE.get(m)===recovery;
+  let doc;
+  try{
+    const r=await API._fetchT('/api/projects/'+m.id,{credentials:'include'},20000);
+    if(!r.ok)throw new Error('Chargement du projet impossible');
+    doc=await r.json();
+    if(!doc.state||typeof doc.state!=='object'||Array.isArray(doc.state))throw new Error('Données du projet incomplètes');
+    for(const key of ['words','cuts','plans','clipRefs','clips']){
+      if(doc.state[key]!=null&&!Array.isArray(doc.state[key]))throw new Error('Données du projet invalides');
+    }
+  }catch(e){recovery.loading=false;if(current())refreshRestoreState(false);throw e;}
+  if(!current())return false;
   let st=doc.state||{};
   // Brouillon local (IndexedDB) : si ce navigateur a une version plus récente ET plus complète que le serveur
   // (sauvegarde serveur échouée à la dernière session), on la reprend et on la renvoie au serveur.
@@ -2398,6 +2442,7 @@ async function fetchRemoteMorceau(m){
       TEL.push('draft_recovered',{local:cnt(dr.state),server:cnt(doc.state||{})});
     }
   }catch(e){}
+  if(!current())return false;
   Object.assign(m,{
     title:(m._draftRecovered&&st.title)||doc.title, videos:st.videos||0, bpm:st.bpm||0, format:st.format||'916',
     fx:st.fx||null, style:st.style||null,
@@ -2408,12 +2453,14 @@ async function fetchRemoteMorceau(m){
     updated_at:doc.updated_at,
     _loaded:true,
   });
+  PROJECT_RESTORE.prepare(m,recovery,st);
+  clips=recovery.slots.map(slot=>missingClip(slot.ref,slot.key));
+  renderClips();
   if(st.ext) ext={...st.ext};
   if(st.beatAnchor!=null) beatAnchor=st.beatAnchor;
   // Verrou de chargement : audio + clips ENTIÈREMENT téléchargés avant lecture.
   // ACTIF pendant toute la restauration : sinon chaque addClip déclenche une sauvegarde
   // PARTIELLE qui écrase le bon état (le vrai part dans l'historique Versions → bug signalé).
-  let restoreFails=0, missingRefs=0;
   const total=(m.audioMediaId?1:0)+((m.clipRefs||[]).length);
   let step=0;
   const prog=f=>showLoad('Chargement de ton morceau…',total?(step+f)/total:1,total?Math.min(step+1,total)+' / '+total+' fichiers':'');
@@ -2422,49 +2469,47 @@ async function fetchRemoteMorceau(m){
     try{
       prog(0);
       const f=await API.fetchMedia(m.audioMediaId, m.audioName||'audio.mp3', prog);
-      await loadAudio(f,{restore:true});
-    }catch(e){ restoreFails++; toast('Audio introuvable — re-dépose ton morceau'); }
+      if(!current())return false;
+      await loadAudio(f,{restore:true,recovery});
+    }catch(e){if(current())recovery.audioError=e.message||'Audio indisponible';}
     step++;
   }
-  // Clips (perso GridFS + Pexels par URL) — les plans référencent les clips par INDEX :
-  // un clip manquant ne doit pas décaler les suivants → table de correspondance ancien→nouvel index
-  const idxMap=[];
-  for(const c of m.clipRefs||[]){
-    let newIdx=null;
+  // Un emplacement stable par référence, même si le téléchargement échoue.
+  // Aucune réécriture des plans ni renumérotation lors d'un chargement partiel.
+  for(const slot of recovery.slots){
+    if(!current())return false;
+    const c=slot.ref;
     try{
       prog(0);
-      if(c.mediaId){ addClip(await API.fetchMedia(c.mediaId,c.name,prog),{mediaId:c.mediaId,skipUpload:true,crop:c.crop||null}); newIdx=clips.length-1; }
+      let file;
+      if(c.mediaId)file=await API.fetchMedia(c.mediaId,c.name,prog);
       else if(c.pexelsUrl){
-        const rr=await fetch(c.pexelsUrl);
-        if(rr.ok){ addClip(new File([await rr.blob()],c.name||'clip.mp4',{type:'video/mp4'}),{pexelsUrl:c.pexelsUrl,skipUpload:true,crop:c.crop||null}); newIdx=clips.length-1; }
-        else restoreFails++;
+        const rr=await API._fetchT(c.pexelsUrl,{},30000);
+        if(!rr.ok)throw new Error('Vidéo indisponible');
+        file=new File([await rr.blob()],c.name||'clip.mp4',{type:'video/mp4'});
       }
-      else missingRefs++;   // upload jamais terminé lors de la session précédente
-    }catch(e){ restoreFails++; }
-    idxMap.push(newIdx);
+      if(!current())return false;
+      if(file)addClip(file,{...c,restoreSlot:slot.key,restoring:true,skipUpload:true});
+    }catch(e){if(current()&&clips[slot.key])clips[slot.key]._restoreError=e.message;}
     step++;
   }
-  if(idxMap.some(x=>x===null)){
-    (m.plans||[]).forEach(p=>{ if(p.clip!=null){ const ni=idxMap[p.clip]; p.clip=(ni==null)?null:ni; } });
-  }
-  if(restoreFails===0){ restoreIncomplete=false; }
-  else{
-    TEL.push('restore_incomplete',{fails:restoreFails,total});
-    toast('Certains fichiers n\u2019ont pas pu être rechargés — la sauvegarde est suspendue pour protéger ton morceau. Recharge la page pour réessayer.');
-  }
-  if(missingRefs>0 || restoreFails>0) showMissingClips(missingRefs+restoreFails);
-  if(m._draftRecovered){ m._draftRecovered=false; toast('✓ Montage récupéré depuis ce navigateur — re-sauvegardé en ligne'); if(!restoreIncomplete) dirty(); }
+  if(!current())return false;
+  recovery.loading=false;refreshRestoreState();renderClips();
+  const status=PROJECT_RESTORE.status(m,clips,buffer);
+  if(status.blocked){TEL.push('restore_incomplete',{fails:status.missing.length+(status.audio?1:0),total});showMissingClips(status.missing.length+(status.audio?1:0));}
+  if(m._draftRecovered){m._draftRecovered=false;toast('Montage récupéré depuis ce navigateur');if(!restoreIncomplete)dirty();}
+  return true;
 }
 /* Vidéos manquantes au rechargement : mise en avant de « Récupérer mes vidéos » */
 function showMissingClips(n){
   const old=document.getElementById('missPop'); if(old) old.remove();
   const d=document.createElement('div'); d.id='missPop'; d.setAttribute('data-testid','missing-clips-modal');
   d.style.cssText='position:fixed;inset:0;z-index:9980;background:rgba(8,8,12,.85);display:grid;place-items:center;padding:20px';
-  d.innerHTML='<div class="bk-box" style="max-width:420px;text-align:center"><div class="onb-eyebrow">'+n+' vidéo'+(n>1?'s':'')+' manquante'+(n>1?'s':'')+'</div>'+
-    '<div class="bk-title">Certaines vidéos n\u2019ont pas pu être rechargées</div>'+
-    '<div class="bk-sub">Elles n\u2019avaient probablement pas fini d\u2019être envoyées. Si elles sont arrivées sur le serveur, tu peux les récupérer en un clic.</div>'+
-    '<button class="onb-cta" style="width:100%;margin-top:14px" data-testid="missing-clips-recover" onclick="document.getElementById(\'missPop\').remove();recoverMedia()">Récupérer mes vidéos déjà envoyées</button>'+
-    '<div><button class="onb-skip" style="margin-top:12px" data-testid="missing-clips-skip" onclick="document.getElementById(\'missPop\').remove()">Continuer sans</button></div></div>';
+  d.innerHTML='<div class="bk-box" style="max-width:420px;text-align:center"><div class="onb-eyebrow" data-testid="missing-media-count">'+n+' fichier'+(n>1?'s':'')+' à récupérer</div>'+
+    '<div class="bk-title" data-testid="missing-media-title">Récupération du projet incomplète</div>'+
+    '<div class="bk-sub" data-testid="missing-media-explanation">Les plans et les paroles sont conservés. La sauvegarde reprendra une fois les fichiers récupérés.</div>'+
+    '<button class="onb-cta" style="width:100%;margin-top:14px;white-space:normal" data-testid="missing-clips-recover" onclick="document.getElementById(\'missPop\').remove();recoverMedia(true)">Réessayer la récupération</button>'+
+    '<div><button class="onb-skip" style="margin-top:12px" data-testid="missing-clips-skip" onclick="document.getElementById(\'missPop\').remove()">Fermer</button></div></div>';
   d.onclick=e=>{ if(e.target===d) d.remove(); };
   document.body.append(d);
 }
@@ -2474,12 +2519,14 @@ async function loadRemoteMorceau(m){
   toast('Ouverture du morceau…');
   try{
     await fetchRemoteMorceau(m);
+    if(M!==m)return;
     openEditor(m.id);
-    if(m.audioMediaId) toast('✓ Morceau restauré — tout est là.');
+    if(!restoreIncomplete)toast('✓ Morceau restauré — sauvegarde active.');
   }catch(e){
+    if(M!==m)return;
     toast('Ouverture impossible : '+e.message);
     go('morceaux');
-  }finally{ m._loading=false; hideLoad(); }
+  }finally{ m._loading=false;if(M===m)hideLoad(); }
 }
 
 /* ---------- Audio ---------- */
@@ -2490,10 +2537,16 @@ aDrop.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) loadAudio(e.dataT
 aInput.onchange=()=>{ if(aInput.files[0]) loadAudio(aInput.files[0]); };
 
 async function loadAudio(file, opts={}){
+  const owner=M, recovery=PROJECT_RESTORE.get(owner);
+  if(!owner)return false;
+  const recovering=!!(recovery&&PROJECT_RESTORE.status(owner,clips,buffer)?.audio);
+  const preserve=opts.restore||recovering;
   toast('Analyse du morceau…');
   audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
-  buffer=await audioCtx.decodeAudioData(await file.arrayBuffer());
-  if(opts.restore){
+  const decoded=await audioCtx.decodeAudioData(await file.arrayBuffer());
+  if(M!==owner||(opts.recovery&&PROJECT_RESTORE.get(owner)!==opts.recovery))return false;
+  buffer=decoded;
+  if(preserve){
     // Restauration : on garde extrait/tempo/plans sauvegardés
     computeEnv();
     if(M.bpm){ bpm=M.bpm; rebuildBeats(); } else detectBpmAndDrop();
@@ -2505,21 +2558,30 @@ async function loadAudio(file, opts={}){
     setTimeout(maybePcHint,800);
     ext.dur=Math.min(30,buffer.duration);
     findDrop();
-    // Stockage serveur (cross-device) : upload en tâche de fond
-    M.audioMediaId=null; M.audioName=file.name;
-    M._uploadingAudio=true;
-    API.uploadMedia(file).then(id=>{ M.audioMediaId=id; M._uploadingAudio=false; dirty(); })
-      .catch(e=>{ M._uploadingAudio=false; toast('Morceau non sauvegardé en ligne : '+e.message); });
   }
+  if(!opts.restore){
+    owner.audioMediaId=null;owner.audioName=file.name;owner._uploadingAudio=true;owner._audioSourceFile=file;
+    if(recovery)recovery.audioPendingUpload=true;
+    API.uploadMedia(file).then(id=>{
+      owner.audioMediaId=id;owner._uploadingAudio=false;
+      if(recovery)recovery.audioPendingUpload=false;
+      if(M===owner){refreshRestoreState();dirty();}
+    }).catch(e=>{
+      owner._uploadingAudio=false;
+      if(recovery)recovery.audioError=e.message;
+      if(M===owner){refreshRestoreState();toast('Morceau non sauvegardé en ligne : '+e.message);}
+    });
+  }else if(recovery){recovery.audioError=null;recovery.audioPendingUpload=false;}
   $('#audioDrop').style.display='none'; $('#preview').style.display='block';
   $('#extractZone').classList.add('show');
   updateExtLabel(); fitSoon();
   if(M.format){ const bb=document.querySelector('#fmtSeg button[data-f="'+M.format+'"]'); if(bb) bb.click(); }
   fitPreview();
-  if(opts.restore && M.plans && M.plans.length){ drawAll(); }
+  if(preserve && M.plans && M.plans.length){ drawAll(); }
   else { buildPlans(); drawAll(); }
   dirty();
-  toast('Tempo : '+Math.round(bpm)+' BPM — plans calés sur le beat ✓');
+  toast(preserve?'Audio récupéré — calage du montage conservé':'Tempo : '+Math.round(bpm)+' BPM — plans calés sur le beat ✓');
+  return true;
 }
 
 /* enveloppe d'énergie (~43 im/s) */
@@ -2864,6 +2926,17 @@ cDrop.addEventListener('drop',e=>{ [...e.dataTransfer.files].filter(f=>f.type.st
   if(ev==='drop') [...e.dataTransfer.files].filter(f=>f.type.startsWith('video')).forEach(addClip);
 }));
 function addClip(file, meta={}){
+  if(!meta||typeof meta!=='object')meta={};
+  const owner=M;
+  let slot=Number.isInteger(meta.restoreSlot)?meta.restoreSlot:-1;
+  if(slot<0){
+    const matches=clips.map((c,i)=>({c,i})).filter(({c})=>c._missing&&(
+      (meta.mediaId&&c.mediaId===meta.mediaId)||(meta.pexelsUrl&&c.pexelsUrl===meta.pexelsUrl)
+      ||(!meta.mediaId&&!meta.pexelsUrl&&c.name===file.name)));
+    if(matches.length===1)slot=matches[0].i;
+  }
+  const previous=slot>=0?clips[slot]:null;
+  if(previous)previous._removed=true;
   // Firefox exige un type MIME sur les blobs vidéo (Chrome sniffe le contenu) :
   // fichier sans type (Windows, .mkv, environnements stricts) → on le déduit de l'extension
   let srcBlob=file;
@@ -2873,14 +2946,19 @@ function addClip(file, meta={}){
     try{ srcBlob=new Blob([file],{type:mm[ext]||'video/mp4'}); }catch(e){}
   }
   const url=URL.createObjectURL(srcBlob);
-  const clip={url,el:null,els:[],thumbs:[],seeks:[],name:file.name,mediaId:meta.mediaId||null,pexelsUrl:meta.pexelsUrl||null,crop:meta.crop||null,_sourceFile:file};
-  clips.push(clip);
+  const clip={url,el:null,els:[],thumbs:[],seeks:[],name:meta.name||file.name,mediaId:meta.mediaId||null,pexelsUrl:meta.pexelsUrl||null,crop:meta.crop||previous?.crop||null,_sourceFile:file,
+    ...(previous?{_restoreKey:previous._restoreKey,_restoreUploadRequired:!meta.mediaId&&!meta.pexelsUrl}:{})};
+  if(previous)clips[slot]=clip;else clips.push(clip);
   const onMeta=D=>{
+    if(M!==owner||clip._removed||!clips.includes(clip))return;
     const auto=Math.min(8, Math.max(2, Math.floor(D/2)));   // auto : jusqu'à 8 plans (~2 s chacun)
     const want=(clipPlanCount!=='auto')? Math.min(24,+clipPlanCount) : auto;
     const n=Math.max(1, Math.min(want, Math.max(1, Math.floor(D/0.6))));  // jamais plus que la durée ne permet (~0,6 s mini par plan)
     clip.seeks=Array.from({length:n},(_,i)=> (i+0.15)*(D/n));
-    makeThumbs(clip, ()=>{ autoAssign(); renderClips(); drawTimeline(); });
+    makeThumbs(clip, ()=>{
+      if(M!==owner||clip._removed||!clips.includes(clip))return;
+      if(!meta.restoring&&!previous)autoAssign();renderClips();drawTimeline();
+    });
     if(!meta.skipUpload){ toast(file.name.slice(0,24)+' → '+n+' plans proposés, placés sur le beat '); setTimeout(maybePcHint,800); }
     renderClips();
   };
@@ -2899,6 +2977,7 @@ function addClip(file, meta={}){
   clip._wcParse=parseClipWC(clip, file)
     .then(()=>{ onMeta(clip.wc.durationS||6); })
     .catch(e=>{
+      if(M!==owner||clip._removed||!clips.includes(clip))return;
       // codec indécodable ici (ex. HEVC iPhone) → vignettes/métadonnées via <video> en attendant la version optimisée serveur
       clip._wcFail=true;
       if(!clip._wcWarned){ clip._wcWarned=true; console.warn('[wc]', clip.name, e&&e.message); }
@@ -2911,7 +2990,9 @@ function addClip(file, meta={}){
   if(clip.pexelsUrl && !clip.mediaId) startPexelsImport(clip);
   else if(!meta.skipUpload && !clip.pexelsUrl) startClipUpload(clip, file);
   if(clip.mediaId){ ensureClipProxy(clip); serverThumbs(clip); }
+  refreshRestoreState();
   if(!meta.skipUpload) dirty();
+  return clip;
 }
 const MAX_UPLOAD_MO=300;
 function startClipUpload(clip, file){
@@ -2976,6 +3057,7 @@ async function retryClipUpload(ci){
 function startPexelsImport(clip){
   clip._optimizing=true; renderClips();
   API.importMedia(clip.pexelsUrl, clip.name||'pexels.mp4').then(id=>{
+    if(clip._removed||!clips.includes(clip))return;
     clip.mediaId=id; clip._optimizing=false; renderClips(); dirty(); ensureClipProxy(clip); serverThumbs(clip);
   }).catch(e=>{
     clip._optimizing=false; clip._saveFailed=(e&&e.message)||'import impossible'; renderClips();
@@ -2985,29 +3067,92 @@ function startPexelsImport(clip){
 window.addEventListener('beforeunload',e=>{
   if(clips.some(c=>c._optimizing)||(M&&M._uploadingAudio)){ e.preventDefault(); e.returnValue=''; }
 });
-/* Récupération : ré-ajoute à la banque toutes les vidéos déjà envoyées au serveur (projet abîmé) */
-async function recoverMedia(){
+async function retryMissingClip(index,refOverride){
+  const owner=M, state=PROJECT_RESTORE.get(owner), clip=clips[index];
+  if(!clip||!clip._missing||clip._restoring)return false;
+  const ref=refOverride||clip;
+  if(!ref.mediaId&&!ref.pexelsUrl)return false;
+  clip._restoring=true;renderClips();
+  const current=()=>M===owner&&PROJECT_RESTORE.get(owner)===state&&clips[index]===clip;
   try{
-    const r=await fetch('/api/media/mine',{credentials:'include'});
+    let file;
+    if(ref.mediaId)file=await API.fetchMedia(ref.mediaId,clip.name);
+    else{
+      const r=await API._fetchT(ref.pexelsUrl,{},30000);if(!r.ok)throw new Error('Téléchargement impossible');
+      file=new File([await r.blob()],clip.name,{type:'video/mp4'});
+    }
+    if(!current())return false;
+    addClip(file,{mediaId:ref.mediaId,pexelsUrl:ref.pexelsUrl,name:clip.name,crop:clip.crop,restoreSlot:index,restoring:true,skipUpload:true});
+    return true;
+  }catch(e){if(current())clip._restoreError=e.message;return false;}
+  finally{clip._restoring=false;if(M===owner){renderClips();refreshRestoreState();}}
+}
+function selectMissingClip(index){
+  const owner=M,clip=clips[index], input=document.createElement('input');
+  input.type='file';input.accept='video/*';input.setAttribute('data-testid','restore-file-input-'+index);
+  input.style.display='none';document.body.append(input);
+  input.onchange=()=>{
+    if(input.files[0]&&M===owner&&clips[index]===clip)addClip(input.files[0],{restoreSlot:index,restoring:true,crop:clip.crop});
+    input.remove();
+  };
+  input.oncancel=()=>input.remove();input.click();
+}
+/* Reprise ciblée : on remplit les emplacements attendus, jamais une banque arbitraire. */
+async function recoverMedia(scopeOnly=false){
+  const owner=M, recovery=PROJECT_RESTORE.get(owner);
+  if(!owner||owner._recovering)return;
+  const before=PROJECT_RESTORE.status(owner,clips,buffer);
+  if(before?.loading){toast('Le chargement est encore en cours');return;}
+  if(before?.stateUnavailable){await loadRemoteMorceau(owner);return;}
+  if(scopeOnly&&before&&!before.blocked){refreshRestoreState();toast('Projet complet — sauvegarde active');return;}
+  owner._recovering=true;refreshRestoreState(false);
+  const current=()=>M===owner&&PROJECT_RESTORE.get(owner)===recovery;
+  try{
+    if(before?.audio&&owner.audioMediaId){
+      try{
+        const file=await API.fetchMedia(owner.audioMediaId,owner.audioName||'audio.mp3');
+        if(!current())return;
+        await loadAudio(file,{restore:true,recovery});
+      }catch(e){if(current()&&recovery)recovery.audioError=e.message;}
+    }
+    else if(before?.audio&&owner._audioSourceFile&&!owner._uploadingAudio){await loadAudio(owner._audioSourceFile);}
+    let done=0;
+    if(before?.blocked){
+      for(const item of PROJECT_RESTORE.status(owner,clips,buffer).missing){
+        if(!current())return;
+        if(item.clip?._missing){if(await retryMissingClip(item.index))done++;}
+        else if(item.clip&&!item.clip.mediaId&&!item.clip._optimizing)retryClipUpload(item.index);
+      }
+    }
+    if(!current())return;
+    const r=await API._fetchT('/api/media/mine',{credentials:'include'},20000);
     if(!r.ok) throw new Error();
     const {media}=await r.json();
+    if(!current())return;
     const have=new Set(clips.map(c=>c.mediaId).filter(Boolean));
-    const vids=media.filter(m=>(m.content_type||'').startsWith('video/')&&!have.has(m.media_id));
-    if(!vids.length){ toast('Aucune vidéo à récupérer — tout est déjà dans la banque'); return; }
-    toast('Récupération de '+vids.length+' vidéo(s)…');
-    let done=0;
-    for(const m of vids){
-      try{
-        showLoad('Récupération de tes vidéos…', done/vids.length, (done+1)+' / '+vids.length);
-        addClip(await API.fetchMedia(m.media_id, m.filename||'video.mp4'),{mediaId:m.media_id,skipUpload:true});
-        done++;
-      }catch(e){}
+    const vids=(media||[]).filter(m=>(m.content_type||'').startsWith('video/'));
+    if(before?.blocked){
+      for(const item of PROJECT_RESTORE.status(owner,clips,buffer).missing){
+        if(!current())return;
+        if(!item.clip?._missing)continue;
+        const candidates=vids.filter(v=>v.filename===item.ref.name&&v.media_id!==item.clip.mediaId);
+        const sameName=PROJECT_RESTORE.status(owner,clips,buffer).missing.filter(x=>x.ref.name===item.ref.name);
+        if(candidates.length===1&&sameName.length===1&&await retryMissingClip(item.index,{mediaId:candidates[0].media_id}))done++;
+      }
+    }else{
+      for(const video of vids.filter(v=>!have.has(v.media_id))){
+        try{
+          const file=await API.fetchMedia(video.media_id,video.filename||'video.mp4');
+          if(!current())return;
+          addClip(file,{mediaId:video.media_id,skipUpload:true,restoring:true});done++;
+        }catch(e){}
+      }
     }
-    hideLoad();
-    restoreIncomplete=false;   // la banque est reconstruite → la sauvegarde peut reprendre
-    dirty();
-    toast('✓ '+done+' vidéo(s) récupérée(s) — repositionne-les sur tes plans si besoin');
-  }catch(e){ hideLoad(); toast('Récupération impossible — réessaie'); }
+    if(!current())return;
+    if(!refreshRestoreState())dirty();
+    toast(restoreIncomplete?'Des fichiers restent à récupérer — leurs emplacements sont conservés':done?'Fichiers récupérés — sauvegarde reprise':'Projet complet — sauvegarde active');
+  }catch(e){if(current()){refreshRestoreState();toast('Récupération interrompue — les données du projet sont conservées');}}
+  finally{owner._recovering=false;if(M===owner){hideLoad();refreshRestoreState();}}
 }
 /* Historique des versions du morceau (sauvegardes automatiques serveur) */
 async function openBackups(){
@@ -3073,6 +3218,21 @@ function renderClips(){
   const root=$('#clipGrid'); root.innerHTML='';
   clips.forEach((clip,ci)=>{
     const box=document.createElement('div'); box.className='clip-box';
+    if(clip._missing){
+      box.setAttribute('data-testid','missing-clip-'+ci);box.style.padding='12px';
+      const title=document.createElement('strong');title.textContent=clip.name;title.style.overflowWrap='anywhere';title.setAttribute('data-testid','missing-clip-name-'+ci);
+      const info=document.createElement('p');info.className='hint';info.setAttribute('data-testid','missing-clip-status-'+ci);
+      info.textContent=clip._restoring?'Récupération en cours…':clip._restoreError||'Fichier à récupérer — emplacement du montage conservé';
+      box.append(title,info);
+      const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
+      const retry=document.createElement('button');retry.className='small';retry.textContent='Réessayer';retry.disabled=!!clip._restoring;
+      retry.setAttribute('data-testid','missing-clip-retry-'+ci);retry.onclick=()=>clip.mediaId||clip.pexelsUrl?retryMissingClip(ci):recoverMedia(true);
+      const file=document.createElement('button');file.className='small';file.textContent='Re-déposer cette vidéo';file.disabled=!!clip._restoring;
+      file.setAttribute('data-testid','missing-clip-replace-'+ci);file.onclick=()=>selectMissingClip(ci);
+      const remove=document.createElement('button');remove.className='small';remove.textContent='Supprimer';remove.setAttribute('data-testid','missing-clip-remove-'+ci);remove.onclick=()=>removeClip(ci);
+      [retry,file,remove].forEach(b=>{b.style.whiteSpace='normal';b.style.minHeight='44px';});
+      actions.append(retry,file,remove);box.append(actions);root.append(box);return;
+    }
     const head=document.createElement('div'); head.className='clip-head';
     const nm=document.createElement('span'); nm.className='nm'; nm.textContent=clip.name||('vidéo '+(ci+1));
     const add=document.createElement('button'); add.textContent='＋ plan'; add.title='Choisir un moment dans la vidéo';
@@ -3158,6 +3318,9 @@ function renderClips(){
   });
 }
 function removeClip(ci){
+  const removed=clips[ci];
+  if(removed?._missing&&!confirm('Supprimer cette référence du montage ? Ses plans ne seront plus associés à cette vidéo.'))return;
+  if(removed&&Number.isInteger(removed._restoreKey))PROJECT_RESTORE.discard(M,removed._restoreKey);
   if(clips[ci])clips[ci]._removed=true;
   cutCacheClear();
   clips.splice(ci,1);
@@ -5863,6 +6026,7 @@ async function serieLoadMorceau(m){
     if(m._remote) m._loaded=false;   // les médias ont été purgés : re-télécharger l'état complet
   }
   if(m._remote && !m._loaded) await fetchRemoteMorceau(m);
+  if(M!==m)return;
   if(M.style){ if(M.style.caps!==undefined&&M.style.textCase===undefined){ M.style.textCase=M.style.caps?'up':'none'; delete M.style.caps; } style=Object.assign(style,M.style); }
   M.fx=M.fx||{flash:true,zoom:true};
 }

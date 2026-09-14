@@ -29,7 +29,14 @@ BeatCut transforme un morceau et des vidéos en montages synchronisés sur le be
 - `/api/telemetry/preview`, `/api/telemetry/export`, `/api/proxy/transcribe`.
 - Comptes de test et précautions Stripe LIVE : `/app/memory/test_credentials.md`. Ne jamais effectuer de paiement réel ni d'envoi collectif pendant les tests.
 
-## Dernière correction approuvée — 13 septembre 2026 — `v13.27-upload-recovery`
+## Correction en cours — 13 septembre 2026 — `v13.28-safe-restore`
+Utilisateur : « ça semble fonctionner, mais ce message reste tjrs affiché : SAUVEGARDE DÉSACTIVÉE (CHARGEMENT INCOMPLET) ». Correction approuvée, sans désactiver la protection contre les données manquantes.
+- Implémentation en cours de vérification : tracker de restauration par projet (`project-restore.js`), emplacements stables des vidéos manquantes, reprise ciblée et réimport dans le même emplacement, protection des plans/paroles et réactivation automatique quand audio/vidéos attendus sont effectivement récupérés.
+- `restoreIncomplete` n'est plus réinitialisé aveuglément après récupération de vidéos quelconques. Un échec de chargement JSON reste bloquant et réessayable ; un upload de remplacement doit être confirmé avant déblocage.
+- Source principale `/app/frontend/public/studio.html` : `fetchRemoteMorceau`, `loadRemoteMorceau`, `loadAudio`, `recoverMedia`, `retryMissingClip`, `addClip`, `canPersist`, `persistRemote`. Chargements/sauvegardes tardifs protégés par identité du projet.
+- Aucun changement d'API/authentification. Smoke et contrôles de syntaxe réussis ; tests de sauvegarde/réouverture réels à terminer avant conclusion.
+
+## Correctif précédent — 13 septembre 2026 — `v13.27-upload-recovery`
 Utilisateur : « lorsque je clique sur “Play” ou sur “Écouter l’extrait”, le message “Préparation de l’aperçu fluide pour cette vidéo longue…” apparaît, puis plus rien ne se passe. Cela fait maintenant plus de 30 minutes que j’essaie de lancer la vidéo sans succès. » Capture : « Non sauvegardée — réessayer ». Accord : « Oui corrige le traitement des vidéos longues stp ».
 
 ### Cause et changement de comportement
@@ -115,3 +122,9 @@ Plan approuvé (« bien ») : reproduire avec sources ≥2–3 minutes, corriger
 ## Documentation
 - Historique complet antérieur préservé dans `/app/memory/CHANGELOG.md` (ancien PRD >1000 lignes, contient des décisions historiques remplacées depuis).
 - Priorités actuelles : `/app/memory/ROADMAP.md` ; elles priment sur les anciens backlogs du changelog.
+## 2026-06 — Correctif layout timeline PC (scroll vertical parasite)
+- Cause : `tap-lyrics.css` définissait `.tl-body` (et autres `.tl-*`) sans scope ; la règle `width:min(100%,660px);margin:auto;padding:28px 24px` s'appliquait aussi au `.tl-body` de la timeline du studio → timeline réduite à 660 px, centrée, décalée vers le bas et débordant de la page.
+- Fix : toutes les règles de `tap-lyrics.css` sont maintenant préfixées `#tapLyricsOverlay` ; `grid-template-columns:minmax(0,1fr)` ajouté pour ne pas hériter du `64px 1fr` du studio.
+- Bonus : la ligne timeline desktop (`v3-skin.css`) passait de 185 px à 199 px = 40 (barre) + 26 (bande scrub) + 40 (paroles) + 92 (plans) + 1 (bordure) ; 14 px de débordement existaient depuis l'ajout de la bande de scrub.
+- Vérifié par captures : desktop 1920×800 → scrollHeight = innerHeight = 800, timeline pleine largeur ; mobile 390×844 → aucun scroll ; overlay Tap paroles rendu correctement.
+- Règle : ne jamais utiliser le préfixe `.tl-` hors de `#tapLyricsOverlay` (collision avec la timeline `.tl-*`).
