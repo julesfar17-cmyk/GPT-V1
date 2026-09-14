@@ -136,3 +136,10 @@ Plan approuvé (« bien ») : reproduire avec sources ≥2–3 minutes, corriger
 - Diagnostic : `decoder_ts_anomaly`, `decoder_latency_bump`, `preview_stall` enrichi (pending, si, target, buf0/bufN, curTs, ooo, mism, stuckN, pool, fps, err) ; jusqu'à 6 stalls par session ; clés ajoutées dans `_PREVIEW_EVENT_KEYS` côté serveur. Lire : `db.preview_logs` filtré sur `ctx.ua` Firefox/Windows.
 - Régression : `ff_freeze_probe.py` Chrome + Firefox (0 gel, 0 anomalie), fautes `order`/`shift`/`latency` (lecture continue), `test_preview_final_iter39.py` PASS (proxy réel 185 s, cuts rapides 0 manquante, export MP4 OK).
 - À faire : le user doit tester sur la PREVIEW avec Firefox Windows (télémétrie lisible ici), puis redéployer.
+
+## 2026-06 — Remplacer le clip = tous les plans + polish mobile (sans changer l'interface)
+- `psReplace()` (feuille « Ce plan », mobile) : affiche désormais TOUS les plans disponibles (une rangée horizontale par clip, vignette + durée « 2.3s », nom du clip si plusieurs clips, plan courant surligné et centré). Tap → `sheetPlan.clip/seek`, verrouillé. Testids `plan-replace-clip-{ci}-{si}`. i18n ajouté (hint, toast).
+- Header mobile : spacer masqué, gap 5 px, HOOK padding 12, export padding 11 → « EXPORTER LA VIDÉO » ne déborde plus à 390 px et le titre affiche « Recette 1… » (ellipsis) au lieu d'une lettre. Undo : glyphe 22 px centré, disabled opacity .35.
+- Feuille plan : hint `#psClips .hint` plus lisible (texte 80 %). Carte morceau mobile : `.v3-del` 32×32 rond (le `button{min-height:44px}` mobile l'étirait en rectangle), badge « prêt » réaligné. Glyphe « ↶ » du menu Plus agrandi.
+- Cache : `v3-skin.css?v=13.29`, `tap-lyrics.css?v=13.29` (l'ancien `?v=13.19` aurait gardé l'ancien CSS chez le user après déploiement).
+- Harnais : `frontend/tests/mobile_walk.py` (captures iPhone 390×844 FR de toutes les feuilles) ; vérifié desktop 1920 sans scroll.

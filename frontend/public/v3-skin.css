@@ -430,7 +430,11 @@ body.editing .v3-foot,body.mob-edit .v3-foot{display:none}
   .edit-top .logo,#editThemeBtn,#serieBtn{display:none}
   .edit-top input.title{width:100%!important;font-size:13px}
   .edit-top .halo{flex-shrink:0}
-  #exportBtn{padding:8px 13px!important;font-size:11px!important;letter-spacing:.02em}
+  #exportBtn{padding:8px 11px!important;font-size:11px!important;letter-spacing:.02em}
+  body.mob-edit .edit-top{gap:5px}
+  .v3-del{width:32px;height:32px;min-height:32px;font-size:12px;right:12px;top:10px}
+  .v3-thumb .st{right:52px;top:13px}
+  body.mob-edit .edit-top #hookBtn{padding:0 12px}
 }
 
 #fsBtn{display:inline-flex;align-items:center;gap:6px}

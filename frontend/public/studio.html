@@ -538,13 +538,16 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   body.mob-edit header{display:none}
   body.mob-edit #homeTabs{display:none!important}
   #pageEdit.show{grid-template-rows:50px minmax(0,1fr) 208px;height:100dvh;padding:0 0 calc(64px + env(safe-area-inset-bottom))}
-  .edit-top{flex-wrap:nowrap;overflow:visible;height:50px;min-height:50px;padding:0 8px;gap:6px}
+  .edit-top{flex-wrap:nowrap;overflow:visible;height:50px;min-height:50px;padding:0 8px;gap:5px}
+  .edit-top .spacer{display:none}
+  .edit-top #hookBtn{padding:0 12px;min-height:42px;flex-shrink:0;display:inline-flex;align-items:center}
   .edit-top .mob-tgl,.edit-top #backupsBtn,.edit-top .savestate{display:none}
   .edit-top #editBack{display:inline-flex;align-items:center;justify-content:center;min-width:42px;min-height:42px;padding:0;font-size:19px;flex-shrink:0;border-radius:12px}
   .edit-top .crumb{flex:1;min-width:0}
-  .edit-top input.title{width:100%;min-width:0;font-size:13.5px}
-  .edit-top #undoBtn{font-size:0;padding:0;min-width:42px;min-height:42px;flex-shrink:0}
-  .edit-top #undoBtn::before{content:'↶';font-size:18px}
+  .edit-top input.title{width:100%;min-width:0;font-size:13.5px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;padding-left:2px}
+  .edit-top #undoBtn{font-size:0;padding:0;min-width:42px;min-height:42px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:var(--text)}
+  .edit-top #undoBtn::before{content:'↶';font-size:22px;line-height:1;transform:translateY(-1px)}
+  .edit-top #undoBtn:disabled{opacity:.35}
   .edit-top #exportBtn{padding:9px 13px;font-size:13px;white-space:nowrap;flex-shrink:0;min-height:42px}
   .edit-main{display:block;position:relative;min-height:0}
   .stage{height:100%}
@@ -586,6 +589,7 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   .ps-actions button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;
     background:var(--panel-2);border:1px solid var(--line);border-radius:14px;font-size:13px;font-weight:600;color:var(--text)}
   .ps-actions button .ic{font-size:22px;line-height:1}
+  #psClips .hint{color:var(--text);opacity:.8;font-size:13px}
   /* --- panneaux coulissants depuis le bas (bottom sheets) --- */
   .edit-main>.col,#extractZone,#mobMore{
     position:fixed;left:0;right:0;top:auto;bottom:calc(64px + env(safe-area-inset-bottom));width:100%;
@@ -631,8 +635,8 @@ header{background:rgba(14,17,22,.85);backdrop-filter:blur(14px) saturate(1.3)}
   .hero{padding:22px 16px}
 }
 </style>
-<link rel="stylesheet" href="/v3-skin.css?v=13.19">
-<link rel="stylesheet" href="/tap-lyrics.css">
+<link rel="stylesheet" href="/v3-skin.css?v=13.29">
+<link rel="stylesheet" href="/tap-lyrics.css?v=13.29">
 <meta name="theme-color" id="metaTheme" content="#000000">
 <script>
 /* Thème V3 : partagé avec la landing via bc_theme */
@@ -742,7 +746,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <div class="crumb"><input class="title" id="editTitle" value="Sans titre"></div>
     <div class="savestate ok" id="saveState" data-testid="save-state" role="status">Enregistré</div>
     <button class="small" id="restoreRetry" data-testid="restore-retry-button" aria-label="Réessayer la récupération" title="Réessayer la récupération" style="display:none;white-space:normal" onclick="recoverMedia(true)">Réessayer la récupération</button>
-    <div style="flex:1"></div>
+    <div class="spacer" style="flex:1"></div>
     <button class="small" id="editThemeBtn" onclick="swapTheme()" title="Changer de thème"></button>
     <button class="small ghost" id="undoBtn" onclick="undo()" disabled title="Annuler (Ctrl+Z)">↶ Annuler</button>
     <button class="small" id="backupsBtn" onclick="openBackups()" data-testid="backups-button" title="Historique des versions du morceau">Versions</button>
@@ -1294,7 +1298,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <div id="mobMore" data-testid="mobile-more-sheet">
   <h4 style="margin-bottom:12px">Réglages</h4>
   <div style="display:flex;flex-direction:column;gap:10px">
-    <button class="small" onclick="undo()">↶ Annuler la dernière action</button>
+    <button class="small" onclick="undo()"><span style="font-size:17px;line-height:1;margin-right:6px;transform:translateY(1px);display:inline-block">↶</span>Annuler la dernière action</button>
     <button class="small" onclick="mobSheet('more');openBackups()">Versions du morceau</button>
     <button class="small" onclick="mobSheet('more');openTapCut()" data-testid="mob-tapcut-btn">Tap for cut — taper mes coupures</button>
     <button class="small" onclick="mobSheet('more');TapLyrics.open()" data-testid="mob-taplyrics-btn">Tap paroles — calage manuel</button>
@@ -1857,7 +1861,7 @@ const EN={
 "Récupérer mes vidéos déjà envoyées":"Get my uploaded videos","Partager":"Share","Vidéo hook":"Hook video","Hook":"Hook","Tap for cut":"Tap for cut","Tap for cut — taper mes coupures":"Tap for cut — tap my cuts","Mode avancé ▾":"Advanced mode ▾","Mode avancé ▴":"Advanced mode ▴","▶ Écouter le hook":"▶ Play the hook","Exporter la vidéo hook":"Export the hook video","Vidéo hook (avec son)":"Hook video (with sound)","Choisir ma vidéo hook":"Pick my hook video","Volume du hook":"Hook volume","Musique sous le hook":"Music under the hook","Passe-bas":"Low-pass","Ouverture du filtre avant le drop":"Filter opening before the drop","Musique jouée pendant le hook":"Music played during the hook","Instrumentale":"Instrumental","Fin du hook":"Hook end","Sous-titres du hook : ON":"Hook subtitles: ON","Sous-titres du hook : OFF":"Hook subtitles: OFF","Retranscrire":"Transcribe again","Clique un mot pour le corriger.":"Click a word to fix it.","Ajouter mon hook à chaque vidéo : OFF":"Add my hook to every video: OFF","Ajouter mon hook à chaque vidéo : ON":"Add my hook to every video: ON","Utiliser ce hook sur une Série de vidéos →":"Use this hook on a video batch →","Retirer le hook de ce morceau":"Remove the hook from this track","Choisis le morceau":"Pick the track","Importe ta vidéo hook":"Import your hook video","Écoute, puis exporte":"Listen, then export","Écouter & exporter":"Listen & export","Changer":"Change","Retirer":"Remove","MP4 / MOV avec son — 2 à 30 s conseillés":"MP4 / MOV with sound — 2 to 30 s recommended","Charger le hook mémorisé":"Load the saved hook","Sous-titres":"Subtitles","Utiliser sur une Série →":"Use on a batch →","Plein écran":"Fullscreen","Étape":"Step","Choisir mon morceau":"Pick my track","touche pour ouvrir tes fichiers":"tap to open your files","Ajoute tes clips.":"Add your clips.","Un ou plusieurs, jusqu'à 24. Ils se placent tout seuls sur le beat.":"One or several, up to 24. They land on the beat by themselves.","Choisir mes clips":"Pick my clips","touche pour ouvrir tes vidéos":"tap to open your videos","Dépose ton son.":"Drop your track.","MP3, WAV ou M4A. Le tempo et les plans se règlent tout seuls.":"MP3, WAV or M4A. Tempo and shots set themselves.","Dépose ton morceau":"Drop your track","MP3 · WAV · M4A — le tempo et les plans se règlent tout seuls":"MP3 · WAV · M4A — tempo and shots set themselves","Ton extrait":"Your extract","▶ Écouter l'extrait":"▶ Play the extract","▲ Réduire":"▲ Collapse","Libre":"Free","4 mes.":"4 bars","8 mes.":"8 bars","16 mes.":"16 bars","Trouver le drop":"Find the drop","Début :":"Start:",
 "Glisse la zone rouge pour déplacer l'extrait · tire ses bords pour l'allonger ou le raccourcir · il joue en boucle pendant que tu ajustes.":"Drag the red zone to move the extract · pull its edges to stretch or shorten it · it loops while you adjust.",
 "Tempo du morceau":"Track tempo","Tape TAP en rythme sur le beat, ou entre la valeur si tu la connais.":"Hit TAP on the beat, or type the value if you know it.",
-"Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.":"The vocals get isolated first, then each word lands at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
+"Paroles":"Lyrics","Style":"Style","Son":"Sound","Plus":"More","Réglages":"Settings","↶ Annuler la dernière action":"↶ Undo last action","Annuler la dernière action":"Undo last action","Versions du morceau":"Track versions","Retour à l'accueil":"Back to home","Mon compte":"My account","Détecter les paroles":"Detect lyrics","La voix est isolée d'abord, puis chaque mot s'écrit au bon moment.":"The vocals get isolated first, then each word lands at the right time.","J'ai mes paroles":"I have my lyrics","Colle ton texte : il sera calé sur ta voix, orthographe intacte.":"Paste your text: it gets synced to your vocals, spelling untouched.","Caler mes paroles":"Sync my lyrics",
 "Ton texte se cale mot par mot sur ta voix. Orthographe intacte.":"Your text syncs word by word to your vocals. Spelling untouched.",
 "1. Isolation de la voix…":"1. Isolating vocals…","2. Détection des paroles…":"2. Detecting lyrics…","Recaler les paroles":"Re-sync lyrics","Repartir de zéro":"Start over","Langue des paroles":"Lyrics language","Auto (détecter)":"Auto (detect)","Fais défiler pour comparer les versions →":"Swipe to compare versions →","Transcription trop longue — vérifie ta connexion et réessaie":"Transcription took too long — check your connection and try again",
 "Double-clique un mot pour le corriger · bouton « + » entre les mots pour en insérer un · double-clique la piste paroles de la timeline pour ajouter un mot à cet instant.":"Double-click a word to fix it · \"+\" button between words to insert one · double-click the lyrics track on the timeline to add a word at that moment.",
@@ -1865,7 +1869,7 @@ const EN={
 "Styles":"Styles","Texte":"Text","Effets":"Effects","Animation":"Animation","Police":"Font","Bricolage — moderne":"Bricolage — modern","Anton — impact condensé":"Anton — condensed impact","Archivo Black — massif":"Archivo Black — massive","Impact — classique":"Impact — classic","Inter — sobre":"Inter — clean","Special Elite — machine à écrire":"Special Elite — typewriter","Marker — feutre":"Marker — felt pen","Caveat — manuscrit":"Caveat — handwritten","VT323 — écran rétro":"VT323 — retro screen","Monoton — néon":"Monoton — neon","Fraktur — gothique":"Fraktur — gothic","Rubik Glitch — glitché":"Rubik Glitch — glitched",
 "Affichage":"Display","Mot seul":"Single word","Phrase":"Sentence","Étalé":"Spread","Taille":"Size","Épaisseur":"Weight","Fin":"Thin","Normal":"Normal","Gras":"Bold","Casse":"Case","MAJ":"UPPER","min":"lower","Couleur du texte":"Text color","Position":"Position","Haut":"Top","Centre":"Center","Bas":"Bottom","Mot en cours coloré (karaoké)":"Current word colored (karaoke)","Contour":"Outline","Lueur (néon)":"Glow (neon)","Ombre portée":"Drop shadow","Espacement des lettres":"Letter spacing","Inclinaison":"Slant","Lignes d'écran rétro (CRT)":"Retro screen lines (CRT)","Fond derrière le texte":"Background behind text",
 "Effets vidéo — au rythme des coupures":"Video effects — on every cut","Flash blanc sur les coupures":"White flash on cuts","Zoom punch":"Punch zoom","Secousse légère":"Light shake","VHS (lignes d'écran)":"VHS (screen lines)","Grain de pellicule":"Film grain","Apparition des mots":"Word entrance","Aucune":"None","Pop":"Pop","Fondu":"Fade","Glissé":"Slide","Zoom":"Zoom","Secousse":"Shake","Le mot reste affiché jusqu'au suivant":"Each word stays until the next one","Enregistrer comme mon style":"Save as my style","Mots mis en avant":"Highlighted words","clique les mots à mettre en avant":"click the words you want to highlight","Tes mots — clique pour mettre en avant":"Your words — click to highlight","Fond derrière le mot":"Background behind word","Avec":"On","Sans":"Off","Douce":"Soft","Forte":"Strong","Néon":"Neon","Comme le texte":"Same as text","Ajoute d'abord tes paroles (onglet Paroles)":"Add your lyrics first (Lyrics tab)","Fréquence":"Frequency","1 mesure":"1 bar","2 mesures":"2 bars","4 mesures":"4 bars","Taille du mot":"Word size","Même police":"Same font",
-"Timeline":"Timeline","Un morceau se règle une fois. Ensuite tu en tires autant de vidéos que tu veux pendant le mois.":"Set a track up once. Then pull as many videos as you want from it all month.","Un morceau se règle une fois (extrait, tempo, paroles). Ensuite tu en tires autant de vidéos que tu veux.":"Set a track up once (excerpt, tempo, lyrics). Then pull as many videos as you want.","Nouveau morceau":"New track","Dépose un MP3, WAV ou M4A. Le tempo se détecte tout seul.":"Drop an MP3, WAV or M4A. The tempo detects itself.","Verrouiller":"Lock","Couper ici":"Cut here","Beat : ON":"Beat: ON","Beat : OFF":"Beat: OFF","Mélanger":"Shuffle","⧉ Copier":"⧉ Copy","Supprimer":"Delete","Coller au curseur":"Paste at cursor","Adapter":"Fit","Clic sur un plan = coupes & verrou · glisser un clip dessus = le changer":"Click a shot = cuts & lock · drag a clip onto it = swap it","Plans":"Shots","Accueil":"Home","Morceaux":"Songs","Série":"Series","Compte":"Account","Ce plan":"This shot","Remplacer le clip":"Swap clip","Autre plan":"Another shot","Découper en 2":"Split in 2","Supprimer":"Delete","Verrouiller ce plan":"Lock this shot","Recadrer":"Reframe","Centrer":"Center","Recadre l'image dans le cadre quand le format du clip ne correspond pas.":"Repositions the image in the frame when the clip format doesn't match.","Voir le plan":"View shot","Recadrer le plan":"Reframe shot","Glisse l'image pour recadrer ce plan":"Drag the image to reframe this shot","Zoom":"Zoom","Terminé":"Done","BeatCut marche mieux sur PC.":"BeatCut works better on desktop.","Si tu le peux, passe sur ordinateur pour profiter d'une expérience optimale : plus fluide, plus précise.":"If you can, switch to a computer for the best experience: smoother and more precise.","Continuer quand même":"Continue anyway",
+"Timeline":"Timeline","Un morceau se règle une fois. Ensuite tu en tires autant de vidéos que tu veux pendant le mois.":"Set a track up once. Then pull as many videos as you want from it all month.","Un morceau se règle une fois (extrait, tempo, paroles). Ensuite tu en tires autant de vidéos que tu veux.":"Set a track up once (excerpt, tempo, lyrics). Then pull as many videos as you want.","Nouveau morceau":"New track","Dépose un MP3, WAV ou M4A. Le tempo se détecte tout seul.":"Drop an MP3, WAV or M4A. The tempo detects itself.","Verrouiller":"Lock","Couper ici":"Cut here","Beat : ON":"Beat: ON","Beat : OFF":"Beat: OFF","Mélanger":"Shuffle","⧉ Copier":"⧉ Copy","Supprimer":"Delete","Coller au curseur":"Paste at cursor","Adapter":"Fit","Clic sur un plan = coupes & verrou · glisser un clip dessus = le changer":"Click a shot = cuts & lock · drag a clip onto it = swap it","Plans":"Shots","Accueil":"Home","Morceaux":"Songs","Série":"Series","Compte":"Account","Ce plan":"This shot","Remplacer le clip":"Swap clip","Touche le plan à mettre ici :":"Tap the shot to put here:","Plan remplacé ✓ (verrouillé)":"Shot swapped ✓ (locked)","Ajoute d'abord des vidéos (onglet Clips)":"Add videos first (Clips tab)","Autre plan":"Another shot","Découper en 2":"Split in 2","Supprimer":"Delete","Verrouiller ce plan":"Lock this shot","Recadrer":"Reframe","Centrer":"Center","Recadre l'image dans le cadre quand le format du clip ne correspond pas.":"Repositions the image in the frame when the clip format doesn't match.","Voir le plan":"View shot","Recadrer le plan":"Reframe shot","Glisse l'image pour recadrer ce plan":"Drag the image to reframe this shot","Zoom":"Zoom","Terminé":"Done","BeatCut marche mieux sur PC.":"BeatCut works better on desktop.","Si tu le peux, passe sur ordinateur pour profiter d'une expérience optimale : plus fluide, plus précise.":"If you can, switch to a computer for the best experience: smoother and more precise.","Continuer quand même":"Continue anyway",
 "Choisis un morceau, tes styles de sous-titres préférés et un nombre de vidéos : BeatCut prépare plusieurs versions réelles. Tu gardes les meilleures, tu exportes, c'est posté.":"Pick a track, your favorite subtitle styles and a number of videos: BeatCut builds several real versions. Keep the best, export, post.",
 "Préparer":"Set up","Choisir les meilleures":"Pick the best","Nombre de vidéos":"Number of videos","Styles de sous-titres — choisis-en un ou plusieurs (tes styles ★ inclus)":"Subtitle styles — pick one or more (your ★ styles included)","Préparer les vidéos →":"Prepare videos →",
 "Chaque vidéo garde tes paroles calées : seuls les plans et le style changent. Seules celles que tu gardes comptent dans tes exports.":"Every video keeps your synced lyrics: only the shots and style change. Only the ones you keep count toward your exports.",
@@ -6431,35 +6435,41 @@ function psLockToggle(){
 }
 function psReplace(){
   if(!sheetPlan) return;
-  if(!clips.length){ toast('Ajoute d\u2019abord des vidéos (onglet Clips)'); return; }
+  if(!clips.length){ toast(T('Ajoute d\u2019abord des vidéos (onglet Clips)')); return; }
   const z=$('#psClips'); z.style.display='block';
-  z.innerHTML='<p class="hint" style="margin-bottom:8px">Touche le clip à mettre sur ce plan :</p>';
-  const row=document.createElement('div');
-  row.style.cssText='display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch';
+  z.innerHTML='<p class="hint" style="margin-bottom:8px">'+T('Touche le plan à mettre ici :')+'</p>';
+  const pick=(ci,seek)=>{
+    pushHistory();
+    sheetPlan.clip=ci; sheetPlan.seek=seek; sheetPlan.locked=true;
+    drawTimeline(); dirty(); closePlanSheet(); toast(T('Plan remplacé ✓ (verrouillé)'));
+  };
   clips.forEach((c,ci)=>{
-    const b=document.createElement('button');
-    const cur=sheetPlan&&sheetPlan.clip===ci;
-    b.style.cssText='flex:0 0 auto;width:76px;height:76px;border-radius:12px;border:2px solid '+(cur?'var(--accent)':'var(--line)')+';background:#232B36 center/cover no-repeat;padding:0;position:relative;overflow:hidden';
-    const th=(c.thumbs||[]).find(Boolean);   // 1re vignette NON vide (thumbs peut être creux)
-    if(th) b.style.backgroundImage='url('+th+')';
-    else{
-      // pas encore de vignette → le clip reste visible : son nom sur fond clair
-      const s=document.createElement('span');
-      s.textContent=(c.name||'clip').replace(/\.[a-z0-9]+$/i,'').slice(0,10);
-      s.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);padding:4px;text-align:center;word-break:break-all';
-      b.append(s);
+    if(clips.length>1){
+      const lab=document.createElement('div');
+      lab.textContent=(c.name||'Clip '+(ci+1)).replace(/\.[a-z0-9]+$/i,'');
+      lab.style.cssText='font-size:11px;color:var(--muted);margin:6px 0 4px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      z.append(lab);
     }
-    b.setAttribute('data-testid','plan-replace-clip-'+ci);
-    b.onclick=()=>{
-      pushHistory();
-      sheetPlan.clip=ci;
-      sheetPlan.seek=(c.seeks&&c.seeks.length)?c.seeks[Math.floor(Math.random()*c.seeks.length)]:0;
-      sheetPlan.locked=true;
-      drawTimeline(); dirty(); closePlanSheet(); toast('Plan remplacé ✓ (verrouillé )');
-    };
-    row.append(b);
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch';
+    const seeks=(c.seeks&&c.seeks.length)?c.seeks:[0];
+    seeks.forEach((sk,si)=>{
+      const b=document.createElement('button');
+      const cur=sheetPlan.clip===ci&&Math.abs((sheetPlan.seek||0)-sk)<0.01;
+      b.style.cssText='flex:0 0 auto;width:76px;height:76px;border-radius:12px;border:2px solid '+(cur?'var(--accent)':'var(--line)')+';background:#232B36 center/cover no-repeat;padding:0;position:relative;overflow:hidden';
+      const th=(c.thumbs||[])[si]||(c.thumbs||[]).find(Boolean);
+      if(th) b.style.backgroundImage='url('+th+')';
+      const t=document.createElement('span');
+      t.textContent=sk.toFixed(1)+'s';
+      t.style.cssText='position:absolute;left:4px;bottom:4px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.6);border-radius:6px;padding:1px 5px;line-height:1.4';
+      b.append(t);
+      b.setAttribute('data-testid','plan-replace-clip-'+ci+'-'+si);
+      b.onclick=()=>pick(ci,sk);
+      row.append(b);
+    });
+    z.append(row);
   });
-  z.append(row);
+  requestAnimationFrame(()=>{ const cur=z.querySelector('button[style*="var(--accent)"]'); if(cur){ const r=cur.parentElement; r.scrollLeft=Math.max(0,cur.offsetLeft-(r.clientWidth-76)/2); } });
 }
 /* ---------- Ratio cyclique (mobile) + onglets bas ---------- */
 function cycleFmt(){
