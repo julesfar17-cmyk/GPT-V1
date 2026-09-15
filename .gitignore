@@ -84,3 +84,5 @@ frontend/node_modules/.cache/default-development/0.pack
 credentials.json
 *.key
 .credentials
+.pw-browsers/
+.pw-browsers/firefox-1532/firefox/libxul.so

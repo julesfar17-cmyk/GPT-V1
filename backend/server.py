@@ -914,7 +914,7 @@ _PREVIEW_EVENT_KEYS = ("type", "t", "plan", "clip", "codec", "wcReady", "wcARead
                        "optimizing", "notReady", "ptrOk", "decState", "pending", "si", "n",
                        "target", "buf0", "bufN", "curTs", "err", "soft", "ooo", "mism",
                        "stuckN", "pool", "proxy", "fps", "ex", "plans", "state", "fails",
-                       "total", "local", "server", "sat", "optimizing", "local", "hw")
+                       "total", "local", "server", "sat", "hw", "durS", "lastTs", "seek", "pStart", "pEnd", "tNow", "meta", "real")
 
 
 @api_router.post("/telemetry/preview")
@@ -1018,6 +1018,27 @@ async def admin_preview_report(days: int = 7, user: dict = Depends(get_current_u
         "by_project_size": by_size,
         "samples": samples,
     }
+
+
+@api_router.get("/admin/telemetry/preview/raw")
+async def admin_preview_raw(browser: str = "", hours: int = 48, limit: int = 30, types: str = "",
+                            user: dict = Depends(get_current_user)):
+    await require_admin(user)
+    cutoff = iso(now_utc() - timedelta(hours=min(max(hours, 1), 24 * 30)))
+    q: dict = {"created_at": {"$gt": cutoff}}
+    if browser:
+        q["ctx.ua"] = {"$regex": browser, "$options": "i"}
+    batches = await db.preview_logs.find(q, {"_id": 0}).sort("created_at", -1).limit(min(max(limit, 1), 200)).to_list(200)
+    wanted = {t for t in types.split(",") if t}
+    out = []
+    for b in batches:
+        ev = b.get("events") or []
+        if wanted:
+            ev = [e for e in ev if e.get("type") in wanted]
+        out.append({"created_at": b.get("created_at"), "session_id": (b.get("session_id") or "")[:8],
+                    "user_id": b.get("user_id"), "ctx": b.get("ctx"), "events": ev})
+    return {"count": len(out), "batches": out}
+
 
 
 @api_router.post("/telemetry/export")

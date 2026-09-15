@@ -71,7 +71,7 @@ async def main():
         print("SAMPLES(first 12):", json.dumps(samples[:12]))
         print("SAMPLES(last 6):", json.dumps(samples[-6:]))
         print(f"FREEZES(>=750ms same frame): {freezes}, longest same-frame run: {maxrun*250}ms, playing at end: {samples[-1]['playing']}")
-        anom = await page.evaluate("() => ({anom: !!window._telTsAnomaly, ooo: wcA&&wcA.ooo, mism: wcA&&wcA.tsMism, stuck: wcA&&wcA.stuckN, stallN:_telStallN, fault: window.__fault})"); print("ANOM", anom)
+        anom = await page.evaluate("() => ({durFix: !!window._telDurFix, durs: clips.map(c=>[c.wc&&c.wc.durationS, c.wcProxy&&c.wcProxy.durationS]), anom: !!window._telTsAnomaly, ooo: wcA&&wcA.ooo, mism: wcA&&wcA.tsMism, stuck: wcA&&wcA.stuckN, stallN:_telStallN, fault: window.__fault})"); print("ANOM", anom)
         tel = await page.evaluate("() => TEL.q.filter(e=>!/thumbs|proxy_ok/.test(e.type)).slice(-20)")
         print("TEL:", json.dumps(tel, ensure_ascii=False)[:2000])
         await page.screenshot(path=f"/tmp/ff_{BROWSER}.png")

@@ -1612,7 +1612,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.29-ff-diag';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.30-stall-diag';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -4328,11 +4328,18 @@ async function parseWC(blob){
 function wcIndexSamples(wc){
   if(wc.keyframes) return;
   wc.keyframes=[]; wc.lastTimestampUs=0; wc.tsSet=new Set();
+  let lastDur=0;
   wc.samples.forEach((s,i)=>{
     if(s.key) wc.keyframes.push({ts:s.ts,idx:i});
-    wc.lastTimestampUs=Math.max(wc.lastTimestampUs,s.ts);
+    if(s.ts>=wc.lastTimestampUs){ wc.lastTimestampUs=s.ts; lastDur=s.dur||0; }
     wc.tsSet.add(s.ts);
   });
+  // durée réelle d'après les échantillons : une durée de piste erronée (fMP4, edit list) ferait boucler le plan à vide → gel
+  const realS=(wc.lastTimestampUs+lastDur)/1e6;
+  if(realS>0&&(!wc.durationS||Math.abs(wc.durationS-realS)>0.5)){
+    if(wc.durationS&&!window._telDurFix){ window._telDurFix=true; TEL.push('duration_fixed',{meta:Math.round(wc.durationS*100)/100, real:Math.round(realS*100)/100, codec:wc.config&&wc.config.codec}); }
+    wc.durationS=realS;
+  }
   wc.keyframes.sort((a,b)=>a.ts-b.ts||a.idx-b.idx);
 }
 function wcKeyframeAt(wc,targetUs){
@@ -4967,6 +4974,8 @@ function drawPreview(t, cvOverride){
             curTs:(wcA&&wcA.cur)?Math.round(wcA.cur.timestamp/1000):null, err:wcA&&wcA.err?String(wcA.err).slice(0,80):null,
             soft:!!(wcA&&wcA.soft), ooo:wcA?(wcA.ooo||0):null, mism:wcA?(wcA.tsMism||0):null, stuckN:wcA?(wcA.stuckN||0):null,
             pool:wcPool.length, proxy:!!cl.wcProxy, fps:_fpsLast,
+            durS:(wcA&&wcA.clip)?Math.round((wcA.clip.durationS||0)*100)/100:null, lastTs:(wcA&&wcA.clip)?Math.round(wcA.clip.lastTimestampUs/1000):null,
+            seek:Math.round((plan.seek||0)*100)/100, pStart:Math.round(plan.start*100)/100, pEnd:Math.round(plan.end*100)/100, tNow:Math.round(t*100)/100,
             stallMs:Math.round(nowp-_telSameSince)});
         }
       } else { _telLastTs=ts; _telSameSince=nowp; _telStallSent=false; }
