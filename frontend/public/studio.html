@@ -1612,7 +1612,7 @@ function renderTrialBanner(){
 }
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const BC_BUILD='v13.30-stall-diag';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
+const BC_BUILD='v13.31-ff-bitmap';   // affiché au toast d'export : permet de vérifier la version réellement exécutée
 console.log('[BeatCut studio]', BC_BUILD);
 const toast=m=>{const t=$('#toast');t.textContent=(typeof T==='function'?T(m):m);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);};
 /* Verrou de chargement : overlay plein écran avec barre de progression */
@@ -4374,13 +4374,32 @@ class SegPlayer{
   }
   recover(){ this.err=null; this.soft=true; this.generation++; this.pending=0; this.flushing=false; this.drained=false; this.clearFrames(); this._newDecoder(); }
   _onFrame(f){
-    this.pending=Math.max(0,this.pending-1); this.lastOutAt=performance.now();
+    this.lastOutAt=performance.now();
     const dur=f.duration||(this.clip.samples[0]&&this.clip.samples[0].dur)||40000;
+    // Firefox/Windows : le décodeur matériel bloque quand trop d'images décodées restent ouvertes.
+    // On copie chaque image en ImageBitmap et on rend l'image au décodeur tout de suite (zéro image retenue côté décodeur).
+    if(WC_BITMAP_MODE){
+      if(f.timestamp+dur<=this.targetUs){ f.close(); this.pending=Math.max(0,this.pending-1); return; }
+      const ts=f.timestamp, gen=this.generation;
+      createImageBitmap(f).then(b=>{
+        try{f.close();}catch(e){}
+        this.pending=Math.max(0,this.pending-1);
+        if(gen!==this.generation){ b.close(); return; }
+        b.timestamp=ts; b.duration=dur; b.displayWidth=b.codedWidth=b.width; b.displayHeight=b.codedHeight=b.height;
+        this._pushFrame(b);
+      }).catch(e=>{ try{f.close();}catch(_){} this.pending=Math.max(0,this.pending-1); });
+      return;
+    }
+    this.pending=Math.max(0,this.pending-1);
+    this._pushFrame(f,dur);
+  }
+  _pushFrame(f,dur){
+    dur=dur||f.duration||40000;
     // Diagnostic navigateur : sortie hors ordre de présentation, ou timestamp inconnu des échantillons envoyés
     if(this.clip.tsSet&&!this.clip.tsSet.has(f.timestamp)){ this.tsMism=(this.tsMism||0)+1; if(this.tsMism===1) this.tsMismEx={out:f.timestamp,target:this.targetUs}; }
     if(this.lastOutTs!=null&&f.timestamp<this.lastOutTs) this.ooo=(this.ooo||0)+1;
     this.lastOutTs=f.timestamp;
-    if((this.tsMism===1||this.ooo===1)&&!window._telTsAnomaly){ window._telTsAnomaly=true;
+    if(!WC_BITMAP_MODE&&(this.tsMism===1||this.ooo===1)&&!window._telTsAnomaly){ window._telTsAnomaly=true;
       TEL.push('decoder_ts_anomaly',{mism:this.tsMism||0, ooo:this.ooo||0, ex:this.tsMismEx||null, codec:this.clip.config&&this.clip.config.codec, soft:!!this.soft}); }
     if(f.timestamp+dur<=this.targetUs){ f.close(); return; }   // conserve l'image qui couvre la cible (24 fps/VFR inclus)
     // insertion triée : si le navigateur sort les images en ordre de décodage (B-frames), frameAt reste exact
@@ -4402,7 +4421,7 @@ class SegPlayer{
   fill(){
     if(!this.dec||this.dec.state!=='configured') return;
     const S=this.clip.samples;
-    const cap=this.idle?5:14;
+    const cap=WC_BITMAP_MODE?(this.idle?3:8):(this.idle?5:14);
     // decodeQueueSize peut déjà être à zéro alors que les frames ne sont pas encore sorties.
     // Une marge de réordonnancement permet les B-frames sans bloquer un petit tampon idle.
     // Certains décodeurs (WMF/Firefox Windows) gardent jusqu'à 16+ images en interne avant la 1re sortie :
@@ -4440,7 +4459,7 @@ class SegPlayer{
     if(!this.cur && this.frames.length && this.frames[0].timestamp>wantUs) this.cur=this.frames.shift();
     // Anti-gel : tampon plein d'images toutes « en avance » sur la cible alors que l'image affichée ne bouge plus
     // depuis > 300 ms (timestamps décalés par le navigateur) → on avance d'une image pour garder du mouvement.
-    if(playing&&!exporting&&!offlineRender&&this.cur===before&&this.cur&&this.frames.length>=(this.idle?5:14)&&this.frames[0].timestamp>wantUs){
+    if(playing&&!exporting&&!offlineRender&&this.cur===before&&this.cur&&this.frames.length>=(WC_BITMAP_MODE?(this.idle?3:8):(this.idle?5:14))&&this.frames[0].timestamp>wantUs){
       const now=performance.now();
       if(!this.stuckSince) this.stuckSince=now;
       else if(now-this.stuckSince>300){ this.stuckSince=now; this.stuckN=(this.stuckN||0)+1; try{this.cur.close();}catch(e){} this.cur=this.frames.shift(); }
@@ -4451,6 +4470,7 @@ class SegPlayer{
   destroy(){ this.generation++; this.clearFrames(); if(this.dec){try{this.dec.close();}catch(e){}} this.dec=null; this.pending=0; }
 }
 /* --- lecteur actif + POOL de décodeurs pré-calés sur les plans à venir (coupes rapides sans famine) --- */
+const WC_BITMAP_MODE=/Firefox\//.test(navigator.userAgent)&&typeof createImageBitmap==='function';
 let wcA=null, wcPtr=-1, wcPool=[], wcEpoch=0, playPreparing=false;   // wcPool : [{pl, idx:indexPlan}]
 const WC_POOL=(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))?4:8, WC_AHEAD_S=2;   // mobile : moins d'instances de décodeur matériel
 const wcPrev=cl=>cl? (cl.wcProxy||cl.wc||null) : null;   // la preview préfère le proxy léger ; l'export garde cl.wc (pleine résolution)

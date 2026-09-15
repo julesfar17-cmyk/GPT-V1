@@ -16,8 +16,8 @@ PROBE = """() => {
   const cv=document.getElementById('preview'); const c=cv.getContext('2d');
   const d=c.getImageData(0,0,cv.width,cv.height).data; let h=0;
   for(let i=0;i<d.length;i+=4096) h=(h*31+d[i]+d[i+1]*3+d[i+2]*7)>>>0;
-  const A=wcA;
-  return {t:+(curTime().toFixed(2)), hash:h, ptr:wcPtr, playing, prep:playPreparing,
+  const A=wcA; const bm=(A&&A.cur)?(A.cur instanceof ImageBitmap):null;
+  return {bm, t:+(curTime().toFixed(2)), hash:h, ptr:wcPtr, playing, prep:playPreparing,
     aTs:(A&&A.cur)?Math.round(A.cur.timestamp/1000):null, aBuf:A?A.buffered():null, aPend:A?A.pending:null, aSi:A?A.si:null,
     aN:(A&&A.clip)?A.clip.samples.length:null, durS:(A&&A.clip)?+A.clip.durationS.toFixed(2):null, extra:A?A.latencyExtra:null,
     q:(A&&A.dec)?A.dec.decodeQueueSize:null, st:(A&&A.dec)?A.dec.state:null, err:A?String(A.err||''):null, soft:!!(A&&A.soft),
@@ -86,6 +86,14 @@ async def main():
         print("TEL:", json.dumps(tel)[:3000])
         print("LOGS:", "\n".join(l for l in logs if 'error' in l.lower() or 'pageerror' in l)[:1500])
         await f.evaluate("() => stopAll()")
+        print("BITMAP_MODE", await f.evaluate("() => ({mode: WC_BITMAP_MODE, curIsBitmap: samplesBm=null})") if False else await f.evaluate("() => WC_BITMAP_MODE"), "cur bitmap seen:", any(x.get("bm") for x in samples))
+        if MODE == "long":
+            exp = await f.evaluate("""async () => { ext={start:0,dur:1.2}; M.format='169'; M.plans=Array.from({length:6},(_,i)=>({start:i*.2,end:(i+1)*.2,clip:i%2,seek:[3,9.4,5.2][i%3]}));
+              const sink=[]; const mode=await offlineSupported(); const ok=await exportOffline('-qa-ff',mode,sink);
+              const out={ok,mode,bytes:sink[0]&&sink[0].blob.size};
+              if(ok){ try{ const wc=await parseWC(sink[0].blob); out.frames=wc.samples.length; out.duration=wc.durationS; }catch(e){ out.parseErr=String(e); } }
+              return out; }""")
+            print("EXPORT", exp)
         await browser.close()
 
 asyncio.run(main())
