@@ -86,3 +86,6 @@ credentials.json
 .credentials
 .pw-browsers/
 .pw-browsers/firefox-1532/firefox/libxul.so
+.env
+.env.*
+*.env
