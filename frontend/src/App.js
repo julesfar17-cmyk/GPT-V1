@@ -18,6 +18,7 @@ import Confidentialite from "@/pages/legal/Confidentialite";
 import MentionsLegales from "@/pages/legal/MentionsLegales";
 import Contact from "@/pages/legal/Contact";
 import Aide from "@/pages/Aide";
+import CookieBanner from "@/components/CookieBanner";
 
 function AppRouter() {
   const location = useLocation(); // hash lu ici (réactif) et non via window.location.hash
@@ -87,6 +88,7 @@ function App() {
       <I18nProvider>
         <AuthProvider>
           <AppRouter />
+          <CookieBanner />
           <Toaster position="top-center" theme="dark"
             toastOptions={{ style: { background: "#000", border: "1px solid #2a2a2a", color: "#fff", borderRadius: 0, fontFamily: "'Space Grotesk',sans-serif" } }} />
         </AuthProvider>
