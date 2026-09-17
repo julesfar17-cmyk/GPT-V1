@@ -19,6 +19,7 @@ import MentionsLegales from "@/pages/legal/MentionsLegales";
 import Contact from "@/pages/legal/Contact";
 import Aide from "@/pages/Aide";
 import CookieBanner from "@/components/CookieBanner";
+import AddToHomeScreen from "@/components/AddToHomeScreen";
 
 function AppRouter() {
   const location = useLocation(); // hash lu ici (réactif) et non via window.location.hash
@@ -89,6 +90,7 @@ function App() {
         <AuthProvider>
           <AppRouter />
           <CookieBanner />
+          <AddToHomeScreen />
           <Toaster position="top-center" theme="dark"
             toastOptions={{ style: { background: "#000", border: "1px solid #2a2a2a", color: "#fff", borderRadius: 0, fontFamily: "'Space Grotesk',sans-serif" } }} />
         </AuthProvider>
